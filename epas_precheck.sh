@@ -480,7 +480,13 @@ routine_hits AS (
   SELECT n.nspname || E'.' || p.proname AS object_name,
          'ROUTINE' AS source,
          kw.keyword,
-         CASE WHEN ep.objid IS NULL THEN 'USER_CREATED' ELSE 'EDB_BUILTIN' END AS owner_class
+         CASE
+           WHEN ep.objid IS NOT NULL THEN 'EDB_BUILTIN'
+           WHEN n.nspname IN ('sys','edb') THEN 'EDB_BUILTIN'
+           WHEN p.proname ILIKE 'dbms\_%' ESCAPE '\\' THEN 'EDB_BUILTIN'
+           WHEN p.proname IN ('pg_stat_statements','pg_stat_statements_info','pg_stat_statements_reset') THEN 'EDB_BUILTIN'
+           ELSE 'USER_CREATED'
+         END AS owner_class
   FROM pg_proc p
   JOIN pg_namespace n ON n.oid = p.pronamespace
   LEFT JOIN ext_owned_proc ep ON ep.objid = p.oid
@@ -496,7 +502,11 @@ default_hits AS (
   SELECT n.nspname || E'.' || c.relname || E'.' || a.attname AS object_name,
          'COLUMN_DEFAULT' AS source,
          'SYSDATE' AS keyword,
-         CASE WHEN er.objid IS NULL THEN 'USER_CREATED' ELSE 'EDB_BUILTIN' END AS owner_class
+         CASE
+           WHEN er.objid IS NOT NULL THEN 'EDB_BUILTIN'
+           WHEN n.nspname IN ('sys','edb') THEN 'EDB_BUILTIN'
+           ELSE 'USER_CREATED'
+         END AS owner_class
   FROM pg_attrdef d
   JOIN pg_class c ON c.oid = d.adrelid
   JOIN pg_namespace n ON n.oid = c.relnamespace
@@ -511,7 +521,11 @@ type_hits AS (
   SELECT table_schema || E'.' || table_name || E'.' || column_name AS object_name,
          'COLUMN_TYPE' AS source,
          upper(udt_name) AS keyword,
-         CASE WHEN er.objid IS NULL THEN 'USER_CREATED' ELSE 'EDB_BUILTIN' END AS owner_class
+         CASE
+           WHEN er.objid IS NOT NULL THEN 'EDB_BUILTIN'
+           WHEN table_schema IN ('sys','edb') THEN 'EDB_BUILTIN'
+           ELSE 'USER_CREATED'
+         END AS owner_class
   FROM information_schema.columns
   JOIN pg_namespace n ON n.nspname = table_schema
   JOIN pg_class c ON c.relnamespace = n.oid AND c.relname = table_name
@@ -542,7 +556,7 @@ WITH sysdate_defaults AS (
            WHERE d.classid = 'pg_class'::regclass
              AND d.objid = c.oid
              AND d.deptype = 'e'
-         ) THEN 'EDB_BUILTIN' ELSE 'USER_CREATED' END AS owner_class
+         ) OR n.nspname IN ('sys','edb') THEN 'EDB_BUILTIN' ELSE 'USER_CREATED' END AS owner_class
   FROM pg_attrdef d
   JOIN pg_class c ON c.oid = d.adrelid
   JOIN pg_namespace n ON n.oid = c.relnamespace
@@ -562,7 +576,8 @@ edbspl_routines AS (
            WHERE d.classid = 'pg_proc'::regclass
              AND d.objid = p.oid
              AND d.deptype = 'e'
-         ) THEN 'EDB_BUILTIN' ELSE 'USER_CREATED' END AS owner_class
+         ) OR n.nspname IN ('sys','edb') OR p.proname ILIKE 'dbms\_%' ESCAPE '\\'
+           THEN 'EDB_BUILTIN' ELSE 'USER_CREATED' END AS owner_class
   FROM pg_proc p
   JOIN pg_namespace n ON n.oid = p.pronamespace
   JOIN pg_language l ON l.oid = p.prolang
@@ -601,7 +616,8 @@ policy_context AS (
            WHERE d.classid = 'pg_proc'::regclass
              AND d.objid = p.oid
              AND d.deptype = 'e'
-         ) THEN 'EDB_BUILTIN' ELSE 'USER_CREATED' END AS owner_class
+         ) OR n.nspname IN ('sys','edb') OR p.proname ILIKE 'dbms\_%' ESCAPE '\\'
+           THEN 'EDB_BUILTIN' ELSE 'USER_CREATED' END AS owner_class
   FROM pg_proc p
   JOIN pg_namespace n ON n.oid = p.pronamespace
   WHERE n.nspname NOT IN ('pg_catalog','information_schema')
