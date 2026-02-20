@@ -3,7 +3,8 @@
 `epas_precheck.sh`는 **EPAS(EDB Postgres Advanced Server) → PostgreSQL 마이그레이션 사전진단**을 위한 Bash 스크립트입니다.
 
 데이터베이스에 접속해서 확장/객체/루틴/권한/타입 핫스팟/시퀀스 등의 기본 인벤토리를 수집하고,
-요약 리포트(`summary.md`)와 머신 파싱용 카운트(`count_summary.tsv`)를 생성합니다.
+요약 리포트(`summary.md`), 머신 파싱용 카운트(`count_summary.tsv`),
+그리고 가독성 중심의 마이그레이션 가이드(`migration_guide_report.md`)를 생성합니다.
 
 ---
 
@@ -90,6 +91,7 @@ export PGPASSWORD='your-password'
 - `oracle_keyword_hits.tsv`: Oracle 키워드 히트 (`--oracle-checks` 사용 시)
 - `count_summary.tsv`: `metric<TAB>count` 집계
 - `summary.md`: 사람 읽기용 요약
+- `migration_guide_report.md`: 호환성/대체기능/수동수정 필요 여부를 정리한 가이드 리포트
 
 ---
 

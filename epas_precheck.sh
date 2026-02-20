@@ -75,6 +75,136 @@ run_sql() {
   "${PSQL[@]}" -Atqc "$sql" > "$out_file"
 }
 
+render_action() {
+  local cnt="$1"
+  local compat_label="$2"
+  local auto_alt="$3"
+  local manual_note="$4"
+
+  if [[ "$cnt" -eq 0 ]]; then
+    echo "| ${compat_label} | 필요 없음 | 필요 없음 |"
+  else
+    echo "| 비호환 가능성 높음 | ${auto_alt} | ${manual_note} |"
+  fi
+}
+
+write_reports() {
+  local f_summary="$OUTPUT_DIR/summary.md"
+  local f_count="$OUTPUT_DIR/count_summary.tsv"
+  local f_guide="$OUTPUT_DIR/migration_guide_report.md"
+
+  local c_instance c_extensions c_objects c_routines c_grants c_types c_sequences c_edb_ext c_edb_rtn c_oracle
+  c_instance=$(line_count "$OUTPUT_DIR/instance_settings.tsv")
+  c_extensions=$(line_count "$OUTPUT_DIR/extensions.tsv")
+  c_objects=$(line_count "$OUTPUT_DIR/objects.tsv")
+  c_routines=$(line_count "$OUTPUT_DIR/routines.tsv")
+  c_grants=$(line_count "$OUTPUT_DIR/table_grants.tsv")
+  c_types=$(line_count "$OUTPUT_DIR/type_hotspots.tsv")
+  c_sequences=$(line_count "$OUTPUT_DIR/sequences.tsv")
+  c_edb_ext=$(nonempty_line_count "$OUTPUT_DIR/edb_extension_hits.txt")
+  c_edb_rtn=$(nonempty_line_count "$OUTPUT_DIR/edb_function_name_hits.txt")
+  c_oracle=0
+  if [[ "$ORACLE_CHECKS" -eq 1 ]]; then
+    c_oracle=$(nonempty_line_count "$OUTPUT_DIR/oracle_keyword_hits.tsv")
+  fi
+
+  echo "[INFO] Writing count summary..."
+  {
+    echo "metric\tcount"
+    echo -e "instance_settings\t${c_instance}"
+    echo -e "extensions\t${c_extensions}"
+    echo -e "objects\t${c_objects}"
+    echo -e "object_kinds\t$(line_count "$OUTPUT_DIR/object_kind_counts.tsv")"
+    echo -e "routines\t${c_routines}"
+    echo -e "routine_kinds\t$(line_count "$OUTPUT_DIR/routine_kind_counts.tsv")"
+    echo -e "table_grants\t${c_grants}"
+    echo -e "type_hotspots\t${c_types}"
+    echo -e "sequences\t${c_sequences}"
+    echo -e "edb_extensions\t${c_edb_ext}"
+    echo -e "edb_named_routines\t${c_edb_rtn}"
+    if [[ "$ORACLE_CHECKS" -eq 1 ]]; then
+      echo -e "oracle_keyword_hits\t${c_oracle}"
+    fi
+  } > "$f_count"
+
+  echo "[INFO] Writing quick summary..."
+  {
+    echo "# EPAS precheck summary"
+    echo "- target: ${HOST}:${PORT}/${DBNAME}"
+    [[ -n "$SCHEMA" ]] && echo "- schema filter: $SCHEMA" || echo "- schema filter: (none)"
+    echo "- generated_at: $(date -Iseconds)"
+    echo
+    echo "## counts"
+    echo "instance_settings=${c_instance}"
+    echo "extensions=${c_extensions}"
+    echo "objects=${c_objects}"
+    echo "routines=${c_routines}"
+    echo "table_grants=${c_grants}"
+    echo "type_hotspots=${c_types}"
+    echo "sequences=${c_sequences}"
+    echo "edb_extensions=${c_edb_ext}"
+    echo "edb_named_routines=${c_edb_rtn}"
+    if [[ "$ORACLE_CHECKS" -eq 1 ]]; then
+      echo "oracle_keyword_hits=${c_oracle}"
+    fi
+    echo
+    echo "See also: count_summary.tsv, object_kind_counts.tsv, routine_kind_counts.tsv, migration_guide_report.md"
+  } > "$f_summary"
+
+  echo "[INFO] Writing migration guide report..."
+  {
+    echo "# EPAS → PostgreSQL Migration Guide Report"
+    echo
+    echo "- Target: ${HOST}:${PORT}/${DBNAME}"
+    [[ -n "$SCHEMA" ]] && echo "- Schema filter: $SCHEMA" || echo "- Schema filter: (none)"
+    echo "- Generated at: $(date -Iseconds)"
+    echo
+    echo "## 1) Executive summary"
+    echo
+    echo "| 항목 | 발견 건수 | 평가 |"
+    echo "|---|---:|---|"
+    echo "| EDB 전용 확장 | ${c_edb_ext} | $([[ "$c_edb_ext" -eq 0 ]] && echo '양호' || echo '호환성 검토 필요') |"
+    echo "| EDB 이름 패턴 루틴 | ${c_edb_rtn} | $([[ "$c_edb_rtn" -eq 0 ]] && echo '양호' || echo '재작성 가능성 있음') |"
+    if [[ "$ORACLE_CHECKS" -eq 1 ]]; then
+      echo "| Oracle 호환 키워드 히트 | ${c_oracle} | $([[ "$c_oracle" -eq 0 ]] && echo '양호' || echo '재작성 검토 필요') |"
+    else
+      echo "| Oracle 호환 키워드 히트 | N/A | 검사 미실행 (`--oracle-checks` 사용 권장) |"
+    fi
+    echo "| 타입 핫스팟 | ${c_types} | $([[ "$c_types" -eq 0 ]] && echo '양호' || echo '타입 매핑 검토 필요') |"
+    echo "| 시퀀스 | ${c_sequences} | $([[ "$c_sequences" -eq 0 ]] && echo '없음' || echo '시퀀스 정합성 점검 필요') |"
+    echo
+    echo "## 2) 호환성/대체기능/수동수정 가이드"
+    echo
+    echo "| 점검 영역 | PostgreSQL 호환성 | 대체 기능 가능 여부 | 수동 수정 필요성 | 참고 파일 |"
+    echo "|---|---|---|---|---|"
+    echo "| EDB 전용 확장(edb%) | $(render_action "$c_edb_ext" "대체로 호환" "유사 확장/표준 SQL로 대체 검토" "확장별 기능 분석 후 스키마/코드 수동 수정 가능성 큼") | \\`edb_extension_hits.txt\\` |"
+    echo "| EDB 전용 함수/프로시저 네이밍 | $(render_action "$c_edb_rtn" "대체로 호환" "PL/pgSQL 표준 함수로 치환 가능" "함수 본문 로직 수동 리팩토링 필요 가능") | \\`edb_function_name_hits.txt\\`, \\`routines.tsv\\` |"
+    if [[ "$ORACLE_CHECKS" -eq 1 ]]; then
+      echo "| Oracle 호환 키워드 사용 | $(render_action "$c_oracle" "대체로 호환" "CASE/COALESCE/표준 SQL로 치환 가능" "복합 비즈니스 로직은 수동 재작성 가능성 높음") | \\`oracle_keyword_hits.tsv\\` |"
+    else
+      echo "| Oracle 호환 키워드 사용 | 미평가 | \\`--oracle-checks\\` 실행 후 판단 | 실행 후 판단 | \\`oracle_keyword_hits.tsv\\`(옵션) |"
+    fi
+    echo "| 타입 핫스팟(timestamp/numeric/json/xml) | 조건부 호환 | 타입별 매핑 정책 수립으로 대체 가능 | 애플리케이션 바인딩/정밀도 이슈는 수동 수정 가능 | \\`type_hotspots.tsv\\` |"
+    echo "| 시퀀스/자동증가 | 조건부 호환 | identity/sequence setval 전략으로 대체 가능 | cutover 시 시퀀스 동기화 수동 점검 권장 | \\`sequences.tsv\\` |"
+    echo
+    echo "## 3) 우선순위 액션 플랜"
+    echo
+    echo "1. **EDB 전용 확장/루틴 우선 정리**: `edb_extension_hits.txt`, `edb_function_name_hits.txt`를 기준으로 제거/치환 전략 수립"
+    echo "2. **Oracle 패턴 스캔 재실행**: 아직 미실행이면 `--oracle-checks` 옵션으로 재수집"
+    echo "3. **타입/시퀀스 정책 문서화**: `type_hotspots.tsv`, `sequences.tsv` 기반으로 표준 매핑표 작성"
+    echo "4. **UAT 대상 선정**: 히트가 있는 객체를 우선 테스트 케이스로 지정"
+    echo
+    echo "## 4) 원본 산출물"
+    echo
+    echo "- `summary.md`: 요약"
+    echo "- `count_summary.tsv`: 머신 파싱용 카운트"
+    echo "- `objects.tsv`, `object_kind_counts.tsv`: 객체 인벤토리"
+    echo "- `routines.tsv`, `routine_kind_counts.tsv`: 루틴 인벤토리"
+    echo "- `type_hotspots.tsv`, `sequences.tsv`: 마이그레이션 민감 항목"
+    echo "- `edb_extension_hits.txt`, `edb_function_name_hits.txt`, `oracle_keyword_hits.tsv(옵션)`: 호환성 리스크 근거"
+  } > "$f_guide"
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -h|--host) HOST="$2"; shift 2 ;;
@@ -257,47 +387,6 @@ if [[ "$ORACLE_CHECKS" -eq 1 ]]; then
   ORDER BY 1, 2;"
 fi
 
-echo "[INFO] Writing count summary..."
-{
-  echo "metric\tcount"
-  echo -e "instance_settings\t$(line_count "$OUTPUT_DIR/instance_settings.tsv")"
-  echo -e "extensions\t$(line_count "$OUTPUT_DIR/extensions.tsv")"
-  echo -e "objects\t$(line_count "$OUTPUT_DIR/objects.tsv")"
-  echo -e "object_kinds\t$(line_count "$OUTPUT_DIR/object_kind_counts.tsv")"
-  echo -e "routines\t$(line_count "$OUTPUT_DIR/routines.tsv")"
-  echo -e "routine_kinds\t$(line_count "$OUTPUT_DIR/routine_kind_counts.tsv")"
-  echo -e "table_grants\t$(line_count "$OUTPUT_DIR/table_grants.tsv")"
-  echo -e "type_hotspots\t$(line_count "$OUTPUT_DIR/type_hotspots.tsv")"
-  echo -e "sequences\t$(line_count "$OUTPUT_DIR/sequences.tsv")"
-  echo -e "edb_extensions\t$(nonempty_line_count "$OUTPUT_DIR/edb_extension_hits.txt")"
-  echo -e "edb_named_routines\t$(nonempty_line_count "$OUTPUT_DIR/edb_function_name_hits.txt")"
-  if [[ "$ORACLE_CHECKS" -eq 1 ]]; then
-    echo -e "oracle_keyword_hits\t$(nonempty_line_count "$OUTPUT_DIR/oracle_keyword_hits.tsv")"
-  fi
-} > "$OUTPUT_DIR/count_summary.tsv"
-
-echo "[INFO] Writing quick summary..."
-{
-  echo "# EPAS precheck summary"
-  echo "- target: ${HOST}:${PORT}/${DBNAME}"
-  [[ -n "$SCHEMA" ]] && echo "- schema filter: $SCHEMA" || echo "- schema filter: (none)"
-  echo "- generated_at: $(date -Iseconds)"
-  echo
-  echo "## counts"
-  echo "instance_settings=$(line_count "$OUTPUT_DIR/instance_settings.tsv")"
-  echo "extensions=$(line_count "$OUTPUT_DIR/extensions.tsv")"
-  echo "objects=$(line_count "$OUTPUT_DIR/objects.tsv")"
-  echo "routines=$(line_count "$OUTPUT_DIR/routines.tsv")"
-  echo "table_grants=$(line_count "$OUTPUT_DIR/table_grants.tsv")"
-  echo "type_hotspots=$(line_count "$OUTPUT_DIR/type_hotspots.tsv")"
-  echo "sequences=$(line_count "$OUTPUT_DIR/sequences.tsv")"
-  echo "edb_extensions=$(nonempty_line_count "$OUTPUT_DIR/edb_extension_hits.txt")"
-  echo "edb_named_routines=$(nonempty_line_count "$OUTPUT_DIR/edb_function_name_hits.txt")"
-  if [[ "$ORACLE_CHECKS" -eq 1 ]]; then
-    echo "oracle_keyword_hits=$(nonempty_line_count "$OUTPUT_DIR/oracle_keyword_hits.tsv")"
-  fi
-  echo
-  echo "See also: count_summary.tsv, object_kind_counts.tsv, routine_kind_counts.tsv"
-} > "$OUTPUT_DIR/summary.md"
+write_reports
 
 echo "[DONE] Pre-diagnostic data collected. See: $OUTPUT_DIR"
