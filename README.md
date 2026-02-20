@@ -89,6 +89,7 @@ export PGPASSWORD='your-password'
 - `edb_extension_hits.txt`: `edb%` 확장 히트
 - `edb_function_name_hits.txt`: `edb%` 함수명 히트
 - `epas_feature_hits.tsv`: EPAS/Oracle 특화 패턴 히트 (예: `SYS_CONTEXT`, `AUTHID`, `NVL`, `SYSDATE`, `DBMS_RLS`, `CLOB` 등)
+- `mtk_risk_hits.tsv`: MTK 이관 시 자주 실패하는 패턴 히트 (`SYSDATE DEFAULT`, `edbspl`, `pg_stat_statements` 객체 충돌 등)
 - `oracle_keyword_hits.tsv`: Oracle 키워드 히트 (`--oracle-checks` 사용 시)
 - `count_summary.tsv`: `metric<TAB>count` 집계
 - `summary.md`: 사람 읽기용 요약
@@ -112,6 +113,18 @@ psql -h <host> -p <port> -U <user> -d <dbname> -c "select current_user, current_
 
 ### 권한 부족으로 일부 조회 실패
 진단 계정에 카탈로그/메타데이터 조회 권한이 있는지 확인하세요.
+
+### MTK에서 테이블 생성이 `DEFAULT sysdate`로 실패
+- 원인: PostgreSQL은 `sysdate`를 컬럼 참조처럼 해석할 수 있어 기본값 식에서 오류 발생
+- 조치: 이관 전/중에 `DEFAULT sysdate`를 `DEFAULT now()` 또는 `DEFAULT CURRENT_TIMESTAMP`로 치환
+
+### MTK에서 `language "edbspl" does not exist`
+- 원인: 타깃 PostgreSQL에 EPAS SPL 언어가 없음
+- 조치: 함수/프로시저를 PL/pgSQL로 재작성 후 배포
+
+### MTK에서 `pg_stat_statements` view/function 충돌
+- 원인: 확장 객체를 일반 스키마 객체처럼 재생성하려고 시도
+- 조치: 타깃에서 extension(`CREATE EXTENSION pg_stat_statements`)만 관리하고 관련 view/function 생성은 제외
 
 ---
 

@@ -93,7 +93,7 @@ write_reports() {
   local f_count="$OUTPUT_DIR/count_summary.tsv"
   local f_guide="$OUTPUT_DIR/migration_guide_report.md"
 
-  local c_instance c_extensions c_objects c_routines c_grants c_types c_sequences c_edb_ext c_edb_rtn c_epas c_oracle
+  local c_instance c_extensions c_objects c_routines c_grants c_types c_sequences c_edb_ext c_edb_rtn c_epas c_mtk c_oracle
   c_instance=$(line_count "$OUTPUT_DIR/instance_settings.tsv")
   c_extensions=$(line_count "$OUTPUT_DIR/extensions.tsv")
   c_objects=$(line_count "$OUTPUT_DIR/objects.tsv")
@@ -104,6 +104,7 @@ write_reports() {
   c_edb_ext=$(nonempty_line_count "$OUTPUT_DIR/edb_extension_hits.txt")
   c_edb_rtn=$(nonempty_line_count "$OUTPUT_DIR/edb_function_name_hits.txt")
   c_epas=$(nonempty_line_count "$OUTPUT_DIR/epas_feature_hits.tsv")
+  c_mtk=$(nonempty_line_count "$OUTPUT_DIR/mtk_risk_hits.tsv")
   c_oracle=0
   if [[ "$ORACLE_CHECKS" -eq 1 ]]; then
     c_oracle=$(nonempty_line_count "$OUTPUT_DIR/oracle_keyword_hits.tsv")
@@ -124,6 +125,7 @@ write_reports() {
     echo -e "edb_extensions\t${c_edb_ext}"
     echo -e "edb_named_routines\t${c_edb_rtn}"
     echo -e "epas_feature_hits\t${c_epas}"
+    echo -e "mtk_risk_hits\t${c_mtk}"
     if [[ "$ORACLE_CHECKS" -eq 1 ]]; then
       echo -e "oracle_keyword_hits\t${c_oracle}"
     fi
@@ -147,6 +149,7 @@ write_reports() {
     echo "edb_extensions=${c_edb_ext}"
     echo "edb_named_routines=${c_edb_rtn}"
     echo "epas_feature_hits=${c_epas}"
+    echo "mtk_risk_hits=${c_mtk}"
     if [[ "$ORACLE_CHECKS" -eq 1 ]]; then
       echo "oracle_keyword_hits=${c_oracle}"
     fi
@@ -169,6 +172,7 @@ write_reports() {
     echo "| EDB 전용 확장 | ${c_edb_ext} | $([[ "$c_edb_ext" -eq 0 ]] && echo '양호' || echo '호환성 검토 필요') |"
     echo "| EDB 이름 패턴 루틴 | ${c_edb_rtn} | $([[ "$c_edb_rtn" -eq 0 ]] && echo '양호' || echo '재작성 가능성 있음') |"
     echo "| EPAS/Oracle 특화 패턴 히트 | ${c_epas} | $([[ "$c_epas" -eq 0 ]] && echo '양호' || echo '수동 분석 권장') |"
+    echo "| MTK 실패 위험 패턴 히트 | ${c_mtk} | $([[ "$c_mtk" -eq 0 ]] && echo '양호' || echo '사전 치환 강력 권장') |"
     if [[ "$ORACLE_CHECKS" -eq 1 ]]; then
       echo "| Oracle 호환 키워드 히트 | ${c_oracle} | $([[ "$c_oracle" -eq 0 ]] && echo '양호' || echo '재작성 검토 필요') |"
     else
@@ -192,7 +196,16 @@ write_reports() {
     echo "| 타입 핫스팟(timestamp/numeric/json/xml) | 조건부 호환 | 타입별 매핑 정책 수립으로 대체 가능 | 애플리케이션 바인딩/정밀도 이슈는 수동 수정 가능 | type_hotspots.tsv |"
     echo "| 시퀀스/자동증가 | 조건부 호환 | identity/sequence setval 전략으로 대체 가능 | cutover 시 시퀀스 동기화 수동 점검 권장 | sequences.tsv |"
     echo
-    echo "## 3) 덤프 기반 추가 체크리스트 (샘플 기준)"
+    echo "## 3) MTK 로그 기반 실패 예방 체크리스트"
+    echo
+    echo "| MTK에서 자주 실패하는 항목 | 현재 점검 지표 | 권장 선조치 |"
+    echo "|---|---|---|"
+    echo "| DEFAULT SYSDATE 구문 | mtk_risk_hits.tsv 의 SYSDATE_DEFAULT | DDL 변환 전 DEFAULT now()/CURRENT_TIMESTAMP로 치환 |"
+    echo "| EDB-SPL 언어 객체 (language edbspl) | mtk_risk_hits.tsv 의 EDBSPL_ROUTINE | PL/pgSQL 재작성 후 배포 |"
+    echo "| pg_stat_statements 객체 충돌 | mtk_risk_hits.tsv 의 PG_STAT_STATEMENTS_OBJECT | 대상 DB의 기존 extension/view/function 사전 정리 |"
+    echo "| EPAS 정책/컨텍스트 함수 | mtk_risk_hits.tsv 의 POLICY_OR_CONTEXT | PostgreSQL RLS 정책 + CURRENT_USER 기반 함수로 재작성 |"
+    echo
+    echo "## 4) 덤프 기반 추가 체크리스트 (샘플 기준)"
     echo
     echo "| 항목 | PostgreSQL 호환성 | 대체/권장 방식 | 수동 수정 필요성 |"
     echo "|---|---|---|---|"
@@ -204,14 +217,14 @@ write_reports() {
     echo "| NVL, SYSDATE | 비호환 | COALESCE, CURRENT_TIMESTAMP/now()로 치환 | 중간 |"
     echo "| CLOB 타입 | 비호환 | text로 매핑 | 중간 |"
     echo
-    echo "## 4) 우선순위 액션 플랜"
+    echo "## 5) 우선순위 액션 플랜"
     echo
     echo "1. **EDB 전용 확장/루틴 우선 정리**: edb_extension_hits.txt, edb_function_name_hits.txt를 기준으로 제거/치환 전략 수립"
     echo "2. **Oracle 패턴 스캔 재실행**: 아직 미실행이면 --oracle-checks 옵션으로 재수집"
     echo "3. **타입/시퀀스 정책 문서화**: type_hotspots.tsv, sequences.tsv 기반으로 표준 매핑표 작성"
     echo "4. **UAT 대상 선정**: 히트가 있는 객체를 우선 테스트 케이스로 지정"
     echo
-    echo "## 5) 원본 산출물"
+    echo "## 6) 원본 산출물"
     echo
     echo "- summary.md: 요약"
     echo "- count_summary.tsv: 머신 파싱용 카운트"
@@ -219,6 +232,7 @@ write_reports() {
     echo "- routines.tsv, routine_kind_counts.tsv: 루틴 인벤토리"
     echo "- type_hotspots.tsv, sequences.tsv: 마이그레이션 민감 항목"
     echo "- epas_feature_hits.tsv: EPAS/Oracle 특화 패턴 히트"
+    echo "- mtk_risk_hits.tsv: MTK 실패 위험 패턴 히트"
     echo "- edb_extension_hits.txt, edb_function_name_hits.txt, oracle_keyword_hits.tsv(옵션): 호환성 리스크 근거"
   } > "$f_guide"
 }
@@ -436,6 +450,76 @@ FROM (
   SELECT * FROM type_hits
 ) t
 ORDER BY 1, 2, 3;"
+
+echo "[INFO] Scanning MTK migration failure risk patterns..."
+run_sql "$OUTPUT_DIR/mtk_risk_hits.tsv" "
+WITH sysdate_defaults AS (
+  SELECT n.nspname || E'.' || c.relname || E'.' || a.attname AS object_name,
+         'SYSDATE_DEFAULT' AS risk_code,
+         'DEFAULT uses SYSDATE; convert to now()/CURRENT_TIMESTAMP' AS recommendation
+  FROM pg_attrdef d
+  JOIN pg_class c ON c.oid = d.adrelid
+  JOIN pg_namespace n ON n.oid = c.relnamespace
+  JOIN pg_attribute a ON a.attrelid = d.adrelid AND a.attnum = d.adnum
+  WHERE n.nspname NOT IN ('pg_catalog','information_schema')
+    AND n.nspname NOT LIKE 'pg_toast%'
+    ${schema_filter}
+    AND pg_get_expr(d.adbin, d.adrelid) ILIKE '%sysdate%'
+),
+edbspl_routines AS (
+  SELECT n.nspname || E'.' || p.proname AS object_name,
+         'EDBSPL_ROUTINE' AS risk_code,
+         'Rewrite to PL/pgSQL before migration' AS recommendation
+  FROM pg_proc p
+  JOIN pg_namespace n ON n.oid = p.pronamespace
+  JOIN pg_language l ON l.oid = p.prolang
+  WHERE n.nspname NOT IN ('pg_catalog','information_schema')
+    ${schema_filter}
+    AND l.lanname = 'edbspl'
+),
+pgss_objects AS (
+  SELECT n.nspname || E'.' || c.relname AS object_name,
+         'PG_STAT_STATEMENTS_OBJECT' AS risk_code,
+         'Skip migrating extension-managed objects (view/function)' AS recommendation
+  FROM pg_class c
+  JOIN pg_namespace n ON n.oid = c.relnamespace
+  WHERE n.nspname NOT IN ('pg_catalog','information_schema')
+    ${schema_filter}
+    AND c.relname IN ('pg_stat_statements','pg_stat_statements_info')
+  UNION ALL
+  SELECT n.nspname || E'.' || p.proname AS object_name,
+         'PG_STAT_STATEMENTS_OBJECT' AS risk_code,
+         'Skip migrating extension-managed objects (view/function)' AS recommendation
+  FROM pg_proc p
+  JOIN pg_namespace n ON n.oid = p.pronamespace
+  WHERE n.nspname NOT IN ('pg_catalog','information_schema')
+    ${schema_filter}
+    AND p.proname IN ('pg_stat_statements','pg_stat_statements_info','pg_stat_statements_reset')
+),
+policy_context AS (
+  SELECT n.nspname || E'.' || p.proname AS object_name,
+         'POLICY_OR_CONTEXT' AS risk_code,
+         'Map DBMS_RLS/SYS_CONTEXT semantics to PostgreSQL RLS + CURRENT_USER logic' AS recommendation
+  FROM pg_proc p
+  JOIN pg_namespace n ON n.oid = p.pronamespace
+  WHERE n.nspname NOT IN ('pg_catalog','information_schema')
+    ${schema_filter}
+    AND (
+      pg_get_functiondef(p.oid) ILIKE '%dbms_rls%'
+      OR pg_get_functiondef(p.oid) ILIKE '%sys_context(%'
+    )
+)
+SELECT object_name || E'\t' || risk_code || E'\t' || recommendation
+FROM (
+  SELECT * FROM sysdate_defaults
+  UNION ALL
+  SELECT * FROM edbspl_routines
+  UNION ALL
+  SELECT * FROM pgss_objects
+  UNION ALL
+  SELECT * FROM policy_context
+) t
+ORDER BY 1, 2;"
 
 if [[ "$ORACLE_CHECKS" -eq 1 ]]; then
   echo "[INFO] Running Oracle-compatibility keyword checks in routine definitions..."
