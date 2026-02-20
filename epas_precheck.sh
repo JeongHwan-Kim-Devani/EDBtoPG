@@ -384,7 +384,7 @@ if [[ "$ORACLE_CHECKS" -eq 1 ]]; then
   WHERE n.nspname NOT IN ('pg_catalog','information_schema')
     AND pg_get_functiondef(p.oid) ILIKE '%' || kw.keyword || '%'
     ${schema_filter}
-  ORDER BY 1, 2;"
+  ORDER BY 1;"
 fi
 
 write_reports
