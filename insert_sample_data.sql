@@ -120,6 +120,39 @@ BEGIN
 END;
 $$;
 
+-- 약 500MB 샘플 데이터 적재(대용량 CLOB)
+-- 재실행 시 누적량이 500MB(1MB x 500건) 수준이 되도록 부족분만 추가합니다.
+DO $$
+DECLARE
+  v_target_mb INTEGER := 500;
+  v_existing_rows INTEGER;
+  v_missing_rows INTEGER;
+BEGIN
+  SELECT COUNT(*)
+    INTO v_existing_rows
+    FROM demo.customer_docs
+   WHERE doc_name LIKE 'bulk_doc_%';
+
+  v_missing_rows := GREATEST(v_target_mb - v_existing_rows, 0);
+
+  IF v_missing_rows > 0 THEN
+    INSERT INTO demo.customer_docs (customer_id, doc_name, doc_text, doc_bin, created_at)
+    SELECT c.customer_id,
+           'bulk_doc_' || TO_CHAR(gs),
+           CAST(REPEAT('X', 1024 * 1024) AS CLOB),
+           NULL,
+           SYSDATE
+      FROM generate_series(v_existing_rows + 1, v_existing_rows + v_missing_rows) gs
+      CROSS JOIN (
+        SELECT customer_id
+          FROM demo.customers
+         WHERE email = 'minjun@example.com'
+         FETCH FIRST 1 ROW ONLY
+      ) c;
+  END IF;
+END
+$$;
+
 -- 컬럼 암호화 예시(DBMS_CRYPTO 패키지)
 INSERT INTO demo.customer_docs (customer_id, doc_name, doc_text, doc_bin, created_at)
 SELECT c.customer_id,

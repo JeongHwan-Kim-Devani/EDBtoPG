@@ -7,6 +7,7 @@
 - `load_sample_data.sh`: EPAS 접속 정보를 환경변수로 받아 SQL 실행
 
 ### 포함된 EPAS 전용 예시
+- 약 500MB 샘플 데이터(`demo.customer_docs`에 1MB CLOB x 500건 적재)
 - `PROFILE`, `SYNONYM`, `PACKAGE`
 - `PROCEDURE`, `FUNCTION` (`LANGUAGE edbspl`)
 - `DBMS_CRYPTO` 기반 컬럼 암호화 예시
@@ -31,6 +32,7 @@ export EPAS_PASSWORD='your_password'
 SELECT * FROM demo.customer_syn;
 SELECT demo.fn_total_amount('minjun@example.com') FROM dual;
 SELECT * FROM demo.customer_docs;
+SELECT pg_size_pretty(pg_total_relation_size('demo.customer_docs'));
 ```
 
 > 주의: 본 SQL은 EPAS 전용 기능을 포함하므로 일반 PostgreSQL에서는 동작하지 않습니다.
