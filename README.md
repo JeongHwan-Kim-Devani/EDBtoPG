@@ -3,8 +3,8 @@
 `epas_precheck.sh`는 **EPAS(EDB Postgres Advanced Server) → PostgreSQL 마이그레이션 사전진단**을 위한 Bash 스크립트입니다.
 
 데이터베이스에 접속해서 확장/객체/루틴/권한/타입 핫스팟/시퀀스 등의 기본 인벤토리를 수집하고,
-요약 리포트(`summary.md`), 머신 파싱용 카운트(`count_summary.tsv`),
-그리고 가독성 중심의 마이그레이션 가이드(`migration_guide_report.md`)를 생성합니다.
+요약 리포트(`91_summary.md`), 머신 파싱용 카운트(`90_count_summary.tsv`),
+그리고 가독성 중심의 마이그레이션 가이드(`92_migration_guide_report.md`)를 생성합니다.
 
 ---
 
@@ -76,27 +76,27 @@ export PGPASSWORD='your-password'
 
 출력 디렉터리(`-o`) 아래에 주요 파일이 생성됩니다.
 
-- `version.txt`: DB 버전
-- `instance_settings.tsv`: 인코딩/Collation/Timezone
-- `extensions.tsv`: 확장 목록
-- `objects.tsv`: 스키마 객체 목록
-- `object_kind_counts.tsv`: 객체 kind별 집계
-- `routines.tsv`: 함수/프로시저 목록
-- `routine_kind_counts.tsv`: 루틴 kind별 집계
-- `table_grants.tsv`: 테이블 권한 목록
-- `type_hotspots.tsv`: 마이그레이션 민감 타입 컬럼 목록
-- `sequences.tsv`: 시퀀스 목록
-- `edb_extension_hits.txt`: `edb%` 확장 히트
-- `edb_function_name_hits.txt`: `edb%` 함수명 히트
-- `epas_feature_hits.tsv`: EPAS/Oracle 특화 패턴 히트 (예: `SYS_CONTEXT`, `AUTHID`, `NVL`, `SYSDATE`, `DBMS_RLS`, `CLOB` 등) + `EDB_BUILTIN`/`USER_CREATED` 구분
-- `migration_risk_hits.tsv`: 이관 시 자주 실패하는 패턴 히트 (`SYSDATE DEFAULT`, `edbspl`, `pg_stat_statements` 객체 충돌 등)
-- `oracle_keyword_hits.tsv`: Oracle 키워드 히트 (`--oracle-checks` 사용 시)
-- `count_summary.tsv`: `metric<TAB>count` 집계
-- `summary.md`: 사람 읽기용 요약
-- `migration_guide_report.md`: 호환성/대체기능/수동수정 필요 여부 + 덤프 기반 추가 체크리스트를 정리한 가이드 리포트
-- `migration_summary_report.txt`: 한눈에 보는 텍스트 요약 리포트
+- `01_version.txt`: DB 버전
+- `02_instance_settings.tsv`: 인코딩/Collation/Timezone
+- `03_extensions.tsv`: 확장 목록
+- `04_objects.tsv`: 스키마 객체 목록
+- `05_object_kind_counts.tsv`: 객체 kind별 집계
+- `06_routines.tsv`: 함수/프로시저 목록
+- `07_routine_kind_counts.tsv`: 루틴 kind별 집계
+- `08_table_grants.tsv`: 테이블 권한 목록
+- `09_type_hotspots.tsv`: 마이그레이션 민감 타입 컬럼 목록
+- `10_sequences.tsv`: 시퀀스 목록
+- `11_edb_extension_hits.txt`: `edb%` 확장 히트
+- `12_edb_function_name_hits.txt`: `edb%` 함수명 히트
+- `13_epas_feature_hits.tsv`: EPAS/Oracle 특화 패턴 히트 (예: `SYS_CONTEXT`, `AUTHID`, `NVL`, `SYSDATE`, `DBMS_RLS`, `CLOB` 등) + `EDB_BUILTIN`/`USER_CREATED` 구분
+- `14_migration_risk_hits.tsv`: 이관 시 자주 실패하는 패턴 히트 (`SYSDATE DEFAULT`, `edbspl`, `pg_stat_statements` 객체 충돌 등)
+- `15_oracle_keyword_hits.tsv`: Oracle 키워드 히트 (`--oracle-checks` 사용 시)
+- `90_count_summary.tsv`: `metric<TAB>count` 집계
+- `91_summary.md`: 사람 읽기용 요약
+- `92_migration_guide_report.md`: 호환성/대체기능/수동수정 필요 여부 + 덤프 기반 추가 체크리스트를 정리한 가이드 리포트
+- `93_migration_summary_report.txt`: 한눈에 보는 텍스트 요약 리포트
 
-`count_summary.tsv`에는 `epas_builtin_feature_hits`, `epas_user_feature_hits`가 포함되어
+`90_count_summary.tsv`에는 `epas_builtin_feature_hits`, `epas_user_feature_hits`가 포함되어
 내장/확장 객체와 사용자 생성 객체의 특화 기능 사용량을 분리해 볼 수 있습니다.
 
 분류 기준(요약):
@@ -140,4 +140,4 @@ psql -h <host> -p <port> -U <user> -d <dbname> -c "select current_user, current_
 
 - 운영 DB에는 **읽기 전용 계정**으로 실행
 - 비밀번호는 명령행 인자보다 `PGPASSWORD` 또는 `.pgpass` 사용
-- 정기 실행 시 `count_summary.tsv`를 수집하여 변화 추적
+- 정기 실행 시 `90_count_summary.tsv`를 수집하여 변화 추적

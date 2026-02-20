@@ -100,28 +100,28 @@ render_action() {
 }
 
 write_reports() {
-  local f_summary="$OUTPUT_DIR/summary.md"
-  local f_count="$OUTPUT_DIR/count_summary.tsv"
-  local f_guide="$OUTPUT_DIR/migration_guide_report.md"
-  local f_plain="$OUTPUT_DIR/migration_summary_report.txt"
+  local f_summary="$F_SUMMARY"
+  local f_count="$F_COUNT_SUMMARY"
+  local f_guide="$F_GUIDE"
+  local f_plain="$F_PLAIN_SUMMARY"
 
   local c_instance c_extensions c_objects c_routines c_grants c_types c_sequences c_edb_ext c_edb_rtn c_epas c_risk c_epas_builtin c_epas_user c_oracle
-  c_instance=$(line_count "$OUTPUT_DIR/instance_settings.tsv")
-  c_extensions=$(line_count "$OUTPUT_DIR/extensions.tsv")
-  c_objects=$(line_count "$OUTPUT_DIR/objects.tsv")
-  c_routines=$(line_count "$OUTPUT_DIR/routines.tsv")
-  c_grants=$(line_count "$OUTPUT_DIR/table_grants.tsv")
-  c_types=$(line_count "$OUTPUT_DIR/type_hotspots.tsv")
-  c_sequences=$(line_count "$OUTPUT_DIR/sequences.tsv")
-  c_edb_ext=$(nonempty_line_count "$OUTPUT_DIR/edb_extension_hits.txt")
-  c_edb_rtn=$(nonempty_line_count "$OUTPUT_DIR/edb_function_name_hits.txt")
-  c_epas=$(nonempty_line_count "$OUTPUT_DIR/epas_feature_hits.tsv")
-  c_risk=$(nonempty_line_count "$OUTPUT_DIR/migration_risk_hits.tsv")
-  c_epas_builtin=$(tsv_col_count "$OUTPUT_DIR/epas_feature_hits.tsv" 4 "EDB_BUILTIN")
-  c_epas_user=$(tsv_col_count "$OUTPUT_DIR/epas_feature_hits.tsv" 4 "USER_CREATED")
+  c_instance=$(line_count "$F_INSTANCE_SETTINGS")
+  c_extensions=$(line_count "$F_EXTENSIONS")
+  c_objects=$(line_count "$F_OBJECTS")
+  c_routines=$(line_count "$F_ROUTINES")
+  c_grants=$(line_count "$F_TABLE_GRANTS")
+  c_types=$(line_count "$F_TYPE_HOTSPOTS")
+  c_sequences=$(line_count "$F_SEQUENCES")
+  c_edb_ext=$(nonempty_line_count "$F_EDB_EXT_HITS")
+  c_edb_rtn=$(nonempty_line_count "$F_EDB_ROUTINE_HITS")
+  c_epas=$(nonempty_line_count "$F_EPAS_FEATURE_HITS")
+  c_risk=$(nonempty_line_count "$F_MIGRATION_RISK_HITS")
+  c_epas_builtin=$(tsv_col_count "$F_EPAS_FEATURE_HITS" 4 "EDB_BUILTIN")
+  c_epas_user=$(tsv_col_count "$F_EPAS_FEATURE_HITS" 4 "USER_CREATED")
   c_oracle=0
   if [[ "$ORACLE_CHECKS" -eq 1 ]]; then
-    c_oracle=$(nonempty_line_count "$OUTPUT_DIR/oracle_keyword_hits.tsv")
+    c_oracle=$(nonempty_line_count "$F_ORACLE_KEYWORD_HITS")
   fi
 
   echo "[INFO] Writing count summary..."
@@ -130,9 +130,9 @@ write_reports() {
     echo -e "instance_settings\t${c_instance}"
     echo -e "extensions\t${c_extensions}"
     echo -e "objects\t${c_objects}"
-    echo -e "object_kinds\t$(line_count "$OUTPUT_DIR/object_kind_counts.tsv")"
+    echo -e "object_kinds\t$(line_count "$F_OBJECT_KIND_COUNTS")"
     echo -e "routines\t${c_routines}"
-    echo -e "routine_kinds\t$(line_count "$OUTPUT_DIR/routine_kind_counts.tsv")"
+    echo -e "routine_kinds\t$(line_count "$F_ROUTINE_KIND_COUNTS")"
     echo -e "table_grants\t${c_grants}"
     echo -e "type_hotspots\t${c_types}"
     echo -e "sequences\t${c_sequences}"
@@ -172,7 +172,7 @@ write_reports() {
       echo "oracle_keyword_hits=${c_oracle}"
     fi
     echo
-    echo "See also: count_summary.tsv, object_kind_counts.tsv, routine_kind_counts.tsv, migration_guide_report.md, migration_summary_report.txt"
+    echo "See also: 90_count_summary.tsv, 05_object_kind_counts.tsv, 07_routine_kind_counts.tsv, 92_migration_guide_report.md, 93_migration_summary_report.txt"
   } > "$f_summary"
 
   echo "[INFO] Writing migration guide report..."
@@ -185,57 +185,49 @@ write_reports() {
     echo
     echo "## 1) Executive summary"
     echo
-    echo "| 항목 | 발견 건수 | 평가 |"
-    echo "|---|---:|---|"
-    echo "| EDB 전용 확장 | ${c_edb_ext} | $([[ "$c_edb_ext" -eq 0 ]] && echo '양호' || echo '호환성 검토 필요') |"
-    echo "| EDB 이름 패턴 루틴 | ${c_edb_rtn} | $([[ "$c_edb_rtn" -eq 0 ]] && echo '양호' || echo '재작성 가능성 있음') |"
-    echo "| EPAS/Oracle 특화 패턴 히트 | ${c_epas} | $([[ "$c_epas" -eq 0 ]] && echo '양호' || echo '수동 분석 권장') |"
-    echo "| └ EDB 내장/확장 객체 히트 | ${c_epas_builtin} | 참고용(확장/내장 객체) |"
-    echo "| └ 사용자 생성 객체 히트 | ${c_epas_user} | 우선 조치 대상 |"
-    echo "| 이관 실패 위험 패턴 히트 | ${c_risk} | $([[ "$c_risk" -eq 0 ]] && echo '양호' || echo '사전 치환 강력 권장') |"
+    printf "%-32s %8s   %s\n" "EDB 전용 확장" "$c_edb_ext" "$([[ "$c_edb_ext" -eq 0 ]] && echo '양호' || echo '호환성 검토 필요')"
+    printf "%-32s %8s   %s\n" "EDB 이름 패턴 루틴" "$c_edb_rtn" "$([[ "$c_edb_rtn" -eq 0 ]] && echo '양호' || echo '재작성 가능성')"
+    printf "%-32s %8s   %s\n" "EPAS/Oracle 특화 패턴" "$c_epas" "$([[ "$c_epas" -eq 0 ]] && echo '양호' || echo '수동 분석 권장')"
+    printf "%-32s %8s   %s\n" "  └ 내장/확장 객체" "$c_epas_builtin" "참고용"
+    printf "%-32s %8s   %s\n" "  └ 사용자 생성 객체" "$c_epas_user" "우선 조치 대상"
+    printf "%-32s %8s   %s\n" "이관 실패 위험 패턴" "$c_risk" "$([[ "$c_risk" -eq 0 ]] && echo '양호' || echo '사전 치환 강력 권장')"
     if [[ "$ORACLE_CHECKS" -eq 1 ]]; then
-      echo "| Oracle 호환 키워드 히트 | ${c_oracle} | $([[ "$c_oracle" -eq 0 ]] && echo '양호' || echo '재작성 검토 필요') |"
+      printf "%-32s %8s   %s\n" "Oracle 호환 키워드" "$c_oracle" "$([[ "$c_oracle" -eq 0 ]] && echo '양호' || echo '재작성 검토 필요')"
     else
-      echo "| Oracle 호환 키워드 히트 | N/A | 검사 미실행 (--oracle-checks 사용 권장) |"
+      printf "%-32s %8s   %s\n" "Oracle 호환 키워드" "N/A" "검사 미실행 (--oracle-checks 권장)"
     fi
-    echo "| 타입 핫스팟 | ${c_types} | $([[ "$c_types" -eq 0 ]] && echo '양호' || echo '타입 매핑 검토 필요') |"
-    echo "| 시퀀스 | ${c_sequences} | $([[ "$c_sequences" -eq 0 ]] && echo '없음' || echo '시퀀스 정합성 점검 필요') |"
+    printf "%-32s %8s   %s\n" "타입 핫스팟" "$c_types" "$([[ "$c_types" -eq 0 ]] && echo '양호' || echo '타입 매핑 검토 필요')"
+    printf "%-32s %8s   %s\n" "시퀀스" "$c_sequences" "$([[ "$c_sequences" -eq 0 ]] && echo '없음' || echo '시퀀스 정합성 점검 필요')"
     echo
     echo "## 2) 호환성/대체기능/수동수정 가이드"
     echo
-    echo "| 점검 영역 | PostgreSQL 호환성 | 대체 기능 가능 여부 | 수동 수정 필요성 | 참고 파일 |"
-    echo "|---|---|---|---|---|"
-    echo "| EDB 전용 확장(edb%) | $(render_action "$c_edb_ext" "대체로 호환" "유사 확장/표준 SQL로 대체 검토" "확장별 기능 분석 후 스키마/코드 수동 수정 가능성 큼") | edb_extension_hits.txt |"
-    echo "| EDB 전용 함수/프로시저 네이밍 | $(render_action "$c_edb_rtn" "대체로 호환" "PL/pgSQL 표준 함수로 치환 가능" "함수 본문 로직 수동 리팩토링 필요 가능") | edb_function_name_hits.txt, routines.tsv |"
-    echo "| EPAS/Oracle 특화 함수 패턴(SYS_CONTEXT, AUTHID, NVL 등) | $(render_action "$c_epas" "조건부 호환" "CURRENT_USER, COALESCE, now() 등으로 치환 가능" "패턴별 수동 수정 및 테스트 필요") | epas_feature_hits.tsv |"
+    echo "- EDB 전용 확장(edb%): 유사 확장/표준 SQL 대체 검토 (근거: 11_edb_extension_hits.txt)"
+    echo "- EDB 전용 함수/프로시저 네이밍: PL/pgSQL 표준 함수로 치환 검토 (근거: 12_edb_function_name_hits.txt, 06_routines.tsv)"
+    echo "- EPAS/Oracle 특화 함수 패턴(SYS_CONTEXT, AUTHID, NVL 등): CURRENT_USER/COALESCE/now() 치환 검토 (근거: 13_epas_feature_hits.tsv)"
     if [[ "$ORACLE_CHECKS" -eq 1 ]]; then
-      echo "| Oracle 호환 키워드 사용 | $(render_action "$c_oracle" "대체로 호환" "CASE/COALESCE/표준 SQL로 치환 가능" "복합 비즈니스 로직은 수동 재작성 가능성 높음") | oracle_keyword_hits.tsv |"
+      echo "- Oracle 호환 키워드: CASE/COALESCE/표준 SQL 치환 검토 (근거: 15_oracle_keyword_hits.tsv)"
     else
-      echo "| Oracle 호환 키워드 사용 | 미평가 | --oracle-checks 실행 후 판단 | 실행 후 판단 | oracle_keyword_hits.tsv(옵션) |"
+      echo "- Oracle 호환 키워드: --oracle-checks 실행 후 판단"
     fi
-    echo "| 타입 핫스팟(timestamp/numeric/json/xml) | 조건부 호환 | 타입별 매핑 정책 수립으로 대체 가능 | 애플리케이션 바인딩/정밀도 이슈는 수동 수정 가능 | type_hotspots.tsv |"
-    echo "| 시퀀스/자동증가 | 조건부 호환 | identity/sequence setval 전략으로 대체 가능 | cutover 시 시퀀스 동기화 수동 점검 권장 | sequences.tsv |"
+    echo "- 타입 핫스팟: 타입별 매핑 정책 수립 (근거: 09_type_hotspots.tsv)"
+    echo "- 시퀀스/자동증가: identity/sequence setval 전략 점검 (근거: 10_sequences.tsv)"
     echo
     echo "## 3) 이관 실패 예방 체크리스트"
     echo
-    echo "| 자주 실패하는 항목 | 현재 점검 지표 | 권장 선조치 |"
-    echo "|---|---|---|"
-    echo "| DEFAULT SYSDATE 구문 | migration_risk_hits.tsv 의 SYSDATE_DEFAULT | DDL 변환 전 DEFAULT now()/CURRENT_TIMESTAMP로 치환 |"
-    echo "| EDB-SPL 언어 객체 (language edbspl) | migration_risk_hits.tsv 의 EDBSPL_ROUTINE | PL/pgSQL 재작성 후 배포 |"
-    echo "| pg_stat_statements 객체 충돌 | migration_risk_hits.tsv 의 PG_STAT_STATEMENTS_OBJECT | 대상 DB의 기존 extension/view/function 사전 정리 |"
-    echo "| EPAS 정책/컨텍스트 함수 | migration_risk_hits.tsv 의 POLICY_OR_CONTEXT | PostgreSQL RLS 정책 + CURRENT_USER 기반 함수로 재작성 |"
+    echo "- DEFAULT SYSDATE 구문 -> DEFAULT now()/CURRENT_TIMESTAMP 치환 (14_migration_risk_hits.tsv:SYSDATE_DEFAULT)"
+    echo "- language edbspl 객체 -> PL/pgSQL 재작성 (14_migration_risk_hits.tsv:EDBSPL_ROUTINE)"
+    echo "- pg_stat_statements 객체 충돌 -> extension 관리 객체 이관 제외 (14_migration_risk_hits.tsv:PG_STAT_STATEMENTS_OBJECT)"
+    echo "- EPAS 정책/컨텍스트 함수 -> PostgreSQL RLS + CURRENT_USER 기반으로 재작성 (14_migration_risk_hits.tsv:POLICY_OR_CONTEXT)"
     echo
-    echo "## 4) 덤프 기반 추가 체크리스트 (샘플 기준)"
+    echo "## 4) 덤프 기반 추가 체크리스트"
     echo
-    echo "| 항목 | PostgreSQL 호환성 | 대체/권장 방식 | 수동 수정 필요성 |"
-    echo "|---|---|---|---|"
-    echo "| SYNONYM | 비호환 | VIEW 또는 search_path/SQL 재작성 | 높음 |"
-    echo "| PACKAGE | 비호환 | 스키마 + 함수/프로시저 묶음으로 분해 | 높음 |"
-    echo "| DBMS_RLS.ADD_POLICY (EDB POLICY) | 부분 호환 | PostgreSQL RLS POLICY로 재구현 | 높음 |"
-    echo "| AUTHID DEFINER/CURRENT_USER | 부분 호환 | SECURITY DEFINER/INVOKER 전략 재설계 | 중간~높음 |"
-    echo "| SYS_CONTEXT('USERENV','SESSION_USER') | 비호환 | CURRENT_USER/SESSION_USER로 치환 | 중간 |"
-    echo "| NVL, SYSDATE | 비호환 | COALESCE, CURRENT_TIMESTAMP/now()로 치환 | 중간 |"
-    echo "| CLOB 타입 | 비호환 | text로 매핑 | 중간 |"
+    echo "- SYNONYM: 비호환 -> VIEW/search_path/SQL 재작성"
+    echo "- PACKAGE: 비호환 -> 스키마 + 함수/프로시저로 분해"
+    echo "- DBMS_RLS.ADD_POLICY: 부분 호환 -> PostgreSQL RLS POLICY 재구현"
+    echo "- AUTHID DEFINER/CURRENT_USER: SECURITY DEFINER/INVOKER 전략 재설계"
+    echo "- SYS_CONTEXT(USERENV,SESSION_USER): CURRENT_USER/SESSION_USER로 치환"
+    echo "- NVL, SYSDATE: COALESCE, CURRENT_TIMESTAMP/now()로 치환"
+    echo "- CLOB 타입: text로 매핑"
     echo
     echo "## 5) 우선순위 액션 플랜"
     echo
@@ -246,24 +238,24 @@ write_reports() {
     echo
     echo "## 6) 원본 산출물"
     echo
-    echo "- summary.md: 요약"
-    echo "- count_summary.tsv: 머신 파싱용 카운트"
-    echo "- objects.tsv, object_kind_counts.tsv: 객체 인벤토리"
-    echo "- routines.tsv, routine_kind_counts.tsv: 루틴 인벤토리"
-    echo "- type_hotspots.tsv, sequences.tsv: 마이그레이션 민감 항목"
-    echo "- epas_feature_hits.tsv: EPAS/Oracle 특화 패턴 히트"
-    echo "- migration_risk_hits.tsv: 이관 실패 위험 패턴 히트"
-    echo "- edb_extension_hits.txt, edb_function_name_hits.txt, oracle_keyword_hits.tsv(옵션): 호환성 리스크 근거"
+    echo "- 91_summary.md: 요약"
+    echo "- 90_count_summary.tsv: 머신 파싱용 카운트"
+    echo "- 04_objects.tsv / 05_object_kind_counts.tsv: 객체 인벤토리"
+    echo "- 06_routines.tsv / 07_routine_kind_counts.tsv: 루틴 인벤토리"
+    echo "- 09_type_hotspots.tsv / 10_sequences.tsv: 마이그레이션 민감 항목"
+    echo "- 13_epas_feature_hits.tsv: EPAS/Oracle 특화 패턴 히트"
+    echo "- 14_migration_risk_hits.tsv: 이관 실패 위험 패턴 히트"
+    echo "- 11_edb_extension_hits.txt / 12_edb_function_name_hits.txt / 15_oracle_keyword_hits.tsv(옵션): 호환성 리스크 근거"
 
     echo
     echo "## 7) Migration Summary"
     echo
     echo "총 객체 점검 수: $((c_objects + c_routines))"
     echo "주요 리스크 건수: ${c_risk}"
-    echo "- SYSDATE_DEFAULT: $(grep -c $'\tSYSDATE_DEFAULT\t' "$OUTPUT_DIR/migration_risk_hits.tsv" 2>/dev/null || true)"
-    echo "- EDBSPL_ROUTINE: $(grep -c $'\tEDBSPL_ROUTINE\t' "$OUTPUT_DIR/migration_risk_hits.tsv" 2>/dev/null || true)"
-    echo "- PG_STAT_STATEMENTS_OBJECT: $(grep -c $'\tPG_STAT_STATEMENTS_OBJECT\t' "$OUTPUT_DIR/migration_risk_hits.tsv" 2>/dev/null || true)"
-    echo "- POLICY_OR_CONTEXT: $(grep -c $'\tPOLICY_OR_CONTEXT\t' "$OUTPUT_DIR/migration_risk_hits.tsv" 2>/dev/null || true)"
+    echo "- SYSDATE_DEFAULT: $(grep -c $'\tSYSDATE_DEFAULT\t' "$F_MIGRATION_RISK_HITS" 2>/dev/null || true)"
+    echo "- EDBSPL_ROUTINE: $(grep -c $'\tEDBSPL_ROUTINE\t' "$F_MIGRATION_RISK_HITS" 2>/dev/null || true)"
+    echo "- PG_STAT_STATEMENTS_OBJECT: $(grep -c $'\tPG_STAT_STATEMENTS_OBJECT\t' "$F_MIGRATION_RISK_HITS" 2>/dev/null || true)"
+    echo "- POLICY_OR_CONTEXT: $(grep -c $'\tPOLICY_OR_CONTEXT\t' "$F_MIGRATION_RISK_HITS" 2>/dev/null || true)"
   } > "$f_guide"
 
   {
@@ -285,8 +277,8 @@ write_reports() {
     echo
     echo "List of migration risk hits"
     echo "======================"
-    if [[ -s "$OUTPUT_DIR/migration_risk_hits.tsv" ]]; then
-      awk -F '\t' '{print NR ". " $1 " [" $2 "]"}' "$OUTPUT_DIR/migration_risk_hits.tsv"
+    if [[ -s "$F_MIGRATION_RISK_HITS" ]]; then
+      awk -F '\t' '{print NR ". " $1 " [" $2 "]"}' "$F_MIGRATION_RISK_HITS"
     else
       echo "No risk hits detected."
     fi
@@ -338,13 +330,33 @@ fi
 
 mkdir -p "$OUTPUT_DIR"
 
+F_VERSION="$OUTPUT_DIR/01_version.txt"
+F_INSTANCE_SETTINGS="$OUTPUT_DIR/02_instance_settings.tsv"
+F_EXTENSIONS="$OUTPUT_DIR/03_extensions.tsv"
+F_OBJECTS="$OUTPUT_DIR/04_objects.tsv"
+F_OBJECT_KIND_COUNTS="$OUTPUT_DIR/05_object_kind_counts.tsv"
+F_ROUTINES="$OUTPUT_DIR/06_routines.tsv"
+F_ROUTINE_KIND_COUNTS="$OUTPUT_DIR/07_routine_kind_counts.tsv"
+F_TABLE_GRANTS="$OUTPUT_DIR/08_table_grants.tsv"
+F_TYPE_HOTSPOTS="$OUTPUT_DIR/09_type_hotspots.tsv"
+F_SEQUENCES="$OUTPUT_DIR/10_sequences.tsv"
+F_EDB_EXT_HITS="$OUTPUT_DIR/11_edb_extension_hits.txt"
+F_EDB_ROUTINE_HITS="$OUTPUT_DIR/12_edb_function_name_hits.txt"
+F_EPAS_FEATURE_HITS="$OUTPUT_DIR/13_epas_feature_hits.tsv"
+F_MIGRATION_RISK_HITS="$OUTPUT_DIR/14_migration_risk_hits.tsv"
+F_ORACLE_KEYWORD_HITS="$OUTPUT_DIR/15_oracle_keyword_hits.tsv"
+F_COUNT_SUMMARY="$OUTPUT_DIR/90_count_summary.tsv"
+F_SUMMARY="$OUTPUT_DIR/91_summary.md"
+F_GUIDE="$OUTPUT_DIR/92_migration_guide_report.md"
+F_PLAIN_SUMMARY="$OUTPUT_DIR/93_migration_summary_report.txt"
+
 export PGPASSWORD="$DBPASSWORD"
 export PGCONNECT_TIMEOUT="$CONNECT_TIMEOUT"
 PSQL=(psql -X -v ON_ERROR_STOP=1 -h "$HOST" -p "$PORT" -U "$DBUSER" -d "$DBNAME")
 
 echo "[INFO] Output directory: $OUTPUT_DIR"
 echo "[INFO] Checking DB connectivity..."
-if ! run_sql "$OUTPUT_DIR/version.txt" "select version();"; then
+if ! run_sql "$F_VERSION" "select version();"; then
   echo "[ERROR] Connection failed. Check host/port/db/user/password and role existence." >&2
   echo "[HINT] Example check: psql -h '$HOST' -p '$PORT' -U '$DBUSER' -d '$DBNAME' -c 'select current_user, current_database();'" >&2
   exit 1
@@ -359,20 +371,20 @@ if [[ -n "$SCHEMA" ]]; then
 fi
 
 echo "[INFO] Collecting instance settings (encoding/collation/timezone)..."
-run_sql "$OUTPUT_DIR/instance_settings.tsv" "
+run_sql "$F_INSTANCE_SETTINGS" "
 SELECT name || E'\\t' || setting
 FROM pg_settings
 WHERE name IN ('server_encoding','lc_collate','lc_ctype','TimeZone')
 ORDER BY name;"
 
 echo "[INFO] Collecting extension inventory..."
-run_sql "$OUTPUT_DIR/extensions.tsv" "
+run_sql "$F_EXTENSIONS" "
 SELECT extname || E'\\t' || extversion
 FROM pg_extension
 ORDER BY extname;"
 
 echo "[INFO] Collecting schema/object inventory..."
-run_sql "$OUTPUT_DIR/objects.tsv" "
+run_sql "$F_OBJECTS" "
 SELECT n.nspname || E'\\t' || c.relname || E'\\t' || c.relkind
 FROM pg_class c
 JOIN pg_namespace n ON n.oid = c.relnamespace
@@ -383,7 +395,7 @@ WHERE n.nspname NOT IN ('pg_catalog','information_schema')
 ORDER BY n.nspname, c.relkind, c.relname;"
 
 echo "[INFO] Collecting object kind counts..."
-run_sql "$OUTPUT_DIR/object_kind_counts.tsv" "
+run_sql "$F_OBJECT_KIND_COUNTS" "
 SELECT relkind || E'\\t' || count(*)
 FROM pg_class c
 JOIN pg_namespace n ON n.oid = c.relnamespace
@@ -395,7 +407,7 @@ GROUP BY relkind
 ORDER BY relkind;"
 
 echo "[INFO] Collecting function/procedure inventory..."
-run_sql "$OUTPUT_DIR/routines.tsv" "
+run_sql "$F_ROUTINES" "
 SELECT n.nspname || E'\\t' || p.proname || E'\\t' || l.lanname || E'\\t' || p.prokind
 FROM pg_proc p
 JOIN pg_namespace n ON n.oid = p.pronamespace
@@ -405,7 +417,7 @@ WHERE n.nspname NOT IN ('pg_catalog','information_schema')
 ORDER BY n.nspname, p.proname;"
 
 echo "[INFO] Collecting routine kind counts..."
-run_sql "$OUTPUT_DIR/routine_kind_counts.tsv" "
+run_sql "$F_ROUTINE_KIND_COUNTS" "
 SELECT prokind || E'\\t' || count(*)
 FROM pg_proc p
 JOIN pg_namespace n ON n.oid = p.pronamespace
@@ -415,7 +427,7 @@ GROUP BY prokind
 ORDER BY prokind;"
 
 echo "[INFO] Collecting role/grant summary..."
-run_sql "$OUTPUT_DIR/table_grants.tsv" "
+run_sql "$F_TABLE_GRANTS" "
 SELECT grantee || E'\\t' || table_schema || E'\\t' || table_name || E'\\t' || privilege_type
 FROM information_schema.table_privileges
 WHERE table_schema NOT IN ('pg_catalog','information_schema')
@@ -423,7 +435,7 @@ WHERE table_schema NOT IN ('pg_catalog','information_schema')
 ORDER BY grantee, table_schema, table_name;"
 
 echo "[INFO] Collecting data type hotspot inventory..."
-run_sql "$OUTPUT_DIR/type_hotspots.tsv" "
+run_sql "$F_TYPE_HOTSPOTS" "
 SELECT table_schema || E'\\t' || table_name || E'\\t' || column_name || E'\\t' || data_type || E'\\t' || COALESCE(udt_name,'')
 FROM information_schema.columns
 WHERE table_schema NOT IN ('pg_catalog','information_schema')
@@ -435,7 +447,7 @@ WHERE table_schema NOT IN ('pg_catalog','information_schema')
 ORDER BY table_schema, table_name, ordinal_position;"
 
 echo "[INFO] Checking sequence alignment risks..."
-run_sql "$OUTPUT_DIR/sequences.tsv" "
+run_sql "$F_SEQUENCES" "
 SELECT n.nspname || E'\\t' || c.relname
 FROM pg_class c
 JOIN pg_namespace n ON n.oid = c.relnamespace
@@ -445,13 +457,13 @@ WHERE c.relkind = 'S'
 ORDER BY n.nspname, c.relname;"
 
 echo "[INFO] Checking for EPAS/EDB specific extensions or names..."
-run_sql "$OUTPUT_DIR/edb_extension_hits.txt" "
+run_sql "$F_EDB_EXT_HITS" "
 SELECT extname
 FROM pg_extension
 WHERE extname ILIKE 'edb%'
 ORDER BY extname;"
 
-run_sql "$OUTPUT_DIR/edb_function_name_hits.txt" "
+run_sql "$F_EDB_ROUTINE_HITS" "
 SELECT n.nspname || E'.' || p.proname
 FROM pg_proc p
 JOIN pg_namespace n ON n.oid = p.pronamespace
@@ -461,7 +473,7 @@ WHERE n.nspname NOT IN ('pg_catalog','information_schema')
 ORDER BY 1;"
 
 echo "[INFO] Scanning EPAS/Oracle-specific compatibility patterns..."
-run_sql "$OUTPUT_DIR/epas_feature_hits.tsv" "
+run_sql "$F_EPAS_FEATURE_HITS" "
 WITH ext_owned_proc AS (
   SELECT d.objid
   FROM pg_depend d
@@ -545,7 +557,7 @@ FROM (
 ORDER BY 1;"
 
 echo "[INFO] Scanning migration failure risk patterns..."
-run_sql "$OUTPUT_DIR/migration_risk_hits.tsv" "
+run_sql "$F_MIGRATION_RISK_HITS" "
 WITH sysdate_defaults AS (
   SELECT n.nspname || E'.' || c.relname || E'.' || a.attname AS object_name,
          'SYSDATE_DEFAULT' AS risk_code,
@@ -642,7 +654,7 @@ ORDER BY 1;"
 
 if [[ "$ORACLE_CHECKS" -eq 1 ]]; then
   echo "[INFO] Running Oracle-compatibility keyword checks in routine definitions..."
-  run_sql "$OUTPUT_DIR/oracle_keyword_hits.tsv" "
+  run_sql "$F_ORACLE_KEYWORD_HITS" "
   SELECT n.nspname || E'.' || p.proname || E'\\t' || kw.keyword
   FROM pg_proc p
   JOIN pg_namespace n ON n.oid = p.pronamespace
