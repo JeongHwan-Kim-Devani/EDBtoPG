@@ -34,3 +34,4 @@ SELECT * FROM demo.customer_docs;
 ```
 
 > 주의: 본 SQL은 EPAS 전용 기능을 포함하므로 일반 PostgreSQL에서는 동작하지 않습니다.
+> 주의: IDENTITY 컬럼은 EPAS 제약에 맞춰 `BIGINT`로 정의했습니다 (`NUMBER IDENTITY`는 오류 발생).
