@@ -39,32 +39,39 @@ EXCEPTION
 END
 $$;
 
--- Oracle 호환 구문: dual + sysdate + merge
-MERGE INTO demo.customers c
-USING (
-  SELECT 'Kim Minjun' AS customer_name, 'minjun@example.com' AS email FROM dual
-  UNION ALL SELECT 'Lee Seoyeon', 'seoyeon@example.com' FROM dual
-  UNION ALL SELECT 'Park Jiho', 'jiho@example.com' FROM dual
-) s
-ON (c.email = s.email)
-WHEN NOT MATCHED THEN
-  INSERT (customer_name, email, created_at)
-  VALUES (s.customer_name, s.email, SYSDATE);
+-- Oracle 호환 구문: dual + sysdate
+-- (현재 대상 EPAS 환경에서 MERGE 구문 오류가 발생하여 NOT EXISTS 방식으로 구성)
+INSERT INTO demo.customers (customer_name, email, created_at)
+SELECT s.customer_name, s.email, SYSDATE
+  FROM (
+    SELECT 'Kim Minjun' AS customer_name, 'minjun@example.com' AS email FROM dual
+    UNION ALL SELECT 'Lee Seoyeon', 'seoyeon@example.com' FROM dual
+    UNION ALL SELECT 'Park Jiho', 'jiho@example.com' FROM dual
+  ) s
+ WHERE NOT EXISTS (
+   SELECT 1
+     FROM demo.customers c
+    WHERE c.email = s.email
+ );
 
-MERGE INTO demo.orders o
-USING (
-  SELECT 'minjun@example.com' AS email, 'Laptop' AS product_name, 1 AS quantity, 1499.00 AS unit_price FROM dual
-  UNION ALL SELECT 'minjun@example.com', 'Mouse', 2, 25.50 FROM dual
-  UNION ALL SELECT 'seoyeon@example.com', 'Monitor', 1, 320.00 FROM dual
-  UNION ALL SELECT 'jiho@example.com', 'Keyboard', 1, 85.00 FROM dual
-) s
-ON (
-  o.customer_id = (SELECT customer_id FROM demo.customers WHERE email = s.email)
-  AND o.product_name = s.product_name
-)
-WHEN NOT MATCHED THEN
-  INSERT (customer_id, product_name, quantity, unit_price, ordered_at)
-  VALUES ((SELECT customer_id FROM demo.customers WHERE email = s.email), s.product_name, s.quantity, s.unit_price, SYSDATE);
+INSERT INTO demo.orders (customer_id, product_name, quantity, unit_price, ordered_at)
+SELECT c.customer_id, s.product_name, s.quantity, s.unit_price, SYSDATE
+  FROM (
+    SELECT 'minjun@example.com' AS email, 'Laptop' AS product_name, 1 AS quantity, 1499.00 AS unit_price FROM dual
+    UNION ALL SELECT 'minjun@example.com', 'Mouse', 2, 25.50 FROM dual
+    UNION ALL SELECT 'seoyeon@example.com', 'Monitor', 1, 320.00 FROM dual
+    UNION ALL SELECT 'jiho@example.com', 'Keyboard', 1, 85.00 FROM dual
+  ) s
+  JOIN demo.customers c
+    ON c.email = s.email
+ WHERE NOT EXISTS (
+   SELECT 1
+     FROM demo.orders o
+    WHERE o.customer_id = c.customer_id
+      AND o.product_name = s.product_name
+      AND o.quantity = s.quantity
+      AND o.unit_price = s.unit_price
+ );
 
 -- Synonym (EPAS Oracle 호환)
 CREATE OR REPLACE SYNONYM demo.customer_syn FOR demo.customers;

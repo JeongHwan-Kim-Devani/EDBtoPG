@@ -10,7 +10,7 @@
 - `PROFILE`, `SYNONYM`, `PACKAGE`
 - `PROCEDURE`, `FUNCTION` (`LANGUAGE edbspl`)
 - `DBMS_CRYPTO` 기반 컬럼 암호화 예시
-- Oracle 호환 구문(`dual`, `sysdate`, `merge`, `blob`, `clob`)
+- Oracle 호환 구문(`dual`, `sysdate`, `blob`, `clob`)
 - `DBMS_RLS` 정책(Policy/VPD) 예시
 
 ### 실행 방법
@@ -35,3 +35,5 @@ SELECT * FROM demo.customer_docs;
 
 > 주의: 본 SQL은 EPAS 전용 기능을 포함하므로 일반 PostgreSQL에서는 동작하지 않습니다.
 > 주의: IDENTITY 컬럼은 EPAS 제약에 맞춰 `BIGINT`로 정의했습니다 (`NUMBER IDENTITY`는 오류 발생).
+
+> 주의: 일부 EPAS 환경에서는 `MERGE` 구문이 실패할 수 있어, 샘플 데이터 적재는 `INSERT ... WHERE NOT EXISTS` 방식으로 구성했습니다.
