@@ -88,10 +88,11 @@ export PGPASSWORD='your-password'
 - `sequences.tsv`: 시퀀스 목록
 - `edb_extension_hits.txt`: `edb%` 확장 히트
 - `edb_function_name_hits.txt`: `edb%` 함수명 히트
+- `epas_feature_hits.tsv`: EPAS/Oracle 특화 패턴 히트 (예: `SYS_CONTEXT`, `AUTHID`, `NVL`, `SYSDATE`, `DBMS_RLS`, `CLOB` 등)
 - `oracle_keyword_hits.tsv`: Oracle 키워드 히트 (`--oracle-checks` 사용 시)
 - `count_summary.tsv`: `metric<TAB>count` 집계
 - `summary.md`: 사람 읽기용 요약
-- `migration_guide_report.md`: 호환성/대체기능/수동수정 필요 여부를 정리한 가이드 리포트
+- `migration_guide_report.md`: 호환성/대체기능/수동수정 필요 여부 + 덤프 기반 추가 체크리스트를 정리한 가이드 리포트
 
 ---
 

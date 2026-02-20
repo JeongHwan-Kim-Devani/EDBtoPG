@@ -93,7 +93,7 @@ write_reports() {
   local f_count="$OUTPUT_DIR/count_summary.tsv"
   local f_guide="$OUTPUT_DIR/migration_guide_report.md"
 
-  local c_instance c_extensions c_objects c_routines c_grants c_types c_sequences c_edb_ext c_edb_rtn c_oracle
+  local c_instance c_extensions c_objects c_routines c_grants c_types c_sequences c_edb_ext c_edb_rtn c_epas c_oracle
   c_instance=$(line_count "$OUTPUT_DIR/instance_settings.tsv")
   c_extensions=$(line_count "$OUTPUT_DIR/extensions.tsv")
   c_objects=$(line_count "$OUTPUT_DIR/objects.tsv")
@@ -103,6 +103,7 @@ write_reports() {
   c_sequences=$(line_count "$OUTPUT_DIR/sequences.tsv")
   c_edb_ext=$(nonempty_line_count "$OUTPUT_DIR/edb_extension_hits.txt")
   c_edb_rtn=$(nonempty_line_count "$OUTPUT_DIR/edb_function_name_hits.txt")
+  c_epas=$(nonempty_line_count "$OUTPUT_DIR/epas_feature_hits.tsv")
   c_oracle=0
   if [[ "$ORACLE_CHECKS" -eq 1 ]]; then
     c_oracle=$(nonempty_line_count "$OUTPUT_DIR/oracle_keyword_hits.tsv")
@@ -122,6 +123,7 @@ write_reports() {
     echo -e "sequences\t${c_sequences}"
     echo -e "edb_extensions\t${c_edb_ext}"
     echo -e "edb_named_routines\t${c_edb_rtn}"
+    echo -e "epas_feature_hits\t${c_epas}"
     if [[ "$ORACLE_CHECKS" -eq 1 ]]; then
       echo -e "oracle_keyword_hits\t${c_oracle}"
     fi
@@ -144,6 +146,7 @@ write_reports() {
     echo "sequences=${c_sequences}"
     echo "edb_extensions=${c_edb_ext}"
     echo "edb_named_routines=${c_edb_rtn}"
+    echo "epas_feature_hits=${c_epas}"
     if [[ "$ORACLE_CHECKS" -eq 1 ]]; then
       echo "oracle_keyword_hits=${c_oracle}"
     fi
@@ -165,6 +168,7 @@ write_reports() {
     echo "|---|---:|---|"
     echo "| EDB 전용 확장 | ${c_edb_ext} | $([[ "$c_edb_ext" -eq 0 ]] && echo '양호' || echo '호환성 검토 필요') |"
     echo "| EDB 이름 패턴 루틴 | ${c_edb_rtn} | $([[ "$c_edb_rtn" -eq 0 ]] && echo '양호' || echo '재작성 가능성 있음') |"
+    echo "| EPAS/Oracle 특화 패턴 히트 | ${c_epas} | $([[ "$c_epas" -eq 0 ]] && echo '양호' || echo '수동 분석 권장') |"
     if [[ "$ORACLE_CHECKS" -eq 1 ]]; then
       echo "| Oracle 호환 키워드 히트 | ${c_oracle} | $([[ "$c_oracle" -eq 0 ]] && echo '양호' || echo '재작성 검토 필요') |"
     else
@@ -179,6 +183,7 @@ write_reports() {
     echo "|---|---|---|---|---|"
     echo "| EDB 전용 확장(edb%) | $(render_action "$c_edb_ext" "대체로 호환" "유사 확장/표준 SQL로 대체 검토" "확장별 기능 분석 후 스키마/코드 수동 수정 가능성 큼") | edb_extension_hits.txt |"
     echo "| EDB 전용 함수/프로시저 네이밍 | $(render_action "$c_edb_rtn" "대체로 호환" "PL/pgSQL 표준 함수로 치환 가능" "함수 본문 로직 수동 리팩토링 필요 가능") | edb_function_name_hits.txt, routines.tsv |"
+    echo "| EPAS/Oracle 특화 함수 패턴(SYS_CONTEXT, AUTHID, NVL 등) | $(render_action "$c_epas" "조건부 호환" "CURRENT_USER, COALESCE, now() 등으로 치환 가능" "패턴별 수동 수정 및 테스트 필요") | epas_feature_hits.tsv |"
     if [[ "$ORACLE_CHECKS" -eq 1 ]]; then
       echo "| Oracle 호환 키워드 사용 | $(render_action "$c_oracle" "대체로 호환" "CASE/COALESCE/표준 SQL로 치환 가능" "복합 비즈니스 로직은 수동 재작성 가능성 높음") | oracle_keyword_hits.tsv |"
     else
@@ -187,20 +192,33 @@ write_reports() {
     echo "| 타입 핫스팟(timestamp/numeric/json/xml) | 조건부 호환 | 타입별 매핑 정책 수립으로 대체 가능 | 애플리케이션 바인딩/정밀도 이슈는 수동 수정 가능 | type_hotspots.tsv |"
     echo "| 시퀀스/자동증가 | 조건부 호환 | identity/sequence setval 전략으로 대체 가능 | cutover 시 시퀀스 동기화 수동 점검 권장 | sequences.tsv |"
     echo
-    echo "## 3) 우선순위 액션 플랜"
+    echo "## 3) 덤프 기반 추가 체크리스트 (샘플 기준)"
+    echo
+    echo "| 항목 | PostgreSQL 호환성 | 대체/권장 방식 | 수동 수정 필요성 |"
+    echo "|---|---|---|---|"
+    echo "| SYNONYM | 비호환 | VIEW 또는 search_path/SQL 재작성 | 높음 |"
+    echo "| PACKAGE | 비호환 | 스키마 + 함수/프로시저 묶음으로 분해 | 높음 |"
+    echo "| DBMS_RLS.ADD_POLICY (EDB POLICY) | 부분 호환 | PostgreSQL RLS POLICY로 재구현 | 높음 |"
+    echo "| AUTHID DEFINER/CURRENT_USER | 부분 호환 | SECURITY DEFINER/INVOKER 전략 재설계 | 중간~높음 |"
+    echo "| SYS_CONTEXT('USERENV','SESSION_USER') | 비호환 | CURRENT_USER/SESSION_USER로 치환 | 중간 |"
+    echo "| NVL, SYSDATE | 비호환 | COALESCE, CURRENT_TIMESTAMP/now()로 치환 | 중간 |"
+    echo "| CLOB 타입 | 비호환 | text로 매핑 | 중간 |"
+    echo
+    echo "## 4) 우선순위 액션 플랜"
     echo
     echo "1. **EDB 전용 확장/루틴 우선 정리**: edb_extension_hits.txt, edb_function_name_hits.txt를 기준으로 제거/치환 전략 수립"
     echo "2. **Oracle 패턴 스캔 재실행**: 아직 미실행이면 --oracle-checks 옵션으로 재수집"
     echo "3. **타입/시퀀스 정책 문서화**: type_hotspots.tsv, sequences.tsv 기반으로 표준 매핑표 작성"
     echo "4. **UAT 대상 선정**: 히트가 있는 객체를 우선 테스트 케이스로 지정"
     echo
-    echo "## 4) 원본 산출물"
+    echo "## 5) 원본 산출물"
     echo
     echo "- summary.md: 요약"
     echo "- count_summary.tsv: 머신 파싱용 카운트"
     echo "- objects.tsv, object_kind_counts.tsv: 객체 인벤토리"
     echo "- routines.tsv, routine_kind_counts.tsv: 루틴 인벤토리"
     echo "- type_hotspots.tsv, sequences.tsv: 마이그레이션 민감 항목"
+    echo "- epas_feature_hits.tsv: EPAS/Oracle 특화 패턴 히트"
     echo "- edb_extension_hits.txt, edb_function_name_hits.txt, oracle_keyword_hits.tsv(옵션): 호환성 리스크 근거"
   } > "$f_guide"
 }
@@ -371,6 +389,53 @@ WHERE n.nspname NOT IN ('pg_catalog','information_schema')
   AND p.proname ILIKE 'edb%'
   ${schema_filter}
 ORDER BY 1;"
+
+echo "[INFO] Scanning EPAS/Oracle-specific compatibility patterns..."
+run_sql "$OUTPUT_DIR/epas_feature_hits.tsv" "
+WITH routine_hits AS (
+  SELECT n.nspname || E'.' || p.proname AS object_name,
+         'ROUTINE' AS source,
+         kw.keyword
+  FROM pg_proc p
+  JOIN pg_namespace n ON n.oid = p.pronamespace
+  CROSS JOIN LATERAL (
+    VALUES ('SYS_CONTEXT('), ('AUTHID'), ('NVL('), ('SYSDATE'), ('SYSTIMESTAMP'), ('DBMS_RLS'), ('DECODE('), ('ROWNUM'), ('DUAL')
+  ) kw(keyword)
+  WHERE n.nspname NOT IN ('pg_catalog','information_schema')
+    ${schema_filter}
+    AND pg_get_functiondef(p.oid) ILIKE '%' || kw.keyword || '%'
+),
+default_hits AS (
+  SELECT n.nspname || E'.' || c.relname || E'.' || a.attname AS object_name,
+         'COLUMN_DEFAULT' AS source,
+         'SYSDATE' AS keyword
+  FROM pg_attrdef d
+  JOIN pg_class c ON c.oid = d.adrelid
+  JOIN pg_namespace n ON n.oid = c.relnamespace
+  JOIN pg_attribute a ON a.attrelid = d.adrelid AND a.attnum = d.adnum
+  WHERE n.nspname NOT IN ('pg_catalog','information_schema')
+    AND n.nspname NOT LIKE 'pg_toast%'
+    ${schema_filter}
+    AND pg_get_expr(d.adbin, d.adrelid) ILIKE '%sysdate%'
+),
+type_hits AS (
+  SELECT table_schema || E'.' || table_name || E'.' || column_name AS object_name,
+         'COLUMN_TYPE' AS source,
+         upper(udt_name) AS keyword
+  FROM information_schema.columns
+  WHERE table_schema NOT IN ('pg_catalog','information_schema')
+    ${schema_filter_table}
+    AND lower(udt_name) IN ('clob','blob','varchar2','nvarchar2')
+)
+SELECT object_name || E'\t' || source || E'\t' || keyword
+FROM (
+  SELECT * FROM routine_hits
+  UNION ALL
+  SELECT * FROM default_hits
+  UNION ALL
+  SELECT * FROM type_hits
+) t
+ORDER BY 1, 2, 3;"
 
 if [[ "$ORACLE_CHECKS" -eq 1 ]]; then
   echo "[INFO] Running Oracle-compatibility keyword checks in routine definitions..."
