@@ -57,10 +57,15 @@ SELECT * FROM demo.customer_syn;
 SELECT demo.fn_total_amount('minjun@example.com') FROM dual;
 SELECT COUNT(*) FROM demo.type_samples;
 
--- 테이블별 용량 확인
-SELECT pg_size_pretty(pg_total_relation_size('demo.customer_docs'))      AS customer_docs_size;
-SELECT pg_size_pretty(pg_total_relation_size('demo.large_text_chunks'))  AS large_text_chunks_size;
+-- 테이블별 물리 용량 확인
+SELECT pg_size_pretty(pg_total_relation_size('demo.customer_docs'))       AS customer_docs_size;
+SELECT pg_size_pretty(pg_total_relation_size('demo.large_text_chunks'))   AS large_text_chunks_size;
 SELECT pg_size_pretty(pg_total_relation_size('demo.large_binary_chunks')) AS large_binary_chunks_size;
+
+-- 논리 페이로드(행 데이터 길이) 확인
+SELECT pg_size_pretty(SUM(OCTET_LENGTH(doc_text))::BIGINT)  AS customer_docs_payload FROM demo.customer_docs WHERE doc_name LIKE 'bulk_doc_%';
+SELECT pg_size_pretty(SUM(OCTET_LENGTH(chunk_text))::BIGINT) AS large_text_payload   FROM demo.large_text_chunks WHERE chunk_name LIKE 'text_chunk_%';
+SELECT pg_size_pretty(SUM(OCTET_LENGTH(chunk_bin))::BIGINT)  AS large_bin_payload    FROM demo.large_binary_chunks WHERE chunk_name LIKE 'bin_chunk_%';
 ```
 
 ### 6) 참고/주의사항
@@ -68,3 +73,5 @@ SELECT pg_size_pretty(pg_total_relation_size('demo.large_binary_chunks')) AS lar
 - EPAS 제약에 따라 `IDENTITY` 컬럼은 `BIGINT` 기반으로 정의했습니다.
 - 일부 EPAS 환경에서 `MERGE` 구문 호환 이슈가 있어 데이터 적재는 `INSERT ... WHERE NOT EXISTS` 중심으로 작성했습니다.
 - `UTL_I18N` 패키지가 없는 환경을 고려해 암호화 예시는 `HEXTORAW` 기반으로 구현했습니다.
+
+- 물리 용량과 논리 페이로드가 비슷하게 보이도록, 주요 대용량 컬럼은 `SET STORAGE EXTERNAL`로 설정했습니다.

@@ -60,6 +60,23 @@ CREATE TABLE IF NOT EXISTS demo.large_binary_chunks (
   created_at DATE DEFAULT SYSDATE
 );
 
+
+-- 대용량 샘플의 실제 디스크 사용량 확인을 위해 TOAST 압축을 피하도록 설정
+ALTER TABLE demo.customer_docs ALTER COLUMN doc_text SET STORAGE EXTERNAL;
+ALTER TABLE demo.customer_docs ALTER COLUMN doc_bin SET STORAGE EXTERNAL;
+ALTER TABLE demo.large_text_chunks ALTER COLUMN chunk_text SET STORAGE EXTERNAL;
+ALTER TABLE demo.large_binary_chunks ALTER COLUMN chunk_bin SET STORAGE EXTERNAL;
+
+-- 1MB 페이로드 생성 함수(32자 md5 * 32768 = 1,048,576 bytes)
+CREATE OR REPLACE FUNCTION demo.fn_payload_1mb(p_seed TEXT)
+RETURNS TEXT
+LANGUAGE SQL
+IMMUTABLE
+AS $$
+  SELECT STRING_AGG(MD5(p_seed || ':' || gs::TEXT), '')
+  FROM generate_series(1, 32768) gs;
+$$;
+
 -- EPAS Oracle profile
 DO $$
 BEGIN
@@ -156,7 +173,7 @@ SELECT
   SYSDATE - gs,
   CURRENT_TIMESTAMP - (gs || ' hour')::INTERVAL,
   CAST('CLOB sample row ' || TO_CHAR(gs) || ' / ' || RPAD('X', 4000, 'X') AS CLOB),
-  HEXTORAW(RPAD(LPAD(TO_CHAR(gs, 'FM9999999990'), 2, '0'), 200, 'A')),
+  CONVERT_TO(RPAD(MD5(TO_CHAR(gs)), 200, 'A'), 'UTF8'),
   N'unicode-샘플-' || TO_CHAR(gs),
   INTERVAL '1 00:00:00' DAY TO SECOND * gs,
   CASE WHEN MOD(gs, 2) = 0 THEN 'Y' ELSE 'N' END
@@ -180,13 +197,24 @@ BEGIN
     INSERT INTO demo.customer_docs (customer_id, doc_name, doc_text, doc_bin, created_at)
     SELECT c.customer_id,
            'bulk_doc_' || TO_CHAR(gs),
-           CAST(REPEAT('D', 1024 * 1024) AS CLOB),
+           CAST(demo.fn_payload_1mb('DOC:' || TO_CHAR(gs)) AS CLOB),
            NULL,
            SYSDATE
       FROM generate_series(v_existing_rows + 1, v_target_rows) gs
       CROSS JOIN (
         SELECT customer_id FROM demo.customers WHERE email = 'minjun@example.com' FETCH FIRST 1 ROW ONLY
       ) c;
+  END IF;
+END
+$$;
+
+-- 기존에 압축률이 높은 패턴으로 적재된 경우 디스크 사용량이 작게 보일 수 있어 재작성
+DO $$
+BEGIN
+  IF pg_total_relation_size('demo.customer_docs') < (120 * 1024 * 1024) THEN
+    UPDATE demo.customer_docs
+       SET doc_text = CAST(demo.fn_payload_1mb('DOC:' || REGEXP_REPLACE(doc_name, '^bulk_doc_', '')) AS CLOB)
+     WHERE doc_name LIKE 'bulk_doc_%';
   END IF;
 END
 $$;
@@ -204,9 +232,19 @@ BEGIN
   IF v_existing_rows < v_target_rows THEN
     INSERT INTO demo.large_text_chunks (chunk_name, chunk_text, created_at)
     SELECT 'text_chunk_' || TO_CHAR(gs),
-           CAST(REPEAT('T', 1024 * 1024) AS CLOB),
+           CAST(demo.fn_payload_1mb('TXT:' || TO_CHAR(gs)) AS CLOB),
            SYSDATE
       FROM generate_series(v_existing_rows + 1, v_target_rows) gs;
+  END IF;
+END
+$$;
+
+DO $$
+BEGIN
+  IF pg_total_relation_size('demo.large_text_chunks') < (120 * 1024 * 1024) THEN
+    UPDATE demo.large_text_chunks
+       SET chunk_text = CAST(demo.fn_payload_1mb('TXT:' || REGEXP_REPLACE(chunk_name, '^text_chunk_', '')) AS CLOB)
+     WHERE chunk_name LIKE 'text_chunk_%';
   END IF;
 END
 $$;
@@ -224,9 +262,19 @@ BEGIN
   IF v_existing_rows < v_target_rows THEN
     INSERT INTO demo.large_binary_chunks (chunk_name, chunk_bin, created_at)
     SELECT 'bin_chunk_' || TO_CHAR(gs),
-           HEXTORAW(RPAD('AB', 2 * 1024 * 1024, 'CD')),
+           CONVERT_TO(demo.fn_payload_1mb('BIN:' || TO_CHAR(gs)), 'UTF8'),
            SYSDATE
       FROM generate_series(v_existing_rows + 1, v_target_rows) gs;
+  END IF;
+END
+$$;
+
+DO $$
+BEGIN
+  IF pg_total_relation_size('demo.large_binary_chunks') < (120 * 1024 * 1024) THEN
+    UPDATE demo.large_binary_chunks
+       SET chunk_bin = CONVERT_TO(demo.fn_payload_1mb('BIN:' || REGEXP_REPLACE(chunk_name, '^bin_chunk_', '')), 'UTF8')
+     WHERE chunk_name LIKE 'bin_chunk_%';
   END IF;
 END
 $$;
