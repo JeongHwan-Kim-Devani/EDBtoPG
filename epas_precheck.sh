@@ -69,6 +69,17 @@ nonempty_line_count() {
   fi
 }
 
+tsv_col_count() {
+  local file="$1"
+  local col="$2"
+  local value="$3"
+  if [[ -f "$file" ]]; then
+    awk -F '\t' -v c="$col" -v v="$value" '$c == v {n++} END {print n+0}' "$file"
+  else
+    echo 0
+  fi
+}
+
 run_sql() {
   local out_file="$1"
   local sql="$2"
@@ -94,7 +105,7 @@ write_reports() {
   local f_guide="$OUTPUT_DIR/migration_guide_report.md"
   local f_plain="$OUTPUT_DIR/migration_summary_report.txt"
 
-  local c_instance c_extensions c_objects c_routines c_grants c_types c_sequences c_edb_ext c_edb_rtn c_epas c_risk c_oracle
+  local c_instance c_extensions c_objects c_routines c_grants c_types c_sequences c_edb_ext c_edb_rtn c_epas c_risk c_epas_builtin c_epas_user c_oracle
   c_instance=$(line_count "$OUTPUT_DIR/instance_settings.tsv")
   c_extensions=$(line_count "$OUTPUT_DIR/extensions.tsv")
   c_objects=$(line_count "$OUTPUT_DIR/objects.tsv")
@@ -106,6 +117,8 @@ write_reports() {
   c_edb_rtn=$(nonempty_line_count "$OUTPUT_DIR/edb_function_name_hits.txt")
   c_epas=$(nonempty_line_count "$OUTPUT_DIR/epas_feature_hits.tsv")
   c_risk=$(nonempty_line_count "$OUTPUT_DIR/migration_risk_hits.tsv")
+  c_epas_builtin=$(tsv_col_count "$OUTPUT_DIR/epas_feature_hits.tsv" 4 "EDB_BUILTIN")
+  c_epas_user=$(tsv_col_count "$OUTPUT_DIR/epas_feature_hits.tsv" 4 "USER_CREATED")
   c_oracle=0
   if [[ "$ORACLE_CHECKS" -eq 1 ]]; then
     c_oracle=$(nonempty_line_count "$OUTPUT_DIR/oracle_keyword_hits.tsv")
@@ -126,6 +139,8 @@ write_reports() {
     echo -e "edb_extensions\t${c_edb_ext}"
     echo -e "edb_named_routines\t${c_edb_rtn}"
     echo -e "epas_feature_hits\t${c_epas}"
+    echo -e "epas_builtin_feature_hits\t${c_epas_builtin}"
+    echo -e "epas_user_feature_hits\t${c_epas_user}"
     echo -e "migration_risk_hits\t${c_risk}"
     if [[ "$ORACLE_CHECKS" -eq 1 ]]; then
       echo -e "oracle_keyword_hits\t${c_oracle}"
@@ -150,6 +165,8 @@ write_reports() {
     echo "edb_extensions=${c_edb_ext}"
     echo "edb_named_routines=${c_edb_rtn}"
     echo "epas_feature_hits=${c_epas}"
+    echo "epas_builtin_feature_hits=${c_epas_builtin}"
+    echo "epas_user_feature_hits=${c_epas_user}"
     echo "migration_risk_hits=${c_risk}"
     if [[ "$ORACLE_CHECKS" -eq 1 ]]; then
       echo "oracle_keyword_hits=${c_oracle}"
@@ -173,6 +190,8 @@ write_reports() {
     echo "| EDB 전용 확장 | ${c_edb_ext} | $([[ "$c_edb_ext" -eq 0 ]] && echo '양호' || echo '호환성 검토 필요') |"
     echo "| EDB 이름 패턴 루틴 | ${c_edb_rtn} | $([[ "$c_edb_rtn" -eq 0 ]] && echo '양호' || echo '재작성 가능성 있음') |"
     echo "| EPAS/Oracle 특화 패턴 히트 | ${c_epas} | $([[ "$c_epas" -eq 0 ]] && echo '양호' || echo '수동 분석 권장') |"
+    echo "| └ EDB 내장/확장 객체 히트 | ${c_epas_builtin} | 참고용(확장/내장 객체) |"
+    echo "| └ 사용자 생성 객체 히트 | ${c_epas_user} | 우선 조치 대상 |"
     echo "| 이관 실패 위험 패턴 히트 | ${c_risk} | $([[ "$c_risk" -eq 0 ]] && echo '양호' || echo '사전 치환 강력 권장') |"
     if [[ "$ORACLE_CHECKS" -eq 1 ]]; then
       echo "| Oracle 호환 키워드 히트 | ${c_oracle} | $([[ "$c_oracle" -eq 0 ]] && echo '양호' || echo '재작성 검토 필요') |"
@@ -259,6 +278,8 @@ write_reports() {
     echo "Type hotspots: ${c_types}"
     echo "Sequences: ${c_sequences}"
     echo "EPAS feature hits: ${c_epas}"
+    echo "  - Built-in/extension feature hits: ${c_epas_builtin}"
+    echo "  - User-created feature hits: ${c_epas_user}"
     echo "Migration risk hits: ${c_risk}"
     [[ "$ORACLE_CHECKS" -eq 1 ]] && echo "Oracle keyword hits: ${c_oracle}"
     echo
@@ -441,27 +462,46 @@ ORDER BY 1;"
 
 echo "[INFO] Scanning EPAS/Oracle-specific compatibility patterns..."
 run_sql "$OUTPUT_DIR/epas_feature_hits.tsv" "
-WITH routine_hits AS (
+WITH ext_owned_proc AS (
+  SELECT d.objid
+  FROM pg_depend d
+  JOIN pg_extension e ON e.oid = d.refobjid
+  WHERE d.classid = 'pg_proc'::regclass
+    AND d.deptype = 'e'
+),
+ext_owned_rel AS (
+  SELECT d.objid
+  FROM pg_depend d
+  JOIN pg_extension e ON e.oid = d.refobjid
+  WHERE d.classid = 'pg_class'::regclass
+    AND d.deptype = 'e'
+),
+routine_hits AS (
   SELECT n.nspname || E'.' || p.proname AS object_name,
          'ROUTINE' AS source,
-         kw.keyword
+         kw.keyword,
+         CASE WHEN ep.objid IS NULL THEN 'USER_CREATED' ELSE 'EDB_BUILTIN' END AS owner_class
   FROM pg_proc p
   JOIN pg_namespace n ON n.oid = p.pronamespace
+  LEFT JOIN ext_owned_proc ep ON ep.objid = p.oid
   CROSS JOIN LATERAL (
     VALUES ('SYS_CONTEXT('), ('AUTHID'), ('NVL('), ('SYSDATE'), ('SYSTIMESTAMP'), ('DBMS_RLS'), ('DECODE('), ('ROWNUM'), ('DUAL')
   ) kw(keyword)
   WHERE n.nspname NOT IN ('pg_catalog','information_schema')
     ${schema_filter}
+    AND p.prokind IN ('f','p')
     AND pg_get_functiondef(p.oid) ILIKE '%' || kw.keyword || '%'
 ),
 default_hits AS (
   SELECT n.nspname || E'.' || c.relname || E'.' || a.attname AS object_name,
          'COLUMN_DEFAULT' AS source,
-         'SYSDATE' AS keyword
+         'SYSDATE' AS keyword,
+         CASE WHEN er.objid IS NULL THEN 'USER_CREATED' ELSE 'EDB_BUILTIN' END AS owner_class
   FROM pg_attrdef d
   JOIN pg_class c ON c.oid = d.adrelid
   JOIN pg_namespace n ON n.oid = c.relnamespace
   JOIN pg_attribute a ON a.attrelid = d.adrelid AND a.attnum = d.adnum
+  LEFT JOIN ext_owned_rel er ON er.objid = c.oid
   WHERE n.nspname NOT IN ('pg_catalog','information_schema')
     AND n.nspname NOT LIKE 'pg_toast%'
     ${schema_filter}
@@ -470,13 +510,17 @@ default_hits AS (
 type_hits AS (
   SELECT table_schema || E'.' || table_name || E'.' || column_name AS object_name,
          'COLUMN_TYPE' AS source,
-         upper(udt_name) AS keyword
+         upper(udt_name) AS keyword,
+         CASE WHEN er.objid IS NULL THEN 'USER_CREATED' ELSE 'EDB_BUILTIN' END AS owner_class
   FROM information_schema.columns
+  JOIN pg_namespace n ON n.nspname = table_schema
+  JOIN pg_class c ON c.relnamespace = n.oid AND c.relname = table_name
+  LEFT JOIN ext_owned_rel er ON er.objid = c.oid
   WHERE table_schema NOT IN ('pg_catalog','information_schema')
     ${schema_filter_table}
     AND lower(udt_name) IN ('clob','blob','varchar2','nvarchar2')
 )
-SELECT object_name || E'\t' || source || E'\t' || keyword
+SELECT object_name || E'\t' || source || E'\t' || keyword || E'\t' || owner_class
 FROM (
   SELECT * FROM routine_hits
   UNION ALL
@@ -491,7 +535,14 @@ run_sql "$OUTPUT_DIR/migration_risk_hits.tsv" "
 WITH sysdate_defaults AS (
   SELECT n.nspname || E'.' || c.relname || E'.' || a.attname AS object_name,
          'SYSDATE_DEFAULT' AS risk_code,
-         'DEFAULT uses SYSDATE; convert to now()/CURRENT_TIMESTAMP' AS recommendation
+         'DEFAULT uses SYSDATE; convert to now()/CURRENT_TIMESTAMP' AS recommendation,
+         CASE WHEN EXISTS (
+           SELECT 1 FROM pg_depend d
+           JOIN pg_extension e ON e.oid = d.refobjid
+           WHERE d.classid = 'pg_class'::regclass
+             AND d.objid = c.oid
+             AND d.deptype = 'e'
+         ) THEN 'EDB_BUILTIN' ELSE 'USER_CREATED' END AS owner_class
   FROM pg_attrdef d
   JOIN pg_class c ON c.oid = d.adrelid
   JOIN pg_namespace n ON n.oid = c.relnamespace
@@ -504,7 +555,14 @@ WITH sysdate_defaults AS (
 edbspl_routines AS (
   SELECT n.nspname || E'.' || p.proname AS object_name,
          'EDBSPL_ROUTINE' AS risk_code,
-         'Rewrite to PL/pgSQL before migration' AS recommendation
+         'Rewrite to PL/pgSQL before migration' AS recommendation,
+         CASE WHEN EXISTS (
+           SELECT 1 FROM pg_depend d
+           JOIN pg_extension e ON e.oid = d.refobjid
+           WHERE d.classid = 'pg_proc'::regclass
+             AND d.objid = p.oid
+             AND d.deptype = 'e'
+         ) THEN 'EDB_BUILTIN' ELSE 'USER_CREATED' END AS owner_class
   FROM pg_proc p
   JOIN pg_namespace n ON n.oid = p.pronamespace
   JOIN pg_language l ON l.oid = p.prolang
@@ -515,7 +573,8 @@ edbspl_routines AS (
 pgss_objects AS (
   SELECT n.nspname || E'.' || c.relname AS object_name,
          'PG_STAT_STATEMENTS_OBJECT' AS risk_code,
-         'Skip migrating extension-managed objects (view/function)' AS recommendation
+         'Skip migrating extension-managed objects (view/function)' AS recommendation,
+         'EDB_BUILTIN' AS owner_class
   FROM pg_class c
   JOIN pg_namespace n ON n.oid = c.relnamespace
   WHERE n.nspname NOT IN ('pg_catalog','information_schema')
@@ -524,7 +583,8 @@ pgss_objects AS (
   UNION ALL
   SELECT n.nspname || E'.' || p.proname AS object_name,
          'PG_STAT_STATEMENTS_OBJECT' AS risk_code,
-         'Skip migrating extension-managed objects (view/function)' AS recommendation
+         'Skip migrating extension-managed objects (view/function)' AS recommendation,
+         'EDB_BUILTIN' AS owner_class
   FROM pg_proc p
   JOIN pg_namespace n ON n.oid = p.pronamespace
   WHERE n.nspname NOT IN ('pg_catalog','information_schema')
@@ -534,17 +594,25 @@ pgss_objects AS (
 policy_context AS (
   SELECT n.nspname || E'.' || p.proname AS object_name,
          'POLICY_OR_CONTEXT' AS risk_code,
-         'Map DBMS_RLS/SYS_CONTEXT semantics to PostgreSQL RLS + CURRENT_USER logic' AS recommendation
+         'Map DBMS_RLS/SYS_CONTEXT semantics to PostgreSQL RLS + CURRENT_USER logic' AS recommendation,
+         CASE WHEN EXISTS (
+           SELECT 1 FROM pg_depend d
+           JOIN pg_extension e ON e.oid = d.refobjid
+           WHERE d.classid = 'pg_proc'::regclass
+             AND d.objid = p.oid
+             AND d.deptype = 'e'
+         ) THEN 'EDB_BUILTIN' ELSE 'USER_CREATED' END AS owner_class
   FROM pg_proc p
   JOIN pg_namespace n ON n.oid = p.pronamespace
   WHERE n.nspname NOT IN ('pg_catalog','information_schema')
     ${schema_filter}
+    AND p.prokind IN ('f','p')
     AND (
       pg_get_functiondef(p.oid) ILIKE '%dbms_rls%'
       OR pg_get_functiondef(p.oid) ILIKE '%sys_context(%'
     )
 )
-SELECT object_name || E'\t' || risk_code || E'\t' || recommendation
+SELECT object_name || E'\t' || risk_code || E'\t' || recommendation || E'\t' || owner_class
 FROM (
   SELECT * FROM sysdate_defaults
   UNION ALL

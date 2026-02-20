@@ -88,13 +88,16 @@ export PGPASSWORD='your-password'
 - `sequences.tsv`: 시퀀스 목록
 - `edb_extension_hits.txt`: `edb%` 확장 히트
 - `edb_function_name_hits.txt`: `edb%` 함수명 히트
-- `epas_feature_hits.tsv`: EPAS/Oracle 특화 패턴 히트 (예: `SYS_CONTEXT`, `AUTHID`, `NVL`, `SYSDATE`, `DBMS_RLS`, `CLOB` 등)
+- `epas_feature_hits.tsv`: EPAS/Oracle 특화 패턴 히트 (예: `SYS_CONTEXT`, `AUTHID`, `NVL`, `SYSDATE`, `DBMS_RLS`, `CLOB` 등) + `EDB_BUILTIN`/`USER_CREATED` 구분
 - `migration_risk_hits.tsv`: 이관 시 자주 실패하는 패턴 히트 (`SYSDATE DEFAULT`, `edbspl`, `pg_stat_statements` 객체 충돌 등)
 - `oracle_keyword_hits.tsv`: Oracle 키워드 히트 (`--oracle-checks` 사용 시)
 - `count_summary.tsv`: `metric<TAB>count` 집계
 - `summary.md`: 사람 읽기용 요약
 - `migration_guide_report.md`: 호환성/대체기능/수동수정 필요 여부 + 덤프 기반 추가 체크리스트를 정리한 가이드 리포트
 - `migration_summary_report.txt`: 한눈에 보는 텍스트 요약 리포트
+
+`count_summary.tsv`에는 `epas_builtin_feature_hits`, `epas_user_feature_hits`가 포함되어
+내장/확장 객체와 사용자 생성 객체의 특화 기능 사용량을 분리해 볼 수 있습니다.
 
 ---
 
