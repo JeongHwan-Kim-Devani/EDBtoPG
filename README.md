@@ -25,6 +25,9 @@ chmod +x epas_precheck.sh
 ./epas_precheck.sh -h localhost -p 5444 -d mydb -U dsadmin -o ./precheck.out
 ```
 
+`-o/--output`을 지정하지 않으면, 스크립트는 임시 디렉터리에 결과를 생성한 뒤
+`92_migration_guide_report.md` 내용을 표준출력으로 보여주고 종료합니다.
+
 비밀번호를 옵션으로 전달하지 않고 환경변수로 주는 것을 권장합니다.
 
 ```bash

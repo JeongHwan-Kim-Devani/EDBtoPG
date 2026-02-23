@@ -36,6 +36,8 @@ SCHEMA=""
 OUTPUT_DIR="precheck_output_$(date +%Y%m%d_%H%M%S)"
 ORACLE_CHECKS=0
 CONNECT_TIMEOUT="5"
+OUTPUT_SPECIFIED=0
+PROMPT_MODE=0
 
 require_cmd() {
   local cmd="$1"
@@ -256,6 +258,14 @@ write_reports() {
     echo "- EDBSPL_ROUTINE: $(grep -c $'\tEDBSPL_ROUTINE\t' "$F_MIGRATION_RISK_HITS" 2>/dev/null || true)"
     echo "- PG_STAT_STATEMENTS_OBJECT: $(grep -c $'\tPG_STAT_STATEMENTS_OBJECT\t' "$F_MIGRATION_RISK_HITS" 2>/dev/null || true)"
     echo "- POLICY_OR_CONTEXT: $(grep -c $'\tPOLICY_OR_CONTEXT\t' "$F_MIGRATION_RISK_HITS" 2>/dev/null || true)"
+    echo
+    echo "## 8) List of migration risk hits"
+    echo
+    if [[ -s "$F_MIGRATION_RISK_HITS" ]]; then
+      awk -F '\t' '{printf "%d. %s | %s | %s\n", NR, $1, $2, $4}' "$F_MIGRATION_RISK_HITS"
+    else
+      echo "- No risk hits detected."
+    fi
   } > "$f_guide"
 
   {
@@ -278,7 +288,7 @@ write_reports() {
     echo "List of migration risk hits"
     echo "======================"
     if [[ -s "$F_MIGRATION_RISK_HITS" ]]; then
-      awk -F '\t' '{print NR ". " $1 " [" $2 "]"}' "$F_MIGRATION_RISK_HITS"
+      awk -F '\t' '{print NR ". " $1 " [" $2 " | " $4 "]"}' "$F_MIGRATION_RISK_HITS"
     else
       echo "No risk hits detected."
     fi
@@ -293,7 +303,7 @@ while [[ $# -gt 0 ]]; do
     -U|--user) DBUSER="$2"; shift 2 ;;
     -W|--password) DBPASSWORD="$2"; shift 2 ;;
     -s|--schema) SCHEMA="$2"; shift 2 ;;
-    -o|--output) OUTPUT_DIR="$2"; shift 2 ;;
+    -o|--output) OUTPUT_DIR="$2"; OUTPUT_SPECIFIED=1; shift 2 ;;
     --oracle-checks) ORACLE_CHECKS=1; shift ;;
     --connect-timeout) CONNECT_TIMEOUT="$2"; shift 2 ;;
     --help|-\?) usage; exit 0 ;;
@@ -326,6 +336,11 @@ fi
 if [[ -n "$SCHEMA" && ! "$SCHEMA" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
   echo "[ERROR] --schema must be an unquoted schema identifier (letters, numbers, underscore)." >&2
   exit 1
+fi
+
+if [[ "$OUTPUT_SPECIFIED" -eq 0 ]]; then
+  PROMPT_MODE=1
+  OUTPUT_DIR=$(mktemp -d -t epas_precheck_XXXXXX)
 fi
 
 mkdir -p "$OUTPUT_DIR"
@@ -662,6 +677,7 @@ if [[ "$ORACLE_CHECKS" -eq 1 ]]; then
     VALUES ('SYSDATE'), ('SYSTIMESTAMP'), ('ROWNUM'), ('NVL('), ('DECODE('), ('DUAL')
   ) kw(keyword)
   WHERE n.nspname NOT IN ('pg_catalog','information_schema')
+    AND p.prokind IN ('f','p')
     AND pg_get_functiondef(p.oid) ILIKE '%' || kw.keyword || '%'
     ${schema_filter}
   ORDER BY 1;"
@@ -669,4 +685,11 @@ fi
 
 write_reports
 
-echo "[DONE] Pre-diagnostic data collected. See: $OUTPUT_DIR"
+if [[ "$PROMPT_MODE" -eq 1 ]]; then
+  echo "[INFO] --output not provided. Printing 92_migration_guide_report.md content below."
+  cat "$F_GUIDE"
+  rm -rf "$OUTPUT_DIR"
+  echo "[DONE] Prompt mode completed."
+else
+  echo "[DONE] Pre-diagnostic data collected. See: $OUTPUT_DIR"
+fi
