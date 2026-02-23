@@ -82,6 +82,16 @@ tsv_col_count() {
   fi
 }
 
+tsv_key_count() {
+  local file="$1"
+  local key="$2"
+  if [[ -f "$file" ]]; then
+    awk -F '\t' -v k="$key" '$1 == k {print $2; found=1} END {if (!found) print 0}' "$file"
+  else
+    echo 0
+  fi
+}
+
 run_sql() {
   local out_file="$1"
   local sql="$2"
@@ -108,6 +118,7 @@ write_reports() {
   local f_plain="$F_PLAIN_SUMMARY"
 
   local c_instance c_extensions c_objects c_routines c_grants c_types c_sequences c_edb_ext c_edb_rtn c_epas c_risk c_epas_builtin c_epas_user c_oracle
+  local c_synonym c_package c_dbms c_authid c_sys_context c_nvl c_sysdate c_clob
   c_instance=$(line_count "$F_INSTANCE_SETTINGS")
   c_extensions=$(line_count "$F_EXTENSIONS")
   c_objects=$(line_count "$F_OBJECTS")
@@ -121,6 +132,14 @@ write_reports() {
   c_risk=$(nonempty_line_count "$F_MIGRATION_RISK_HITS")
   c_epas_builtin=$(tsv_col_count "$F_EPAS_FEATURE_HITS" 4 "EDB_BUILTIN")
   c_epas_user=$(tsv_col_count "$F_EPAS_FEATURE_HITS" 4 "USER_CREATED")
+  c_synonym=$(tsv_key_count "$F_EPAS_GROUP_COUNTS" "SYNONYM")
+  c_package=$(tsv_key_count "$F_EPAS_GROUP_COUNTS" "PACKAGE")
+  c_dbms=$(tsv_col_count "$F_EPAS_FEATURE_HITS" 3 "DBMS_RLS")
+  c_authid=$(tsv_col_count "$F_EPAS_FEATURE_HITS" 3 "AUTHID")
+  c_sys_context=$(tsv_col_count "$F_EPAS_FEATURE_HITS" 3 "SYS_CONTEXT(")
+  c_nvl=$(tsv_col_count "$F_EPAS_FEATURE_HITS" 3 "NVL(")
+  c_sysdate=$(tsv_col_count "$F_EPAS_FEATURE_HITS" 3 "SYSDATE")
+  c_clob=$(tsv_col_count "$F_EPAS_FEATURE_HITS" 3 "CLOB")
   c_oracle=0
   if [[ "$ORACLE_CHECKS" -eq 1 ]]; then
     c_oracle=$(nonempty_line_count "$F_ORACLE_KEYWORD_HITS")
@@ -223,13 +242,13 @@ write_reports() {
     echo
     echo "## 4) 덤프 기반 추가 체크리스트"
     echo
-    echo "- SYNONYM: 비호환 -> VIEW/search_path/SQL 재작성"
-    echo "- PACKAGE: 비호환 -> 스키마 + 함수/프로시저로 분해"
-    echo "- DBMS_RLS.ADD_POLICY: 부분 호환 -> PostgreSQL RLS POLICY 재구현"
-    echo "- AUTHID DEFINER/CURRENT_USER: SECURITY DEFINER/INVOKER 전략 재설계"
-    echo "- SYS_CONTEXT(USERENV,SESSION_USER): CURRENT_USER/SESSION_USER로 치환"
-    echo "- NVL, SYSDATE: COALESCE, CURRENT_TIMESTAMP/now()로 치환"
-    echo "- CLOB 타입: text로 매핑"
+    echo "- SYNONYM (${c_synonym}): 비호환 -> VIEW/search_path/SQL 재작성"
+    echo "- PACKAGE (${c_package}): 비호환 -> 스키마 + 함수/프로시저로 분해"
+    echo "- DBMS_RLS 계열 (${c_dbms}): 부분 호환 -> PostgreSQL RLS POLICY 재구현"
+    echo "- AUTHID 계열 (${c_authid}): SECURITY DEFINER/INVOKER 전략 재설계"
+    echo "- SYS_CONTEXT 계열 (${c_sys_context}): CURRENT_USER/SESSION_USER로 치환"
+    echo "- NVL 계열 (${c_nvl}) / SYSDATE 계열 (${c_sysdate}): COALESCE, CURRENT_TIMESTAMP/now()로 치환"
+    echo "- CLOB 타입 (${c_clob}): text로 매핑"
     echo
     echo "## 5) 우선순위 액션 플랜"
     echo
@@ -406,6 +425,7 @@ F_EDB_ROUTINE_HITS="$OUTPUT_DIR/12_edb_function_name_hits.txt"
 F_EPAS_FEATURE_HITS="$OUTPUT_DIR/13_epas_feature_hits.tsv"
 F_MIGRATION_RISK_HITS="$OUTPUT_DIR/14_migration_risk_hits.tsv"
 F_ORACLE_KEYWORD_HITS="$OUTPUT_DIR/15_oracle_keyword_hits.tsv"
+F_EPAS_GROUP_COUNTS="$OUTPUT_DIR/16_epas_group_counts.tsv"
 F_COUNT_SUMMARY="$OUTPUT_DIR/90_count_summary.tsv"
 F_SUMMARY="$OUTPUT_DIR/91_summary.md"
 F_GUIDE="$OUTPUT_DIR/92_migration_guide_report.md"
@@ -616,6 +636,24 @@ FROM (
   SELECT * FROM type_hits
 ) t
 ORDER BY 1;"
+
+echo "[INFO] Collecting grouped dump-check counters..."
+run_sql "$F_EPAS_GROUP_COUNTS" "
+SELECT 'SYNONYM' || E'\t' || count(*)
+FROM pg_class c
+JOIN pg_namespace n ON n.oid = c.relnamespace
+WHERE n.nspname NOT IN ('pg_catalog','information_schema')
+  AND n.nspname NOT LIKE 'pg_toast%'
+  ${schema_filter}
+  AND c.relkind = 'y'
+UNION ALL
+SELECT 'PACKAGE' || E'\t' || count(*)
+FROM pg_proc p
+JOIN pg_namespace n ON n.oid = p.pronamespace
+WHERE n.nspname NOT IN ('pg_catalog','information_schema')
+  ${schema_filter}
+  AND p.prokind IN ('f','p')
+  AND p.proname ILIKE 'pkg\_%' ESCAPE '\\';"
 
 echo "[INFO] Scanning migration failure risk patterns..."
 run_sql "$F_MIGRATION_RISK_HITS" "

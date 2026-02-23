@@ -22,7 +22,7 @@
 
 ```bash
 chmod +x epas_precheck.sh
-./epas_precheck.sh -h localhost -p 5444 -d mydb -U dsadmin -o ./precheck.out
+./epas_precheck.sh -h localhost -p 5444 -d mydb -U enterprisedb -o ./precheck.out
 ```
 
 `-o/--output`을 지정하지 않으면, 스크립트는 임시 디렉터리에 결과를 생성한 뒤
@@ -32,7 +32,7 @@ chmod +x epas_precheck.sh
 
 ```bash
 export PGPASSWORD='your-password'
-./epas_precheck.sh -h localhost -p 5444 -d mydb -U dsadmin -o ./precheck.out
+./epas_precheck.sh -h localhost -p 5444 -d mydb -U enterprisedb -o ./precheck.out
 ```
 
 ---
@@ -58,19 +58,19 @@ export PGPASSWORD='your-password'
 ### 기본 진단
 
 ```bash
-./epas_precheck.sh -h 10.0.0.10 -p 5444 -d appdb -U dsadmin -o ./precheck.appdb
+./epas_precheck.sh -h 10.0.0.10 -p 5444 -d appdb -U enterprisedb -o ./precheck.appdb
 ```
 
 ### 특정 스키마만 진단
 
 ```bash
-./epas_precheck.sh -h 10.0.0.10 -p 5444 -d appdb -U dsadmin -s app -o ./precheck.app
+./epas_precheck.sh -h 10.0.0.10 -p 5444 -d appdb -U enterprisedb -s app -o ./precheck.app
 ```
 
 ### Oracle 호환 패턴 검사 포함
 
 ```bash
-./epas_precheck.sh -h 10.0.0.10 -p 5444 -d appdb -U dsadmin --oracle-checks -o ./precheck.oracle
+./epas_precheck.sh -h 10.0.0.10 -p 5444 -d appdb -U enterprisedb --oracle-checks -o ./precheck.oracle
 ```
 
 ---
@@ -94,6 +94,7 @@ export PGPASSWORD='your-password'
 - `13_epas_feature_hits.tsv`: EPAS/Oracle 특화 패턴 히트 (예: `SYS_CONTEXT`, `AUTHID`, `NVL`, `SYSDATE`, `DBMS_RLS`, `CLOB` 등) + `EDB_BUILTIN`/`USER_CREATED` 구분
 - `14_migration_risk_hits.tsv`: 이관 시 자주 실패하는 패턴 히트 (`SYSDATE DEFAULT`, `edbspl`, `pg_stat_statements` 객체 충돌 등)
 - `15_oracle_keyword_hits.tsv`: Oracle 키워드 히트 (`--oracle-checks` 사용 시)
+- `16_epas_group_counts.tsv`: SYNONYM/PACKAGE 그룹 카운트
 - `90_count_summary.tsv`: `metric<TAB>count` 집계
 - `91_summary.md`: 사람 읽기용 요약
 - `92_migration_guide_report.md`: 호환성/대체기능/수동수정 필요 여부 + 덤프 기반 추가 체크리스트를 정리한 가이드 리포트
