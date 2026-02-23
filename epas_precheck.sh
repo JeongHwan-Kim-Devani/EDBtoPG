@@ -243,6 +243,17 @@ write_reports() {
       echo "No routine kind data."
     fi
     echo
+    echo "Counts (Routine kind grouping by owner)"
+    echo "--------------------"
+    if [[ -s "$F_ROUTINE_KIND_OWNER_COUNTS" ]]; then
+      awk -F '\t' '
+      BEGIN { map["f"]="function"; map["p"]="procedure"; map["a"]="aggregate"; map["w"]="window"; }
+      { printf "%-12s %-12s : %s\n", $1, (map[$2] ? map[$2] : $2), $3 }
+      ' "$F_ROUTINE_KIND_OWNER_COUNTS" | sort
+    else
+      echo "No routine owner-kind data."
+    fi
+    echo
     echo "## 2) 호환성/대체기능/수동수정 가이드"
     echo
     echo "Counts (Section 2 grouping)"
@@ -386,6 +397,18 @@ write_reports() {
     fi
 
     echo
+    echo "Counts (Routine kind grouping by owner)"
+    echo "--------------------"
+    if [[ -s "$F_ROUTINE_KIND_OWNER_COUNTS" ]]; then
+      awk -F '\t' '
+      BEGIN { map["f"]="function"; map["p"]="procedure"; map["a"]="aggregate"; map["w"]="window"; }
+      { printf "%-12s %-12s : %s\n", $1, (map[$2] ? map[$2] : $2), $3 }
+      ' "$F_ROUTINE_KIND_OWNER_COUNTS" | sort
+    else
+      echo "No routine owner-kind data."
+    fi
+
+    echo
     echo "Counts (EPAS feature owner grouping)"
     echo "--------------------"
     echo "Built-in/extension feature : ${c_epas_builtin}"
@@ -473,6 +496,7 @@ F_OBJECTS="$OUTPUT_DIR/04_objects.tsv"
 F_OBJECT_KIND_COUNTS="$OUTPUT_DIR/05_object_kind_counts.tsv"
 F_ROUTINES="$OUTPUT_DIR/06_routines.tsv"
 F_ROUTINE_KIND_COUNTS="$OUTPUT_DIR/07_routine_kind_counts.tsv"
+F_ROUTINE_KIND_OWNER_COUNTS="$OUTPUT_DIR/07b_routine_kind_owner_counts.tsv"
 F_TABLE_GRANTS="$OUTPUT_DIR/08_table_grants.tsv"
 F_TYPE_HOTSPOTS="$OUTPUT_DIR/09_type_hotspots.tsv"
 F_SEQUENCES="$OUTPUT_DIR/10_sequences.tsv"
@@ -562,6 +586,31 @@ WHERE n.nspname NOT IN ('pg_catalog','information_schema')
   ${schema_filter}
 GROUP BY prokind
 ORDER BY prokind;"
+
+echo "[INFO] Collecting routine kind counts by owner class..."
+run_sql "$F_ROUTINE_KIND_OWNER_COUNTS" "
+WITH ext_owned_proc AS (
+  SELECT d.objid
+  FROM pg_depend d
+  JOIN pg_extension e ON e.oid = d.refobjid
+  WHERE d.classid = 'pg_proc'::regclass
+    AND d.deptype = 'e'
+)
+SELECT
+  CASE
+    WHEN ep.objid IS NOT NULL THEN 'EDB_BUILTIN'
+    WHEN n.nspname IN ('sys','edb') THEN 'EDB_BUILTIN'
+    WHEN p.proname ILIKE 'dbms\_%' ESCAPE '\\' THEN 'EDB_BUILTIN'
+    WHEN p.proname IN ('pg_stat_statements','pg_stat_statements_info','pg_stat_statements_reset') THEN 'EDB_BUILTIN'
+    ELSE 'USER_CREATED'
+  END || E'\t' || p.prokind || E'\t' || count(*)
+FROM pg_proc p
+JOIN pg_namespace n ON n.oid = p.pronamespace
+LEFT JOIN ext_owned_proc ep ON ep.objid = p.oid
+WHERE n.nspname NOT IN ('pg_catalog','information_schema')
+  ${schema_filter}
+GROUP BY 1
+ORDER BY 1;"
 
 echo "[INFO] Collecting role/grant summary..."
 run_sql "$F_TABLE_GRANTS" "

@@ -86,6 +86,7 @@ export PGPASSWORD='your-password'
 - `05_object_kind_counts.tsv`: 객체 kind별 집계
 - `06_routines.tsv`: 함수/프로시저 목록
 - `07_routine_kind_counts.tsv`: 루틴 kind별 집계
+- `07b_routine_kind_owner_counts.tsv`: 루틴 kind + 소유 구분(EDB_BUILTIN/USER_CREATED) 집계
 - `08_table_grants.tsv`: 테이블 권한 목록
 - `09_type_hotspots.tsv`: 마이그레이션 민감 타입 컬럼 목록
 - `10_sequences.tsv`: 시퀀스 목록
