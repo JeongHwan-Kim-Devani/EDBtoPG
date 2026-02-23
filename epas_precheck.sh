@@ -350,7 +350,11 @@ write_reports() {
     echo "## 8) List of migration risk hits"
     echo
     if [[ -s "$F_MIGRATION_RISK_HITS" ]]; then
-      awk -F '\t' '{printf "%d. %s | %s | %s\n", NR, $1, $2, $4}' "$F_MIGRATION_RISK_HITS"
+      if [[ "$PROMPT_MODE" -eq 1 ]]; then
+        awk -F '\t' '$4=="USER_CREATED" {printf "%d. %s | %s | %s\n", NR, $1, $2, $4}' "$F_MIGRATION_RISK_HITS"
+      else
+        awk -F '\t' '{printf "%d. %s | %s | %s\n", NR, $1, $2, $4}' "$F_MIGRATION_RISK_HITS"
+      fi
     else
       echo "- No risk hits detected."
     fi
@@ -915,13 +919,8 @@ fi
 write_reports
 
 if [[ "$PROMPT_MODE" -eq 1 ]]; then
-  echo "[INFO] --output not provided. Printing USER_CREATED migration risk hits only."
-  echo "# USER_CREATED migration risk hits"
-  if [[ -s "$OUTPUT_DIR/94_user_created_risk_hits.txt" ]]; then
-    cat "$OUTPUT_DIR/94_user_created_risk_hits.txt"
-  else
-    echo "- No USER_CREATED migration risk hits detected."
-  fi
+  echo "[INFO] --output not provided. Printing 92_migration_guide_report.md content below."
+  cat "$F_GUIDE"
   rm -rf "$OUTPUT_DIR"
   echo "[DONE] Prompt mode completed."
 else
