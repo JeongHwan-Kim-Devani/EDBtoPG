@@ -206,21 +206,57 @@ write_reports() {
     echo
     echo "## 1) Executive summary"
     echo
-    printf "%-32s %8s   %s\n" "EDB 전용 확장" "$c_edb_ext" "$([[ "$c_edb_ext" -eq 0 ]] && echo '양호' || echo '호환성 검토 필요')"
-    printf "%-32s %8s   %s\n" "EDB 이름 패턴 루틴" "$c_edb_rtn" "$([[ "$c_edb_rtn" -eq 0 ]] && echo '양호' || echo '재작성 가능성')"
-    printf "%-32s %8s   %s\n" "EPAS/Oracle 특화 패턴" "$c_epas" "$([[ "$c_epas" -eq 0 ]] && echo '양호' || echo '수동 분석 권장')"
-    printf "%-32s %8s   %s\n" "  └ 내장/확장 객체" "$c_epas_builtin" "참고용"
-    printf "%-32s %8s   %s\n" "  └ 사용자 생성 객체" "$c_epas_user" "우선 조치 대상"
-    printf "%-32s %8s   %s\n" "이관 실패 위험 패턴" "$c_risk" "$([[ "$c_risk" -eq 0 ]] && echo '양호' || echo '사전 치환 강력 권장')"
+    echo "Counts (Overview)"
+    echo "--------------------"
+    printf "%-26s : %s\n" "Objects total" "$c_objects"
+    printf "%-26s : %s\n" "Routines total" "$c_routines"
+    printf "%-26s : %s\n" "Type hotspots total" "$c_types"
+    printf "%-26s : %s\n" "Sequences total" "$c_sequences"
+    printf "%-26s : %s\n" "EPAS feature hits total" "$c_epas"
+    printf "%-26s : %s\n" "Migration risk hits total" "$c_risk"
     if [[ "$ORACLE_CHECKS" -eq 1 ]]; then
-      printf "%-32s %8s   %s\n" "Oracle 호환 키워드" "$c_oracle" "$([[ "$c_oracle" -eq 0 ]] && echo '양호' || echo '재작성 검토 필요')"
-    else
-      printf "%-32s %8s   %s\n" "Oracle 호환 키워드" "N/A" "검사 미실행 (--oracle-checks 권장)"
+      printf "%-26s : %s\n" "Oracle keyword hits total" "$c_oracle"
     fi
-    printf "%-32s %8s   %s\n" "타입 핫스팟" "$c_types" "$([[ "$c_types" -eq 0 ]] && echo '양호' || echo '타입 매핑 검토 필요')"
-    printf "%-32s %8s   %s\n" "시퀀스" "$c_sequences" "$([[ "$c_sequences" -eq 0 ]] && echo '없음' || echo '시퀀스 정합성 점검 필요')"
+    echo
+    echo "Counts (Object kind grouping)"
+    echo "--------------------"
+    if [[ -s "$F_OBJECT_KIND_COUNTS" ]]; then
+      awk -F '\t' '
+      BEGIN {
+        map["r"]="table"; map["p"]="partitioned_table"; map["v"]="view";
+        map["m"]="materialized_view"; map["S"]="sequence"; map["f"]="foreign_table";
+      }
+      { printf "%-24s : %s\n", (map[$1] ? map[$1] : $1), $2 }
+      ' "$F_OBJECT_KIND_COUNTS" | sort
+    else
+      echo "No object kind data."
+    fi
+    echo
+    echo "Counts (Routine kind grouping)"
+    echo "--------------------"
+    if [[ -s "$F_ROUTINE_KIND_COUNTS" ]]; then
+      awk -F '\t' '
+      BEGIN { map["f"]="function"; map["p"]="procedure"; map["a"]="aggregate"; map["w"]="window"; }
+      { printf "%-24s : %s\n", (map[$1] ? map[$1] : $1), $2 }
+      ' "$F_ROUTINE_KIND_COUNTS" | sort
+    else
+      echo "No routine kind data."
+    fi
     echo
     echo "## 2) 호환성/대체기능/수동수정 가이드"
+    echo
+    echo "Counts (Section 2 grouping)"
+    echo "--------------------"
+    printf "%-24s : %s\n" "EDB ext hits" "$c_edb_ext"
+    printf "%-24s : %s\n" "EDB named routines" "$c_edb_rtn"
+    printf "%-24s : %s\n" "EPAS feature hits" "$c_epas"
+    printf "%-24s : %s\n" "EPAS builtin features" "$c_epas_builtin"
+    printf "%-24s : %s\n" "EPAS user features" "$c_epas_user"
+    if [[ "$ORACLE_CHECKS" -eq 1 ]]; then
+      printf "%-24s : %s\n" "Oracle keyword hits" "$c_oracle"
+    fi
+    printf "%-24s : %s\n" "Type hotspots" "$c_types"
+    printf "%-24s : %s\n" "Sequences" "$c_sequences"
     echo
     echo "- EDB 전용 확장(edb%): 유사 확장/표준 SQL 대체 검토 (근거: 11_edb_extension_hits.txt)"
     echo "- EDB 전용 함수/프로시저 네이밍: PL/pgSQL 표준 함수로 치환 검토 (근거: 12_edb_function_name_hits.txt, 06_routines.tsv)"
@@ -235,12 +271,32 @@ write_reports() {
     echo
     echo "## 3) 이관 실패 예방 체크리스트"
     echo
+    echo "Counts (Section 3 grouping)"
+    echo "--------------------"
+    echo "SYSDATE_DEFAULT           : $(grep -c $'\tSYSDATE_DEFAULT\t' "$F_MIGRATION_RISK_HITS" 2>/dev/null || true)"
+    echo "EDBSPL_ROUTINE            : $(grep -c $'\tEDBSPL_ROUTINE\t' "$F_MIGRATION_RISK_HITS" 2>/dev/null || true)"
+    echo "PG_STAT_STATEMENTS_OBJECT : $(grep -c $'\tPG_STAT_STATEMENTS_OBJECT\t' "$F_MIGRATION_RISK_HITS" 2>/dev/null || true)"
+    echo "POLICY_OR_CONTEXT         : $(grep -c $'\tPOLICY_OR_CONTEXT\t' "$F_MIGRATION_RISK_HITS" 2>/dev/null || true)"
+    echo "BUILTIN_RISK              : $(grep -c $'\tEDB_BUILTIN$' "$F_MIGRATION_RISK_HITS" 2>/dev/null || true)"
+    echo "USER_RISK                 : $(grep -c $'\tUSER_CREATED$' "$F_MIGRATION_RISK_HITS" 2>/dev/null || true)"
+    echo
     echo "- DEFAULT SYSDATE 구문 -> DEFAULT now()/CURRENT_TIMESTAMP 치환 (14_migration_risk_hits.tsv:SYSDATE_DEFAULT)"
     echo "- language edbspl 객체 -> PL/pgSQL 재작성 (14_migration_risk_hits.tsv:EDBSPL_ROUTINE)"
     echo "- pg_stat_statements 객체 충돌 -> extension 관리 객체 이관 제외 (14_migration_risk_hits.tsv:PG_STAT_STATEMENTS_OBJECT)"
     echo "- EPAS 정책/컨텍스트 함수 -> PostgreSQL RLS + CURRENT_USER 기반으로 재작성 (14_migration_risk_hits.tsv:POLICY_OR_CONTEXT)"
     echo
     echo "## 4) 덤프 기반 추가 체크리스트"
+    echo
+    echo "Counts (Section 4 grouping)"
+    echo "--------------------"
+    printf "%-24s : %s\n" "SYNONYM" "$c_synonym"
+    printf "%-24s : %s\n" "PACKAGE" "$c_package"
+    printf "%-24s : %s\n" "DBMS_RLS" "$c_dbms"
+    printf "%-24s : %s\n" "AUTHID" "$c_authid"
+    printf "%-24s : %s\n" "SYS_CONTEXT" "$c_sys_context"
+    printf "%-24s : %s\n" "NVL" "$c_nvl"
+    printf "%-24s : %s\n" "SYSDATE" "$c_sysdate"
+    printf "%-24s : %s\n" "CLOB" "$c_clob"
     echo
     echo "- SYNONYM (${c_synonym}): 비호환 -> VIEW/search_path/SQL 재작성"
     echo "- PACKAGE (${c_package}): 비호환 -> 스키마 + 함수/프로시저로 분해"
