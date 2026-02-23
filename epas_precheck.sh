@@ -786,20 +786,31 @@ fi
 
 if "${PSQL[@]}" -Atqc "SELECT to_regclass('pg_catalog.pg_package') IS NOT NULL;" | grep -qx 't'; then
   run_sql "$OUTPUT_DIR/.tmp_package_count.tsv" "
-SELECT 'PACKAGE' || E'\t' || count(*)
+SELECT 'PACKAGE' || E'	' || count(*)
 FROM pg_catalog.pg_package p
 JOIN pg_namespace n ON n.oid = p.pkgnamespace
 WHERE n.nspname NOT IN ('pg_catalog','information_schema')
   ${schema_filter};"
 else
   run_sql "$OUTPUT_DIR/.tmp_package_count.tsv" "
-SELECT 'PACKAGE' || E'\t' || count(*)
-FROM pg_proc p
-JOIN pg_namespace n ON n.oid = p.pronamespace
-WHERE n.nspname NOT IN ('pg_catalog','information_schema')
-  AND p.prokind IN ('f','p')
-  AND p.proname ILIKE 'pkg\_%' ESCAPE '\\'
-  ${schema_filter};"
+WITH package_candidates AS (
+  SELECT DISTINCT
+         CASE
+           WHEN p.proname LIKE '%.%' THEN split_part(p.proname, '.', 1)
+           WHEN p.proname ILIKE 'pkg\_%' ESCAPE '\\' THEN p.proname
+           WHEN pg_get_functiondef(p.oid) ILIKE '%package body%' THEN p.proname
+           WHEN pg_get_functiondef(p.oid) ILIKE '%create or replace package%' THEN p.proname
+           ELSE NULL
+         END AS package_name
+  FROM pg_proc p
+  JOIN pg_namespace n ON n.oid = p.pronamespace
+  WHERE n.nspname NOT IN ('pg_catalog','information_schema')
+    AND p.prokind IN ('f','p')
+    ${schema_filter}
+)
+SELECT 'PACKAGE' || E'	' || count(*)
+FROM package_candidates
+WHERE package_name IS NOT NULL;"
 fi
 cat "$OUTPUT_DIR/.tmp_package_count.tsv" >> "$F_EPAS_GROUP_COUNTS"
 rm -f "$OUTPUT_DIR/.tmp_package_count.tsv"
