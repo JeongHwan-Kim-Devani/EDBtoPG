@@ -758,49 +758,43 @@ FROM (
 ORDER BY 1;"
 
 echo "[INFO] Collecting grouped dump-check counters..."
-run_sql "$F_EPAS_GROUP_COUNTS" "
-SELECT 'SYNONYM' || E'\t' || (
-  CASE
-    WHEN to_regclass('pg_catalog.pg_synonym') IS NOT NULL THEN (
-      SELECT count(*)
-      FROM pg_catalog.pg_synonym s
-      JOIN pg_namespace n ON n.oid = s.synnamespace
-      WHERE n.nspname NOT IN ('pg_catalog','information_schema')
-        ${schema_filter}
-    )
-    ELSE (
-      SELECT count(*)
-      FROM pg_class c
-      JOIN pg_namespace n ON n.oid = c.relnamespace
-      WHERE n.nspname NOT IN ('pg_catalog','information_schema')
-        AND n.nspname NOT LIKE 'pg_toast%'
-        AND c.relkind = 'y'
-        ${schema_filter}
-    )
-  END
-)
-UNION ALL
-SELECT 'PACKAGE' || E'\t' || (
-  CASE
-    WHEN to_regclass('pg_catalog.pg_package') IS NOT NULL THEN (
-      SELECT count(*)
-      FROM pg_catalog.pg_package p
-      JOIN pg_namespace n ON n.oid = p.pkgnamespace
-      WHERE n.nspname NOT IN ('pg_catalog','information_schema')
-        ${schema_filter}
-    )
-    ELSE (
-      SELECT count(*)
-      FROM pg_proc p
-      JOIN pg_namespace n ON n.oid = p.pronamespace
-      WHERE n.nspname NOT IN ('pg_catalog','information_schema')
-        AND p.prokind IN ('f','p')
-        AND p.proname ILIKE 'pkg\_%' ESCAPE '\\'
-        ${schema_filter}
-    )
-  END
-)
-ORDER BY 1;"
+if "${PSQL[@]}" -Atqc "SELECT to_regclass('pg_catalog.pg_synonym') IS NOT NULL;" | grep -qx 't'; then
+  run_sql "$F_EPAS_GROUP_COUNTS" "
+SELECT 'SYNONYM' || E'\t' || count(*)
+FROM pg_catalog.pg_synonym s
+JOIN pg_namespace n ON n.oid = s.synnamespace
+WHERE n.nspname NOT IN ('pg_catalog','information_schema')
+  ${schema_filter};"
+else
+  run_sql "$F_EPAS_GROUP_COUNTS" "
+SELECT 'SYNONYM' || E'\t' || count(*)
+FROM pg_class c
+JOIN pg_namespace n ON n.oid = c.relnamespace
+WHERE n.nspname NOT IN ('pg_catalog','information_schema')
+  AND n.nspname NOT LIKE 'pg_toast%'
+  AND c.relkind = 'y'
+  ${schema_filter};"
+fi
+
+if "${PSQL[@]}" -Atqc "SELECT to_regclass('pg_catalog.pg_package') IS NOT NULL;" | grep -qx 't'; then
+  run_sql "$OUTPUT_DIR/.tmp_package_count.tsv" "
+SELECT 'PACKAGE' || E'\t' || count(*)
+FROM pg_catalog.pg_package p
+JOIN pg_namespace n ON n.oid = p.pkgnamespace
+WHERE n.nspname NOT IN ('pg_catalog','information_schema')
+  ${schema_filter};"
+else
+  run_sql "$OUTPUT_DIR/.tmp_package_count.tsv" "
+SELECT 'PACKAGE' || E'\t' || count(*)
+FROM pg_proc p
+JOIN pg_namespace n ON n.oid = p.pronamespace
+WHERE n.nspname NOT IN ('pg_catalog','information_schema')
+  AND p.prokind IN ('f','p')
+  AND p.proname ILIKE 'pkg\_%' ESCAPE '\\'
+  ${schema_filter};"
+fi
+cat "$OUTPUT_DIR/.tmp_package_count.tsv" >> "$F_EPAS_GROUP_COUNTS"
+rm -f "$OUTPUT_DIR/.tmp_package_count.tsv"
 
 echo "[INFO] Scanning migration failure risk patterns..."
 run_sql "$F_MIGRATION_RISK_HITS" "
