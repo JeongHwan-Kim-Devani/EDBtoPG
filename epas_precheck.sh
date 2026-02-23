@@ -135,11 +135,11 @@ write_reports() {
   c_synonym=$(tsv_key_count "$F_EPAS_GROUP_COUNTS" "SYNONYM")
   c_package=$(tsv_key_count "$F_EPAS_GROUP_COUNTS" "PACKAGE")
   c_dbms=$(tsv_col_count "$F_EPAS_FEATURE_HITS" 3 "DBMS_RLS")
-  c_authid=$(tsv_col_count "$F_EPAS_FEATURE_HITS" 3 "AUTHID")
+  c_authid=$(tsv_key_count "$F_EPAS_GROUP_COUNTS" "AUTHID")
   c_sys_context=$(tsv_col_count "$F_EPAS_FEATURE_HITS" 3 "SYS_CONTEXT(")
   c_nvl=$(tsv_col_count "$F_EPAS_FEATURE_HITS" 3 "NVL(")
   c_sysdate=$(tsv_col_count "$F_EPAS_FEATURE_HITS" 3 "SYSDATE")
-  c_clob=$(tsv_col_count "$F_EPAS_FEATURE_HITS" 3 "CLOB")
+  c_clob=$(tsv_key_count "$F_EPAS_GROUP_COUNTS" "CLOB")
   c_oracle=0
   if [[ "$ORACLE_CHECKS" -eq 1 ]]; then
     c_oracle=$(nonempty_line_count "$F_ORACLE_KEYWORD_HITS")
@@ -710,7 +710,7 @@ routine_hits AS (
   JOIN pg_namespace n ON n.oid = p.pronamespace
   LEFT JOIN ext_owned_proc ep ON ep.objid = p.oid
   CROSS JOIN LATERAL (
-    VALUES ('SYS_CONTEXT('), ('AUTHID'), ('NVL('), ('SYSDATE'), ('SYSTIMESTAMP'), ('DBMS_RLS'), ('DECODE('), ('ROWNUM'), ('DUAL')
+    VALUES ('SYS_CONTEXT('), ('AUTHID'), ('NVL('), ('SYSDATE'), ('SYSTIMESTAMP'), ('DBMS_RLS'), ('DECODE('), ('ROWNUM'), ('DUAL'), ('CLOB')
   ) kw(keyword)
   WHERE n.nspname NOT IN ('pg_catalog','information_schema')
     ${schema_filter}
@@ -803,6 +803,69 @@ WHERE n.nspname NOT IN ('pg_catalog','information_schema')
 fi
 cat "$OUTPUT_DIR/.tmp_package_count.tsv" >> "$F_EPAS_GROUP_COUNTS"
 rm -f "$OUTPUT_DIR/.tmp_package_count.tsv"
+
+# AUTHID grouped counter (routine defs + package catalog rows when available)
+run_sql "$OUTPUT_DIR/.tmp_authid_proc_count.tsv" "
+SELECT 'AUTHID' || E'\t' || count(*)
+FROM pg_proc p
+JOIN pg_namespace n ON n.oid = p.pronamespace
+WHERE n.nspname NOT IN ('pg_catalog','information_schema')
+  AND p.prokind IN ('f','p')
+  ${schema_filter}
+  AND pg_get_functiondef(p.oid) ILIKE '%authid%';"
+_authid_pkg_count=0
+if "${PSQL[@]}" -Atqc "SELECT to_regclass('pg_catalog.pg_package') IS NOT NULL;" | grep -qx 't'; then
+  _authid_pkg_count=$("${PSQL[@]}" -Atqc "
+SELECT count(*)
+FROM pg_catalog.pg_package p
+JOIN pg_namespace n ON n.oid = p.pkgnamespace
+WHERE n.nspname NOT IN ('pg_catalog','information_schema')
+  ${schema_filter}
+  AND row_to_json(p)::text ILIKE '%authid%';" 2>/dev/null || echo 0)
+fi
+_authid_proc_count=$(awk -F '\t' '$1=="AUTHID" {print $2}' "$OUTPUT_DIR/.tmp_authid_proc_count.tsv" 2>/dev/null)
+_authid_proc_count=${_authid_proc_count:-0}
+echo -e "AUTHID\t$((_authid_proc_count + _authid_pkg_count))" >> "$F_EPAS_GROUP_COUNTS"
+rm -f "$OUTPUT_DIR/.tmp_authid_proc_count.tsv"
+
+# CLOB grouped counter (column type + routine defs + package catalog rows when available)
+run_sql "$OUTPUT_DIR/.tmp_clob_base_count.tsv" "
+SELECT 'CLOB' || E'\t' || (
+  COALESCE((
+    SELECT count(*)
+    FROM information_schema.columns c
+    WHERE c.table_schema NOT IN ('pg_catalog','information_schema')
+      ${schema_filter_table}
+      AND (
+        lower(c.udt_name) LIKE '%clob%'
+        OR lower(c.data_type) LIKE '%clob%'
+      )
+  ),0)
+  +
+  COALESCE((
+    SELECT count(*)
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname NOT IN ('pg_catalog','information_schema')
+      AND p.prokind IN ('f','p')
+      ${schema_filter}
+      AND pg_get_functiondef(p.oid) ILIKE '%clob%'
+  ),0)
+);"
+_clob_pkg_count=0
+if "${PSQL[@]}" -Atqc "SELECT to_regclass('pg_catalog.pg_package') IS NOT NULL;" | grep -qx 't'; then
+  _clob_pkg_count=$("${PSQL[@]}" -Atqc "
+SELECT count(*)
+FROM pg_catalog.pg_package p
+JOIN pg_namespace n ON n.oid = p.pkgnamespace
+WHERE n.nspname NOT IN ('pg_catalog','information_schema')
+  ${schema_filter}
+  AND row_to_json(p)::text ILIKE '%clob%';" 2>/dev/null || echo 0)
+fi
+_clob_base_count=$(awk -F '\t' '$1=="CLOB" {print $2}' "$OUTPUT_DIR/.tmp_clob_base_count.tsv" 2>/dev/null)
+_clob_base_count=${_clob_base_count:-0}
+echo -e "CLOB\t$((_clob_base_count + _clob_pkg_count))" >> "$F_EPAS_GROUP_COUNTS"
+rm -f "$OUTPUT_DIR/.tmp_clob_base_count.tsv"
 
 echo "[INFO] Scanning migration failure risk patterns..."
 run_sql "$F_MIGRATION_RISK_HITS" "

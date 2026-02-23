@@ -95,7 +95,7 @@ export PGPASSWORD='your-password'
 - `13_epas_feature_hits.tsv`: EPAS/Oracle 특화 패턴 히트 (예: `SYS_CONTEXT`, `AUTHID`, `NVL`, `SYSDATE`, `DBMS_RLS`, `CLOB` 등) + `EDB_BUILTIN`/`USER_CREATED` 구분
 - `14_migration_risk_hits.tsv`: 이관 시 자주 실패하는 패턴 히트 (`SYSDATE DEFAULT`, `edbspl`, `pg_stat_statements` 객체 충돌 등)
 - `15_oracle_keyword_hits.tsv`: Oracle 키워드 히트 (`--oracle-checks` 사용 시)
-- `16_epas_group_counts.tsv`: SYNONYM/PACKAGE 그룹 카운트
+- `16_epas_group_counts.tsv`: Section 4 주요 그룹 카운트(SYNONYM/PACKAGE/AUTHID/CLOB)
 - `90_count_summary.tsv`: `metric<TAB>count` 집계
 - `91_summary.md`: 사람 읽기용 요약
 - `92_migration_guide_report.md`: 호환성/대체기능/수동수정 필요 여부 + 덤프 기반 추가 체크리스트를 정리한 가이드 리포트
