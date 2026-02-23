@@ -49,7 +49,7 @@ export EPAS_PASSWORD='your_password'
   - `demo.large_text_chunks` (CLOB)
   - `demo.large_binary_chunks` (BLOB)
 
-> 적재 SQL은 재실행 시 중복을 최소화하도록 idempotent 방식(`WHERE NOT EXISTS`, 누적 건수 보정)으로 구성되어 있습니다.
+> 적재 SQL은 재실행 시 중복을 최소화하도록 idempotent 방식(`ON CONFLICT`, `WHERE NOT EXISTS`, 누적 건수 보정)으로 구성되어 있습니다.
 > 주요 샘플 키(`doc_name`, `v_varchar2`, chunk_name)는 `UNIQUE` 제약으로 중복 삽입을 방지합니다.
 
 ### 5) 검증 쿼리
