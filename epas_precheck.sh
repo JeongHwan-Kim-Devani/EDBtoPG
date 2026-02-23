@@ -273,17 +273,63 @@ write_reports() {
     echo "Target: ${HOST}:${PORT}/${DBNAME}"
     [[ -n "$SCHEMA" ]] && echo "Schema filter: $SCHEMA" || echo "Schema filter: (none)"
     echo
-    echo "Counts"
+    echo "Counts (Overview)"
     echo "--------------------"
-    echo "Objects: ${c_objects}"
-    echo "Routines: ${c_routines}"
-    echo "Type hotspots: ${c_types}"
-    echo "Sequences: ${c_sequences}"
-    echo "EPAS feature hits: ${c_epas}"
-    echo "  - Built-in/extension feature hits: ${c_epas_builtin}"
-    echo "  - User-created feature hits: ${c_epas_user}"
-    echo "Migration risk hits: ${c_risk}"
-    [[ "$ORACLE_CHECKS" -eq 1 ]] && echo "Oracle keyword hits: ${c_oracle}"
+    echo "Objects total              : ${c_objects}"
+    echo "Routines total             : ${c_routines}"
+    echo "Type hotspots total        : ${c_types}"
+    echo "Sequences total            : ${c_sequences}"
+    echo "EPAS feature hits total    : ${c_epas}"
+    echo "Migration risk hits total  : ${c_risk}"
+    [[ "$ORACLE_CHECKS" -eq 1 ]] && echo "Oracle keyword hits total  : ${c_oracle}"
+
+    echo
+    echo "Counts (Object kind grouping)"
+    echo "--------------------"
+    if [[ -s "$F_OBJECT_KIND_COUNTS" ]]; then
+      awk -F '\t' '
+      BEGIN {
+        map["r"]="table"; map["p"]="partitioned_table"; map["v"]="view";
+        map["m"]="materialized_view"; map["S"]="sequence"; map["f"]="foreign_table";
+      }
+      { printf "%-24s : %s\n", (map[$1] ? map[$1] : $1), $2 }
+      ' "$F_OBJECT_KIND_COUNTS"
+    else
+      echo "No object kind data."
+    fi
+
+    echo
+    echo "Counts (Routine kind grouping)"
+    echo "--------------------"
+    if [[ -s "$F_ROUTINE_KIND_COUNTS" ]]; then
+      awk -F '\t' '
+      BEGIN { map["f"]="function"; map["p"]="procedure"; map["a"]="aggregate"; map["w"]="window"; }
+      { printf "%-24s : %s\n", (map[$1] ? map[$1] : $1), $2 }
+      ' "$F_ROUTINE_KIND_COUNTS"
+    else
+      echo "No routine kind data."
+    fi
+
+    echo
+    echo "Counts (EPAS feature owner grouping)"
+    echo "--------------------"
+    echo "Built-in/extension feature : ${c_epas_builtin}"
+    echo "User-created feature       : ${c_epas_user}"
+
+    echo
+    echo "Counts (Migration risk grouping)"
+    echo "--------------------"
+    if [[ -s "$F_MIGRATION_RISK_HITS" ]]; then
+      awk -F '\t' '
+      { risk[$2]++; owner[$4]++ }
+      END {
+        for (k in risk) printf "risk.%-19s : %d\n", k, risk[k];
+        for (k in owner) printf "owner.%-18s : %d\n", k, owner[k];
+      }
+      ' "$F_MIGRATION_RISK_HITS" | sort
+    else
+      echo "No migration risk data."
+    fi
     echo
     echo "List of migration risk hits"
     echo "======================"
