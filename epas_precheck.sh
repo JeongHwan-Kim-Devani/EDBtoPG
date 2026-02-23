@@ -354,9 +354,37 @@ write_reports() {
     echo
     if [[ -s "$F_MIGRATION_RISK_HITS" ]]; then
       if [[ "$PROMPT_MODE" -eq 1 ]]; then
-        awk -F '\t' '$4=="USER_CREATED" {printf "%d. %s | %s | %s\n", NR, $1, $2, $4}' "$F_MIGRATION_RISK_HITS"
+        if grep -q $'	USER_CREATED$' "$F_MIGRATION_RISK_HITS"; then
+          awk -F '	' '$4=="USER_CREATED" {print $0}' "$F_MIGRATION_RISK_HITS"             | sort -t $'	' -k2,2 -k1,1             | awk -F '	' '
+              BEGIN { grp=""; n=0 }
+              {
+                if ($2 != grp) {
+                  if (grp != "") print "";
+                  grp = $2;
+                  n = 0;
+                  print "### " grp;
+                }
+                n++;
+                printf "%d. %s | %s\n", n, $1, $4;
+              }
+            '
+        else
+          echo "- No USER_CREATED risk hits detected."
+        fi
       else
-        awk -F '\t' '{printf "%d. %s | %s | %s\n", NR, $1, $2, $4}' "$F_MIGRATION_RISK_HITS"
+        awk -F '	' '{print $0}' "$F_MIGRATION_RISK_HITS"           | sort -t $'	' -k2,2 -k1,1           | awk -F '	' '
+            BEGIN { grp=""; n=0 }
+            {
+              if ($2 != grp) {
+                if (grp != "") print "";
+                grp = $2;
+                n = 0;
+                print "### " grp;
+              }
+              n++;
+              printf "%d. %s | %s\n", n, $1, $4;
+            }
+          '
       fi
     else
       echo "- No risk hits detected."
