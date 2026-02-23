@@ -613,6 +613,7 @@ FROM (
       WHEN ep.objid IS NOT NULL THEN 'EDB_BUILTIN'
       WHEN n.nspname IN ('sys','edb') THEN 'EDB_BUILTIN'
       WHEN n.nspname ILIKE 'utl\_%' ESCAPE '\\' THEN 'EDB_BUILTIN'
+      WHEN n.nspname ILIKE 'dbms\_%' ESCAPE '\\' THEN 'EDB_BUILTIN'
       WHEN p.proname IN ('pg_stat_statements','pg_stat_statements_info','pg_stat_statements_reset') THEN 'EDB_BUILTIN'
       ELSE 'USER_CREATED'
     END AS owner_class,
@@ -697,6 +698,7 @@ routine_hits AS (
            WHEN ep.objid IS NOT NULL THEN 'EDB_BUILTIN'
            WHEN n.nspname IN ('sys','edb') THEN 'EDB_BUILTIN'
            WHEN n.nspname ILIKE 'utl\_%' ESCAPE '\\' THEN 'EDB_BUILTIN'
+           WHEN n.nspname ILIKE 'dbms\_%' ESCAPE '\\' THEN 'EDB_BUILTIN'
            WHEN p.proname IN ('pg_stat_statements','pg_stat_statements_info','pg_stat_statements_reset') THEN 'EDB_BUILTIN'
            ELSE 'USER_CREATED'
          END AS owner_class
@@ -718,6 +720,7 @@ default_hits AS (
          CASE
            WHEN er.objid IS NOT NULL THEN 'EDB_BUILTIN'
            WHEN n.nspname IN ('sys','edb') THEN 'EDB_BUILTIN'
+           WHEN n.nspname ILIKE 'dbms\_%' ESCAPE '\\' THEN 'EDB_BUILTIN'
            ELSE 'USER_CREATED'
          END AS owner_class
   FROM pg_attrdef d
@@ -737,6 +740,7 @@ type_hits AS (
          CASE
            WHEN er.objid IS NOT NULL THEN 'EDB_BUILTIN'
            WHEN table_schema IN ('sys','edb') THEN 'EDB_BUILTIN'
+           WHEN table_schema ILIKE 'dbms\_%' ESCAPE '\\' THEN 'EDB_BUILTIN'
            ELSE 'USER_CREATED'
          END AS owner_class
   FROM information_schema.columns
@@ -828,7 +832,7 @@ edbspl_routines AS (
            WHERE d.classid = 'pg_proc'::regclass
              AND d.objid = p.oid
              AND d.deptype = 'e'
-         ) OR n.nspname IN ('sys','edb') OR n.nspname ILIKE 'utl\_%' ESCAPE '\\'
+         ) OR n.nspname IN ('sys','edb') OR n.nspname ILIKE 'utl\_%' ESCAPE '\\' OR n.nspname ILIKE 'dbms\_%' ESCAPE '\\'
            THEN 'EDB_BUILTIN' ELSE 'USER_CREATED' END AS owner_class
   FROM pg_proc p
   JOIN pg_namespace n ON n.oid = p.pronamespace
@@ -868,7 +872,7 @@ policy_context AS (
            WHERE d.classid = 'pg_proc'::regclass
              AND d.objid = p.oid
              AND d.deptype = 'e'
-         ) OR n.nspname IN ('sys','edb') OR n.nspname ILIKE 'utl\_%' ESCAPE '\\'
+         ) OR n.nspname IN ('sys','edb') OR n.nspname ILIKE 'utl\_%' ESCAPE '\\' OR n.nspname ILIKE 'dbms\_%' ESCAPE '\\'
            THEN 'EDB_BUILTIN' ELSE 'USER_CREATED' END AS owner_class
   FROM pg_proc p
   JOIN pg_namespace n ON n.oid = p.pronamespace
