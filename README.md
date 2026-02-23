@@ -77,3 +77,50 @@ SELECT pg_size_pretty(SUM(OCTET_LENGTH(chunk_bin))::BIGINT)  AS large_bin_payloa
 - `UTL_I18N` 패키지가 없는 환경을 고려해 암호화 예시는 `HEXTORAW` 기반으로 구현했습니다.
 
 - 물리 용량과 논리 페이로드가 비슷하게 보이도록, 주요 대용량 컬럼은 `SET STORAGE EXTERNAL`로 설정했습니다.
+
+---
+
+## 7) 추가: 크론 실행용 EPAS 랜덤 샘플 잡
+
+기존 `demo` 스키마와 완전히 분리된 `demo_cron` 스키마를 생성하고,
+프로시저 호출 시 2~3개 테이블에 약 1MB 수준 랜덤 데이터를 자동 생성합니다.
+
+### 추가 파일
+- `epas_random_sample_job.sql`
+- `run_epas_random_sample_job.sh`
+
+### 생성 객체 (demo_cron)
+- 테이블: `batch_history`, `txn_events`, `sensor_metrics`, `payload_store`
+- 함수: `fn_random_clob`, `fn_last_batch_size`
+- 프로시저: `pr_generate_random_sample(p_target_kb, p_batch_tag)`
+- 패키지: `pkg_sample_job AUTHID CURRENT_USER`
+- 시노님: `sample_job_pkg`, `sample_payload`
+
+### 실행 예시
+```bash
+export EPAS_HOST=127.0.0.1
+export EPAS_PORT=5444
+export EPAS_DB=edb
+export EPAS_USER=enterprisedb
+export EPAS_PASSWORD='your_password'
+
+# 기본: 1MB(target_kb=1024)
+./run_epas_random_sample_job.sh
+
+# 2MB 생성
+TARGET_KB=2048 BATCH_TAG=cron_2mb ./run_epas_random_sample_job.sh
+```
+
+### 크론탭 예시
+```cron
+*/10 * * * * EPAS_HOST=10.65.50.30 EPAS_PORT=5444 EPAS_DB=ds1 EPAS_USER=dsadmin EPAS_PASSWORD='***' TARGET_KB=1024 /DATA/EPAS/sampleTest/run_epas_random_sample_job.sh >> /DATA/EPAS/sampleTest/cron_sample.log 2>&1
+```
+
+### 검증 쿼리
+```sql
+SELECT COUNT(*) FROM demo_cron.batch_history;
+SELECT COUNT(*) FROM demo_cron.txn_events;
+SELECT COUNT(*) FROM demo_cron.sensor_metrics;
+SELECT COUNT(*) FROM demo_cron.payload_store;
+SELECT demo_cron.fn_last_batch_size() FROM dual;
+```
