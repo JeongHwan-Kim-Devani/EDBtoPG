@@ -118,7 +118,7 @@ write_reports() {
   local f_plain="$F_PLAIN_SUMMARY"
 
   local c_instance c_extensions c_objects c_routines c_grants c_types c_sequences c_edb_ext c_edb_rtn c_epas c_risk c_epas_builtin c_epas_user c_oracle
-  local c_synonym c_package c_dbms c_authid c_sys_context c_nvl c_sysdate c_clob
+  local c_synonym c_package c_dbms c_authid c_sys_context c_nvl c_sysdate c_clob c_blob
   c_instance=$(line_count "$F_INSTANCE_SETTINGS")
   c_extensions=$(line_count "$F_EXTENSIONS")
   c_objects=$(line_count "$F_OBJECTS")
@@ -140,6 +140,7 @@ write_reports() {
   c_nvl=$(tsv_col_count "$F_EPAS_FEATURE_HITS" 3 "NVL(")
   c_sysdate=$(tsv_col_count "$F_EPAS_FEATURE_HITS" 3 "SYSDATE")
   c_clob=$(tsv_key_count "$F_EPAS_GROUP_COUNTS" "CLOB")
+  c_blob=$(tsv_key_count "$F_EPAS_GROUP_COUNTS" "BLOB")
   c_oracle=0
   if [[ "$ORACLE_CHECKS" -eq 1 ]]; then
     c_oracle=$(nonempty_line_count "$F_ORACLE_KEYWORD_HITS")
@@ -308,6 +309,7 @@ write_reports() {
     printf "%-24s : %s\n" "NVL" "$c_nvl"
     printf "%-24s : %s\n" "SYSDATE" "$c_sysdate"
     printf "%-24s : %s\n" "CLOB" "$c_clob"
+    printf "%-24s : %s\n" "BLOB" "$c_blob"
     echo
     echo "- SYNONYM (${c_synonym}): 비호환 -> VIEW/search_path/SQL 재작성"
     echo "- PACKAGE (${c_package}): 비호환 -> 스키마 + 함수/프로시저로 분해"
@@ -316,6 +318,7 @@ write_reports() {
     echo "- SYS_CONTEXT 계열 (${c_sys_context}): CURRENT_USER/SESSION_USER로 치환"
     echo "- NVL 계열 (${c_nvl}) / SYSDATE 계열 (${c_sysdate}): COALESCE, CURRENT_TIMESTAMP/now()로 치환"
     echo "- CLOB 타입 (${c_clob}): text로 매핑"
+    echo "- BLOB 타입 (${c_blob}): bytea로 매핑"
     echo
     echo "## 5) 우선순위 액션 플랜"
     echo
@@ -839,44 +842,21 @@ _authid_proc_count=${_authid_proc_count:-0}
 echo -e "AUTHID\t$((_authid_proc_count + _authid_pkg_count))" >> "$F_EPAS_GROUP_COUNTS"
 rm -f "$OUTPUT_DIR/.tmp_authid_proc_count.tsv"
 
-# CLOB grouped counter (column type + routine defs + package catalog rows when available)
-run_sql "$OUTPUT_DIR/.tmp_clob_base_count.tsv" "
-SELECT 'CLOB' || E'\t' || (
-  COALESCE((
-    SELECT count(*)
-    FROM information_schema.columns c
-    WHERE c.table_schema NOT IN ('pg_catalog','information_schema')
-      ${schema_filter_table}
-      AND (
-        lower(c.udt_name) LIKE '%clob%'
-        OR lower(c.data_type) LIKE '%clob%'
-      )
-  ),0)
-  +
-  COALESCE((
-    SELECT count(*)
-    FROM pg_proc p
-    JOIN pg_namespace n ON n.oid = p.pronamespace
-    WHERE n.nspname NOT IN ('pg_catalog','information_schema')
-      AND p.prokind IN ('f','p')
-      ${schema_filter}
-      AND pg_get_functiondef(p.oid) ILIKE '%clob%'
-  ),0)
-);"
-_clob_pkg_count=0
-if "${PSQL[@]}" -Atqc "SELECT to_regclass('pg_catalog.pg_package') IS NOT NULL;" | grep -qx 't'; then
-  _clob_pkg_count=$("${PSQL[@]}" -Atqc "
-SELECT count(*)
-FROM pg_catalog.pg_package p
-JOIN pg_namespace n ON n.oid = p.pkgnamespace
-WHERE n.nspname NOT IN ('pg_catalog','information_schema')
-  ${schema_filter}
-  AND row_to_json(p)::text ILIKE '%clob%';" 2>/dev/null || echo 0)
-fi
-_clob_base_count=$(awk -F '\t' '$1=="CLOB" {print $2}' "$OUTPUT_DIR/.tmp_clob_base_count.tsv" 2>/dev/null)
-_clob_base_count=${_clob_base_count:-0}
-echo -e "CLOB\t$((_clob_base_count + _clob_pkg_count))" >> "$F_EPAS_GROUP_COUNTS"
-rm -f "$OUTPUT_DIR/.tmp_clob_base_count.tsv"
+# CLOB/BLOB grouped counter (strict column-type based only)
+run_sql "$OUTPUT_DIR/.tmp_lob_count.tsv" "
+SELECT 'CLOB' || E'\t' || count(*)
+FROM information_schema.columns c
+WHERE c.table_schema NOT IN ('pg_catalog','information_schema')
+  ${schema_filter_table}
+  AND lower(c.udt_name) = 'clob'
+UNION ALL
+SELECT 'BLOB' || E'\t' || count(*)
+FROM information_schema.columns c
+WHERE c.table_schema NOT IN ('pg_catalog','information_schema')
+  ${schema_filter_table}
+  AND lower(c.udt_name) = 'blob';"
+cat "$OUTPUT_DIR/.tmp_lob_count.tsv" >> "$F_EPAS_GROUP_COUNTS"
+rm -f "$OUTPUT_DIR/.tmp_lob_count.tsv"
 
 echo "[INFO] Scanning migration failure risk patterns..."
 run_sql "$F_MIGRATION_RISK_HITS" "
