@@ -334,6 +334,8 @@ write_reports() {
     echo "- 13_epas_feature_hits.tsv: EPAS/Oracle 특화 패턴 히트"
     echo "- 14_migration_risk_hits.tsv: 이관 실패 위험 패턴 히트"
     echo "- 11_edb_extension_hits.txt / 12_edb_function_name_hits.txt / 15_oracle_keyword_hits.tsv(옵션): 호환성 리스크 근거"
+    echo "- 94_user_created_risk_hits.txt: USER_CREATED 리스크 목록 (변환 우선 대상)"
+    echo "- 95_builtin_risk_hits.txt: EDB_BUILTIN 리스크 목록 (이관 제외/선별 대상)"
 
     echo
     echo "## 7) Migration Summary"
@@ -437,6 +439,14 @@ write_reports() {
       echo "No risk hits detected."
     fi
   } > "$f_plain"
+
+  if [[ -f "$F_MIGRATION_RISK_HITS" ]]; then
+    awk -F '\t' '$4=="USER_CREATED" {print NR ". " $1 " [" $2 " | " $4 "]"}' "$F_MIGRATION_RISK_HITS" > "$OUTPUT_DIR/94_user_created_risk_hits.txt"
+    awk -F '\t' '$4=="EDB_BUILTIN" {print NR ". " $1 " [" $2 " | " $4 "]"}' "$F_MIGRATION_RISK_HITS" > "$OUTPUT_DIR/95_builtin_risk_hits.txt"
+  else
+    : > "$OUTPUT_DIR/94_user_created_risk_hits.txt"
+    : > "$OUTPUT_DIR/95_builtin_risk_hits.txt"
+  fi
 }
 
 while [[ $# -gt 0 ]]; do
@@ -596,21 +606,27 @@ WITH ext_owned_proc AS (
   WHERE d.classid = 'pg_proc'::regclass
     AND d.deptype = 'e'
 )
-SELECT
-  CASE
-    WHEN ep.objid IS NOT NULL THEN 'EDB_BUILTIN'
-    WHEN n.nspname IN ('sys','edb') THEN 'EDB_BUILTIN'
-    WHEN p.proname ILIKE 'dbms\_%' ESCAPE '\\' THEN 'EDB_BUILTIN'
-    WHEN p.proname IN ('pg_stat_statements','pg_stat_statements_info','pg_stat_statements_reset') THEN 'EDB_BUILTIN'
-    ELSE 'USER_CREATED'
-  END || E'\t' || p.prokind || E'\t' || count(*)
-FROM pg_proc p
-JOIN pg_namespace n ON n.oid = p.pronamespace
-LEFT JOIN ext_owned_proc ep ON ep.objid = p.oid
-WHERE n.nspname NOT IN ('pg_catalog','information_schema')
-  ${schema_filter}
-GROUP BY 1
-ORDER BY 1;"
+SELECT owner_class || E'\t' || prokind || E'\t' || cnt
+FROM (
+  SELECT
+    CASE
+      WHEN ep.objid IS NOT NULL THEN 'EDB_BUILTIN'
+      WHEN n.nspname IN ('sys','edb') THEN 'EDB_BUILTIN'
+      WHEN n.nspname ILIKE 'utl\_%' ESCAPE '\\' THEN 'EDB_BUILTIN'
+      WHEN p.proname ILIKE 'dbms\_%' ESCAPE '\\' THEN 'EDB_BUILTIN'
+      WHEN p.proname IN ('pg_stat_statements','pg_stat_statements_info','pg_stat_statements_reset') THEN 'EDB_BUILTIN'
+      ELSE 'USER_CREATED'
+    END AS owner_class,
+    p.prokind,
+    count(*) AS cnt
+  FROM pg_proc p
+  JOIN pg_namespace n ON n.oid = p.pronamespace
+  LEFT JOIN ext_owned_proc ep ON ep.objid = p.oid
+  WHERE n.nspname NOT IN ('pg_catalog','information_schema')
+    ${schema_filter}
+  GROUP BY 1, 2
+) t
+ORDER BY owner_class, prokind;"
 
 echo "[INFO] Collecting role/grant summary..."
 run_sql "$F_TABLE_GRANTS" "
@@ -681,6 +697,7 @@ routine_hits AS (
          CASE
            WHEN ep.objid IS NOT NULL THEN 'EDB_BUILTIN'
            WHEN n.nspname IN ('sys','edb') THEN 'EDB_BUILTIN'
+           WHEN n.nspname ILIKE 'utl\_%' ESCAPE '\\' THEN 'EDB_BUILTIN'
            WHEN p.proname ILIKE 'dbms\_%' ESCAPE '\\' THEN 'EDB_BUILTIN'
            WHEN p.proname IN ('pg_stat_statements','pg_stat_statements_info','pg_stat_statements_reset') THEN 'EDB_BUILTIN'
            ELSE 'USER_CREATED'
@@ -792,7 +809,7 @@ edbspl_routines AS (
            WHERE d.classid = 'pg_proc'::regclass
              AND d.objid = p.oid
              AND d.deptype = 'e'
-         ) OR n.nspname IN ('sys','edb') OR p.proname ILIKE 'dbms\_%' ESCAPE '\\'
+         ) OR n.nspname IN ('sys','edb') OR n.nspname ILIKE 'utl\_%' ESCAPE '\\' OR p.proname ILIKE 'dbms\_%' ESCAPE '\\'
            THEN 'EDB_BUILTIN' ELSE 'USER_CREATED' END AS owner_class
   FROM pg_proc p
   JOIN pg_namespace n ON n.oid = p.pronamespace
@@ -832,7 +849,7 @@ policy_context AS (
            WHERE d.classid = 'pg_proc'::regclass
              AND d.objid = p.oid
              AND d.deptype = 'e'
-         ) OR n.nspname IN ('sys','edb') OR p.proname ILIKE 'dbms\_%' ESCAPE '\\'
+         ) OR n.nspname IN ('sys','edb') OR n.nspname ILIKE 'utl\_%' ESCAPE '\\' OR p.proname ILIKE 'dbms\_%' ESCAPE '\\'
            THEN 'EDB_BUILTIN' ELSE 'USER_CREATED' END AS owner_class
   FROM pg_proc p
   JOIN pg_namespace n ON n.oid = p.pronamespace

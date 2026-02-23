@@ -100,12 +100,14 @@ export PGPASSWORD='your-password'
 - `91_summary.md`: 사람 읽기용 요약
 - `92_migration_guide_report.md`: 호환성/대체기능/수동수정 필요 여부 + 덤프 기반 추가 체크리스트를 정리한 가이드 리포트
 - `93_migration_summary_report.txt`: 한눈에 보는 텍스트 요약 리포트
+- `94_user_created_risk_hits.txt`: 변환 우선 대상(USER_CREATED) 리스크 목록
+- `95_builtin_risk_hits.txt`: 이관 제외/선별 대상(EDB_BUILTIN) 리스크 목록
 
 `90_count_summary.tsv`에는 `epas_builtin_feature_hits`, `epas_user_feature_hits`가 포함되어
 내장/확장 객체와 사용자 생성 객체의 특화 기능 사용량을 분리해 볼 수 있습니다.
 
 분류 기준(요약):
-- `EDB_BUILTIN`: extension 소유 객체, `sys`/`edb` 스키마 객체, `dbms_%` 계열/`pg_stat_statements` 계열 객체
+- `EDB_BUILTIN`: extension 소유 객체, `sys`/`edb`/`utl_%` 스키마 객체, `dbms_%` 계열/`pg_stat_statements` 계열 객체
 - `USER_CREATED`: 위 기준에 해당하지 않는 사용자 스키마/객체
 
 ---
