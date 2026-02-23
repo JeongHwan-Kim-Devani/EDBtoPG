@@ -107,7 +107,7 @@ export PGPASSWORD='your-password'
 내장/확장 객체와 사용자 생성 객체의 특화 기능 사용량을 분리해 볼 수 있습니다.
 
 분류 기준(요약):
-- `EDB_BUILTIN`: extension 소유 객체, `sys`/`edb`/`utl_%` 스키마 객체, `dbms_%` 계열/`pg_stat_statements` 계열 객체
+- `EDB_BUILTIN`: extension 소유 객체, `sys`/`edb`/`utl_%` 스키마 객체, `pg_stat_statements` 계열 객체
 - `USER_CREATED`: 위 기준에 해당하지 않는 사용자 스키마/객체
 
 ---

@@ -536,9 +536,9 @@ fi
 schema_filter=""
 schema_filter_table=""
 if [[ -n "$SCHEMA" ]]; then
-  schema_sql=$(sql_literal "$SCHEMA")
-  schema_filter="AND n.nspname = ${schema_sql}"
-  schema_filter_table="AND table_schema = ${schema_sql}"
+  schema_lit=$(sql_literal "$SCHEMA")
+  schema_filter="AND n.nspname = ${schema_lit}"
+  schema_filter_table="AND table_schema = ${schema_lit}"
 fi
 
 echo "[INFO] Collecting instance settings (encoding/collation/timezone)..."
@@ -613,7 +613,6 @@ FROM (
       WHEN ep.objid IS NOT NULL THEN 'EDB_BUILTIN'
       WHEN n.nspname IN ('sys','edb') THEN 'EDB_BUILTIN'
       WHEN n.nspname ILIKE 'utl\_%' ESCAPE '\\' THEN 'EDB_BUILTIN'
-      WHEN p.proname ILIKE 'dbms\_%' ESCAPE '\\' THEN 'EDB_BUILTIN'
       WHEN p.proname IN ('pg_stat_statements','pg_stat_statements_info','pg_stat_statements_reset') THEN 'EDB_BUILTIN'
       ELSE 'USER_CREATED'
     END AS owner_class,
@@ -698,7 +697,6 @@ routine_hits AS (
            WHEN ep.objid IS NOT NULL THEN 'EDB_BUILTIN'
            WHEN n.nspname IN ('sys','edb') THEN 'EDB_BUILTIN'
            WHEN n.nspname ILIKE 'utl\_%' ESCAPE '\\' THEN 'EDB_BUILTIN'
-           WHEN p.proname ILIKE 'dbms\_%' ESCAPE '\\' THEN 'EDB_BUILTIN'
            WHEN p.proname IN ('pg_stat_statements','pg_stat_statements_info','pg_stat_statements_reset') THEN 'EDB_BUILTIN'
            ELSE 'USER_CREATED'
          END AS owner_class
@@ -761,21 +759,48 @@ ORDER BY 1;"
 
 echo "[INFO] Collecting grouped dump-check counters..."
 run_sql "$F_EPAS_GROUP_COUNTS" "
-SELECT 'SYNONYM' || E'\t' || count(*)
-FROM pg_class c
-JOIN pg_namespace n ON n.oid = c.relnamespace
-WHERE n.nspname NOT IN ('pg_catalog','information_schema')
-  AND n.nspname NOT LIKE 'pg_toast%'
-  ${schema_filter}
-  AND c.relkind = 'y'
+SELECT 'SYNONYM' || E'\t' || (
+  CASE
+    WHEN to_regclass('pg_catalog.pg_synonym') IS NOT NULL THEN (
+      SELECT count(*)
+      FROM pg_catalog.pg_synonym s
+      JOIN pg_namespace n ON n.oid = s.synnamespace
+      WHERE n.nspname NOT IN ('pg_catalog','information_schema')
+        ${schema_filter}
+    )
+    ELSE (
+      SELECT count(*)
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname NOT IN ('pg_catalog','information_schema')
+        AND n.nspname NOT LIKE 'pg_toast%'
+        AND c.relkind = 'y'
+        ${schema_filter}
+    )
+  END
+)
 UNION ALL
-SELECT 'PACKAGE' || E'\t' || count(*)
-FROM pg_proc p
-JOIN pg_namespace n ON n.oid = p.pronamespace
-WHERE n.nspname NOT IN ('pg_catalog','information_schema')
-  ${schema_filter}
-  AND p.prokind IN ('f','p')
-  AND p.proname ILIKE 'pkg\_%' ESCAPE '\\';"
+SELECT 'PACKAGE' || E'\t' || (
+  CASE
+    WHEN to_regclass('pg_catalog.pg_package') IS NOT NULL THEN (
+      SELECT count(*)
+      FROM pg_catalog.pg_package p
+      JOIN pg_namespace n ON n.oid = p.pkgnamespace
+      WHERE n.nspname NOT IN ('pg_catalog','information_schema')
+        ${schema_filter}
+    )
+    ELSE (
+      SELECT count(*)
+      FROM pg_proc p
+      JOIN pg_namespace n ON n.oid = p.pronamespace
+      WHERE n.nspname NOT IN ('pg_catalog','information_schema')
+        AND p.prokind IN ('f','p')
+        AND p.proname ILIKE 'pkg\_%' ESCAPE '\\'
+        ${schema_filter}
+    )
+  END
+)
+ORDER BY 1;"
 
 echo "[INFO] Scanning migration failure risk patterns..."
 run_sql "$F_MIGRATION_RISK_HITS" "
@@ -809,7 +834,7 @@ edbspl_routines AS (
            WHERE d.classid = 'pg_proc'::regclass
              AND d.objid = p.oid
              AND d.deptype = 'e'
-         ) OR n.nspname IN ('sys','edb') OR n.nspname ILIKE 'utl\_%' ESCAPE '\\' OR p.proname ILIKE 'dbms\_%' ESCAPE '\\'
+         ) OR n.nspname IN ('sys','edb') OR n.nspname ILIKE 'utl\_%' ESCAPE '\\'
            THEN 'EDB_BUILTIN' ELSE 'USER_CREATED' END AS owner_class
   FROM pg_proc p
   JOIN pg_namespace n ON n.oid = p.pronamespace
@@ -849,7 +874,7 @@ policy_context AS (
            WHERE d.classid = 'pg_proc'::regclass
              AND d.objid = p.oid
              AND d.deptype = 'e'
-         ) OR n.nspname IN ('sys','edb') OR n.nspname ILIKE 'utl\_%' ESCAPE '\\' OR p.proname ILIKE 'dbms\_%' ESCAPE '\\'
+         ) OR n.nspname IN ('sys','edb') OR n.nspname ILIKE 'utl\_%' ESCAPE '\\'
            THEN 'EDB_BUILTIN' ELSE 'USER_CREATED' END AS owner_class
   FROM pg_proc p
   JOIN pg_namespace n ON n.oid = p.pronamespace
