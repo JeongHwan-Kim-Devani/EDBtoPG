@@ -6,19 +6,40 @@ set -euo pipefail
 #  - TSV raw extracts per section
 #  - HTML report (includes migration opinion in HTML)
 
-OUT_DIR="${1:-migration_report_$(date +%Y%m%d_%H%M%S)}"
-mkdir -p "$OUT_DIR"
-
 PSQL_BIN="${PSQL_BIN:-psql}"
 DBNAME="${PGDATABASE:-}"
 DBHOST="${PGHOST:-}"
 DBPORT="${PGPORT:-}"
 DBUSER="${PGUSER:-}"
 
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+  cat <<'USAGE'
+Usage: ./generate_epas_migration_report.sh [OUT_DIR]
+
+Generate EPAS migration inspection artifacts and HTML opinion report.
+
+Arguments:
+  OUT_DIR   Optional output directory path.
+            Default: migration_report_YYYYmmdd_HHMMSS
+
+Environment:
+  PSQL_BIN  psql executable path (default: psql)
+  PGHOST, PGPORT, PGDATABASE, PGUSER, PGPASSWORD, ...
+
+Example:
+  PGHOST=127.0.0.1 PGPORT=5444 PGDATABASE=edb PGUSER=enterprisedb \
+    ./generate_epas_migration_report.sh ./report_$(date +%F)
+USAGE
+  exit 0
+fi
+
 if ! command -v "$PSQL_BIN" >/dev/null 2>&1; then
   echo "[ERROR] psql command not found. Set PSQL_BIN or install psql." >&2
   exit 1
 fi
+
+OUT_DIR="${1:-migration_report_$(date +%Y%m%d_%H%M%S)}"
+mkdir -p "$OUT_DIR"
 
 run_tsv() {
   local outfile="$1"
@@ -357,10 +378,19 @@ fi
 # -----------------------------
 line_count() {
   local f="$1"
+  local n
   if [[ ! -s "$f" ]]; then
     echo 0
+    return
+  fi
+
+  n=$(wc -l <"$f")
+  # psql output includes header row by default when at least one line exists.
+  # For report counts we return data-row count (excluding header).
+  if (( n > 0 )); then
+    echo $((n-1))
   else
-    wc -l <"$f"
+    echo 0
   fi
 }
 
@@ -436,6 +466,8 @@ Connection hints : host=${DBHOST:-N/A}, port=${DBPORT:-N/A}, db=${DBNAME:-N/A}, 
 3) User-created Detail        : 03_detail_keywords.tsv, 03_detail_datatypes_objects.tsv, 03_detail_datatypes_tables.tsv, 03_detail_expr_keywords.tsv
 4) Policy Detail              : 04_policy_edb_profile.tsv, 04_policy_edb_resource_group.tsv, 04_policy_edb_dblink.tsv
 5) Opinion (HTML)             : 05_opinion.html
+
+Note: Summary counts in HTML exclude TSV header rows.
 TXT
 
 echo "[DONE] Report generated at: $OUT_DIR"
