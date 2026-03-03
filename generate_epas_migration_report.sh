@@ -419,81 +419,103 @@ default_row_if_empty() {
 
 param_rows_html=$(awk -F $'	' 'NR==1{next}
 {
-  for(i=1;i<=NF;i++){gsub("&","\\&amp;",$i);gsub("<","\\&lt;",$i);gsub(">","\\&gt;",$i)}
+  for(i=1;i<=NF;i++){gsub("&","&amp;",$i);gsub("<","&lt;",$i);gsub(">","&gt;",$i)}
   opinion="대체 가능"
   if ($5 ~ /^\[CRITICAL\]/) opinion="대체 불가(수동 수정 필요)"
   else if ($5 ~ /^\[WARNING\]/) opinion="조건부 대체 가능"
-  printf "<tr><td><code>%s</code></td><td><code>%s</code></td><td><code>%s</code></td><td>%s</td><td>%s</td></tr>\n", $1, $2, $3, $5, opinion
+  badge=(opinion=="대체 불가(수동 수정 필요)"?"badge-crit":(opinion=="조건부 대체 가능"?"badge-warn":"badge-ok"));
+  printf "<tr><td><code>%s</code></td><td><code>%s</code></td><td><code>%s</code></td><td>%s</td><td><span class=\"badge %s\">%s</span></td></tr>\n", $1, $2, $3, $5, badge, opinion
 }' "$OUT_DIR/01_parameters.tsv")
 param_rows_html=$(default_row_if_empty "$param_rows_html" 5)
 
 pkg_rows_html=$(awk -F $'	' 'NR==1{next}
 {
-  for(i=1;i<=NF;i++){gsub("&","\\&amp;",$i);gsub("<","\\&lt;",$i);gsub(">","\\&gt;",$i)}
-  printf "<tr><td>%s</td><td><code>%s.%s</code></td><td><code>%s</code></td><td>조건부 대체 가능</td></tr>\n", $1, $2, $3, $4
+  for(i=1;i<=NF;i++){gsub("&","&amp;",$i);gsub("<","&lt;",$i);gsub(">","&gt;",$i)}
+  opinion="조건부 대체 가능";
+  badge="badge-warn";
+  printf "<tr><td>%s</td><td><code>%s.%s</code></td><td><code>%s</code></td><td><span class=\"badge %s\">%s</span></td></tr>\n", $1, $2, $3, $4, badge, opinion
 }' "$OUT_DIR/02_summary_packages.tsv")
 pkg_rows_html=$(default_row_if_empty "$pkg_rows_html" 4)
 
 syn_rows_html=$(awk -F $'	' 'NR==1{next}
 {
-  for(i=1;i<=NF;i++){gsub("&","\\&amp;",$i);gsub("<","\\&lt;",$i);gsub(">","\\&gt;",$i)}
-  printf "<tr><td><code>%s.%s</code></td><td><code>%s.%s</code></td><td>%s</td></tr>\n", $1,$2,$3,$4, "조건부 대체 가능"
+  for(i=1;i<=NF;i++){gsub("&","&amp;",$i);gsub("<","&lt;",$i);gsub(">","&gt;",$i)}
+  opinion="조건부 대체 가능"; badge="badge-warn";
+  printf "<tr><td><code>%s.%s</code></td><td><code>%s.%s</code></td><td><span class=\"badge %s\">%s</span></td></tr>\n", $1,$2,$3,$4,badge,opinion
 }' "$OUT_DIR/02_summary_synonyms.tsv")
 syn_rows_html=$(default_row_if_empty "$syn_rows_html" 3)
 
 rls_rows_html=$(awk -F $'	' 'NR==1{next}
 {
-  for(i=1;i<=NF;i++){gsub("&","\\&amp;",$i);gsub("<","\\&lt;",$i);gsub(">","\\&gt;",$i)}
-  printf "<tr><td><code>%s.%s</code></td><td><code>%s</code></td><td>%s</td><td>%s</td></tr>\n", $1,$2,$3,$6,"조건부 대체 가능"
+  for(i=1;i<=NF;i++){gsub("&","&amp;",$i);gsub("<","&lt;",$i);gsub(">","&gt;",$i)}
+  opinion="조건부 대체 가능"; badge="badge-warn";
+  printf "<tr><td><code>%s.%s</code></td><td><code>%s</code></td><td>%s</td><td><span class=\"badge %s\">%s</span></td></tr>\n", $1,$2,$3,$6,badge,opinion
 }' "$OUT_DIR/02_summary_policies.tsv")
 rls_rows_html=$(default_row_if_empty "$rls_rows_html" 4)
 
 kw_rows_html=$(awk -F $'	' 'NR==1{next}
 {
-  for(i=1;i<=NF;i++){gsub("&","\\&amp;",$i);gsub("<","\\&lt;",$i);gsub(">","\\&gt;",$i)}
-  printf "<tr><td>%s</td><td><code>%s.%s</code></td><td><code>%s</code></td><td>%s</td></tr>\n", $1,$2,$3,$4,"조건부 대체 가능"
+  for(i=1;i<=NF;i++){gsub("&","&amp;",$i);gsub("<","&lt;",$i);gsub(">","&gt;",$i)}
+  keyword=$4; opinion="조건부 대체 가능";
+  if (keyword ~ /^(rownum|rowid|dual|minus|sys_connect_by_path|connect_by_root|connect_by_isleaf|level|pragma|sqlcode|sqlerrm|raise_application_error|v\$[a-z0-9_]+|dba_[a-z0-9_]+|all_[a-z0-9_]+|user_[a-z0-9_]+)$/) opinion="대체 불가(수동 수정 필요)";
+  else if (keyword ~ /^(sysdate|systimestamp|nvl|nvl2|add_months|months_between|last_day|next_day|instr|greatest|least|substrb|instrb|lengthb|numtodsinterval|numtoyminterval)$/) opinion="대체 가능";
+  badge=(opinion=="대체 불가(수동 수정 필요)"?"badge-crit":(opinion=="조건부 대체 가능"?"badge-warn":"badge-ok"));
+  printf "<tr><td>%s</td><td><code>%s.%s</code></td><td><code>%s</code></td><td><span class=\"badge %s\">%s</span></td></tr>\n", $1,$2,$3,$4,badge,opinion
 }' "$OUT_DIR/03_detail_keywords.tsv")
 kw_rows_html=$(default_row_if_empty "$kw_rows_html" 4)
 
 dtype_obj_rows_html=$(awk -F $'	' 'NR==1{next}
 {
-  for(i=1;i<=NF;i++){gsub("&","\\&amp;",$i);gsub("<","\\&lt;",$i);gsub(">","\\&gt;",$i)}
-  printf "<tr><td>%s</td><td><code>%s.%s</code></td><td><code>%s</code></td><td>%s</td></tr>\n", $1,$2,$3,$4,"조건부 대체 가능"
+  for(i=1;i<=NF;i++){gsub("&","&amp;",$i);gsub("<","&lt;",$i);gsub(">","&gt;",$i)}
+  dtype=$4; opinion="조건부 대체 가능";
+  if (dtype ~ /^(varchar2|nvarchar2|clob|blob)$/) opinion="대체 가능";
+  badge=(opinion=="조건부 대체 가능"?"badge-warn":"badge-ok");
+  printf "<tr><td>%s</td><td><code>%s.%s</code></td><td><code>%s</code></td><td><span class=\"badge %s\">%s</span></td></tr>\n", $1,$2,$3,$4,badge,opinion
 }' "$OUT_DIR/03_detail_datatypes_objects.tsv")
 dtype_obj_rows_html=$(default_row_if_empty "$dtype_obj_rows_html" 4)
 
 dtype_tbl_rows_html=$(awk -F $'	' 'NR==1{next}
 {
-  for(i=1;i<=NF;i++){gsub("&","\\&amp;",$i);gsub("<","\\&lt;",$i);gsub(">","\\&gt;",$i)}
-  printf "<tr><td><code>%s.%s.%s</code></td><td><code>%s</code></td><td>%s</td></tr>\n", $1,$2,$3,$4,"조건부 대체 가능"
+  for(i=1;i<=NF;i++){gsub("&","&amp;",$i);gsub("<","&lt;",$i);gsub(">","&gt;",$i)}
+  dtype=$4; opinion="조건부 대체 가능";
+  if (dtype ~ /^(varchar2|nvarchar2|clob|blob)$/) opinion="대체 가능";
+  badge=(opinion=="조건부 대체 가능"?"badge-warn":"badge-ok");
+  printf "<tr><td><code>%s.%s.%s</code></td><td><code>%s</code></td><td><span class=\"badge %s\">%s</span></td></tr>\n", $1,$2,$3,$4,badge,opinion
 }' "$OUT_DIR/03_detail_datatypes_tables.tsv")
 dtype_tbl_rows_html=$(default_row_if_empty "$dtype_tbl_rows_html" 3)
 
 expr_rows_html=$(awk -F $'	' 'NR==1{next}
 {
-  for(i=1;i<=NF;i++){gsub("&","\\&amp;",$i);gsub("<","\\&lt;",$i);gsub(">","\\&gt;",$i)}
-  printf "<tr><td>%s</td><td><code>%s.%s</code></td><td><code>%s</code></td><td>%s</td></tr>\n", $1,$2,$3,$6,"조건부 대체 가능"
+  for(i=1;i<=NF;i++){gsub("&","&amp;",$i);gsub("<","&lt;",$i);gsub(">","&gt;",$i)}
+  kw=$6; opinion="조건부 대체 가능";
+  if (kw ~ /^(sysdate|systimestamp|add_months|months_between|last_day|next_day|instr)$/) opinion="대체 가능";
+  else if (kw ~ /^user_[a-z0-9_]+$/) opinion="대체 불가(수동 수정 필요)";
+  badge=(opinion=="대체 불가(수동 수정 필요)"?"badge-crit":(opinion=="조건부 대체 가능"?"badge-warn":"badge-ok"));
+  printf "<tr><td>%s</td><td><code>%s.%s</code></td><td><code>%s</code></td><td><span class=\"badge %s\">%s</span></td></tr>\n", $1,$2,$3,$6,badge,opinion
 }' "$OUT_DIR/03_detail_expr_keywords.tsv")
 expr_rows_html=$(default_row_if_empty "$expr_rows_html" 4)
 
 profile_rows_html=$(awk -F $'	' 'NR==1{next}
 {
-  for(i=1;i<=NF;i++){gsub("&","\\&amp;",$i);gsub("<","\\&lt;",$i);gsub(">","\\&gt;",$i)}
-  printf "<tr><td><code>%s</code></td><td>%s</td></tr>\n", $2,"조건부 대체 가능"
+  for(i=1;i<=NF;i++){gsub("&","&amp;",$i);gsub("<","&lt;",$i);gsub(">","&gt;",$i)}
+  opinion="조건부 대체 가능"; badge="badge-warn";
+  printf "<tr><td><code>%s</code></td><td><span class=\"badge %s\">%s</span></td></tr>\n", $2,badge,opinion
 }' "$OUT_DIR/04_policy_edb_profile.tsv")
 profile_rows_html=$(default_row_if_empty "$profile_rows_html" 2)
 
 rg_rows_html=$(awk -F $'	' 'NR==1{next}
 {
-  for(i=1;i<=NF;i++){gsub("&","\\&amp;",$i);gsub("<","\\&lt;",$i);gsub(">","\\&gt;",$i)}
-  printf "<tr><td><code>%s</code></td><td>%s</td><td>%s</td></tr>\n", $4,$2,"조건부 대체 가능"
+  for(i=1;i<=NF;i++){gsub("&","&amp;",$i);gsub("<","&lt;",$i);gsub(">","&gt;",$i)}
+  opinion="조건부 대체 가능"; badge="badge-warn";
+  printf "<tr><td><code>%s</code></td><td>%s</td><td><span class=\"badge %s\">%s</span></td></tr>\n", $4,$2,badge,opinion
 }' "$OUT_DIR/04_policy_edb_resource_group.tsv")
 rg_rows_html=$(default_row_if_empty "$rg_rows_html" 3)
 
 dblink_rows_html=$(awk -F $'	' 'NR==1{next}
 {
-  for(i=1;i<=NF;i++){gsub("&","\\&amp;",$i);gsub("<","\\&lt;",$i);gsub(">","\\&gt;",$i)}
-  printf "<tr><td><code>%s</code></td><td>%s</td><td><code>%s</code></td><td>%s</td></tr>\n", $1,$5,$6,"조건부 대체 가능"
+  for(i=1;i<=NF;i++){gsub("&","&amp;",$i);gsub("<","&lt;",$i);gsub(">","&gt;",$i)}
+  opinion="조건부 대체 가능"; badge="badge-warn";
+  printf "<tr><td><code>%s</code></td><td>%s</td><td><code>%s</code></td><td><span class=\"badge %s\">%s</span></td></tr>\n", $1,$5,$6,badge,opinion
 }' "$OUT_DIR/04_policy_edb_dblink.tsv")
 dblink_rows_html=$(default_row_if_empty "$dblink_rows_html" 4)
 
@@ -521,6 +543,10 @@ cat >"$OUT_DIR/05_opinion.html" <<HTML
     .opinion-crit { background: #fef2f2; border-color: #fecaca; }
     .opinion-warn { background: #fffbeb; border-color: #fde68a; }
     .opinion-ok { background: #ecfdf5; border-color: #a7f3d0; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+    .badge-crit { color: #991b1b; background: #fee2e2; border: 1px solid #fecaca; }
+    .badge-warn { color: #92400e; background: #fef3c7; border: 1px solid #fde68a; }
+    .badge-ok { color: #065f46; background: #d1fae5; border: 1px solid #a7f3d0; }
     code { background: #f3f4f6; padding: 2px 4px; border-radius: 4px; }
   </style>
 </head>
