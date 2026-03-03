@@ -124,3 +124,12 @@ SELECT COUNT(*) FROM demo_cron.sensor_metrics;
 SELECT COUNT(*) FROM demo_cron.payload_store;
 SELECT demo_cron.fn_last_batch_size() FROM dual;
 ```
+
+
+### 8) 검출 건수(0 항목) 보강용 객체
+- `demo_non_default_profile` 생성 시도 (Profile Non-default)
+- `demo_rg` 리소스 그룹 생성 시도 (Resource Group)
+- `demo_loopback` DBLINK 생성 시도 (DBLINK)
+- `demo.pr_pkg_trace`, `demo.fn_pkg_trace`로 `DBMS_OUTPUT`/`UTL_RAW`/`UTL_ENCODE` 사용 흔적 추가
+
+> 참고: `RESOURCE GROUP`/`DBLINK`는 DB 권한 및 환경 설정에 따라 생성이 실패할 수 있으며, 스크립트는 전체 실행이 중단되지 않도록 예외를 흡수합니다.

@@ -313,6 +313,71 @@ CREATE OR REPLACE PACKAGE BODY demo.pkg_text_api IS
   END fn_make_clob;
 END pkg_text_api;
 
+
+
+-- === 검출 보강용 EPAS 특화 객체 샘플 ===
+-- 1) 비기본 PROFILE (detector: Profile non-default)
+DO $$
+BEGIN
+  BEGIN
+    EXECUTE 'CREATE PROFILE demo_non_default_profile LIMIT SESSIONS_PER_USER 3 PASSWORD_LIFE_TIME 45';
+  EXCEPTION
+    WHEN OTHERS THEN
+      NULL;
+  END;
+END
+$$;
+
+-- 2) 패키지/프로시저/함수 내 DBMS/UTL 사용 흔적 (detector: EDB 특화 기능)
+CREATE OR REPLACE PROCEDURE demo.pr_pkg_trace
+LANGUAGE edbspl
+AS $$
+DECLARE
+  v_raw RAW(2000);
+  v_txt VARCHAR2(2000);
+BEGIN
+  v_raw := UTL_RAW.CAST_TO_RAW('EPAS_TRACE_SAMPLE');
+  v_txt := UTL_RAW.CAST_TO_VARCHAR2(v_raw);
+  DBMS_OUTPUT.PUT_LINE(v_txt);
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION demo.fn_pkg_trace(p_text VARCHAR2)
+RETURNS VARCHAR2
+LANGUAGE edbspl
+AS $$
+DECLARE
+  v_enc RAW(2000);
+BEGIN
+  v_enc := UTL_ENCODE.BASE64_ENCODE(UTL_RAW.CAST_TO_RAW(p_text));
+  RETURN UTL_RAW.CAST_TO_VARCHAR2(v_enc);
+END;
+$$;
+
+-- 3) RESOURCE GROUP 샘플 (권한/버전에 따라 실패 가능)
+DO $$
+BEGIN
+  BEGIN
+    EXECUTE 'CREATE RESOURCE GROUP demo_rg TYPE cpu_rate_limit WITH (cpu_rate_limit=10)';
+  EXCEPTION
+    WHEN OTHERS THEN
+      NULL;
+  END;
+END
+$$;
+
+-- 4) DBLINK 샘플 (권한/환경에 따라 실패 가능)
+DO $$
+BEGIN
+  BEGIN
+    EXECUTE 'CREATE DATABASE LINK demo_loopback CONNECT TO CURRENT_USER USING ''localhost''';
+  EXCEPTION
+    WHEN OTHERS THEN
+      NULL;
+  END;
+END
+$$;
+
 -- Policy(VPD) function + policy 등록
 CREATE OR REPLACE FUNCTION demo.fn_customer_policy(
   p_schema_name VARCHAR2,
