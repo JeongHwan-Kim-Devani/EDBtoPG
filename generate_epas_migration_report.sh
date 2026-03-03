@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+[ -n "${BASH_VERSION:-}" ] || exec bash "$0" "$@"
 set -euo pipefail
 
 # EPAS to PostgreSQL migration inspection report generator
@@ -219,7 +220,7 @@ FROM (
         m[1] AS detected_keyword
     FROM pg_proc p
     JOIN pg_namespace n ON p.pronamespace = n.oid,
-    LATERAL regexp_matches(lower(p.prosrc), '(\\m(?:blob|clob|varchar2|nvarchar2|bfile|raw|greatest|least|sysdate|systimestamp|rownum|rowid|level|nvl|nvl2|decode|add_months|months_between|last_day|next_day|instr|listagg|wm_concat|dual|minus|sys_connect_by_path|connect_by_root|connect_by_isleaf|pragma|sqlcode|sqlerrm|raise_application_error|numtodsinterval|numtoyminterval|sys_extract_utc|tz_offset|dbtimezone|sessiontimezone|lnnvl|nanvl|ratio_to_report|substrb|instrb|lengthb)\\M|\\m(?:user_[a-z0-9_]+|all_[a-z0-9_]+|dba_[a-z0-9_]+|v\\$[a-z0-9_]+)\\M)', 'g') AS m
+    LATERAL regexp_matches(lower(p.prosrc), '(\\m(?:blob|clob|varchar2|nvarchar2|bfile|raw|greatest|least|sysdate|systimestamp|rownum|rowid|level|nvl|nvl2|decode|add_months|months_between|last_day|next_day|instr|listagg|wm_concat|dual|minus|sys_connect_by_path|connect_by_root|connect_by_isleaf|pragma|sqlcode|sqlerrm|raise_application_error|numtodsinterval|numtoyminterval|sys_extract_utc|tz_offset|dbtimezone|sessiontimezone|lnnvl|nanvl|ratio_to_report|substrb|instrb|lengthb)\\M|\\m(?:user_[a-z0-9_]+|all_[a-z0-9_]+|dba_[a-z0-9_]+|v\\\$[a-z0-9_]+)\\M)', 'g') AS m
     WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
 
     UNION ALL
@@ -230,7 +231,7 @@ FROM (
         v.viewname AS object_name,
         m[1] AS detected_keyword
     FROM pg_views v,
-    LATERAL regexp_matches(lower(v.definition), '(\\m(?:blob|clob|varchar2|nvarchar2|bfile|raw|greatest|least|sysdate|systimestamp|rownum|rowid|level|nvl|nvl2|decode|add_months|months_between|last_day|next_day|instr|listagg|wm_concat|dual|minus|sys_connect_by_path|connect_by_root|connect_by_isleaf|pragma|sqlcode|sqlerrm|raise_application_error|numtodsinterval|numtoyminterval|sys_extract_utc|tz_offset|dbtimezone|sessiontimezone|lnnvl|nanvl|ratio_to_report|substrb|instrb|lengthb)\\M|\\m(?:user_[a-z0-9_]+|all_[a-z0-9_]+|dba_[a-z0-9_]+|v\\$[a-z0-9_]+)\\M)', 'g') AS m
+    LATERAL regexp_matches(lower(v.definition), '(\\m(?:blob|clob|varchar2|nvarchar2|bfile|raw|greatest|least|sysdate|systimestamp|rownum|rowid|level|nvl|nvl2|decode|add_months|months_between|last_day|next_day|instr|listagg|wm_concat|dual|minus|sys_connect_by_path|connect_by_root|connect_by_isleaf|pragma|sqlcode|sqlerrm|raise_application_error|numtodsinterval|numtoyminterval|sys_extract_utc|tz_offset|dbtimezone|sessiontimezone|lnnvl|nanvl|ratio_to_report|substrb|instrb|lengthb)\\M|\\m(?:user_[a-z0-9_]+|all_[a-z0-9_]+|dba_[a-z0-9_]+|v\\\$[a-z0-9_]+)\\M)', 'g') AS m
     WHERE v.schemaname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
 ) z
 ORDER BY object_type, schema_name, object_name;

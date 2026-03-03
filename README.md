@@ -44,6 +44,10 @@
 
 ## 3) 빠른 시작
 
+> 실행 권장: `bash generate_epas_migration_report.sh`
+> (`sh`로 실행해도 스크립트가 내부적으로 bash로 재실행되도록 처리되어 있습니다.)
+
+
 ```bash
 chmod +x generate_epas_migration_report.sh
 
