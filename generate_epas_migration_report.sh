@@ -407,47 +407,95 @@ profile_cnt=$(line_count "$OUT_DIR/04_policy_edb_profile.tsv")
 rg_cnt=$(line_count "$OUT_DIR/04_policy_edb_resource_group.tsv")
 dblink_cnt=$(line_count "$OUT_DIR/04_policy_edb_dblink.tsv")
 
-default_li_if_empty() {
+default_row_if_empty() {
   local s="$1"
+  local colspan="$2"
   if [[ -z "${s//[[:space:]]/}" ]]; then
-    echo "<li>검출 없음</li>"
+    printf '<tr><td colspan="%s">검출 없음</td></tr>' "$colspan"
   else
     printf "%s" "$s"
   fi
 }
 
-param_detail_html=$(awk -F $'	' '''NR==1{next} {for(i=1;i<=NF;i++){gsub("&","\\&amp;",$i);gsub("<","\\&lt;",$i);gsub(">","\\&gt;",$i)} printf "<li><code>%s</code>: 기본값 <code>%s</code>, 현재값 <code>%s</code> (%s)</li>\n",$1,$2,$3,$5}''' "$OUT_DIR/01_parameters.tsv")
-param_detail_html=$(default_li_if_empty "$param_detail_html")
+param_rows_html=$(awk -F $'	' 'NR==1{next}
+{
+  for(i=1;i<=NF;i++){gsub("&","\&amp;",$i);gsub("<","\&lt;",$i);gsub(">","\&gt;",$i)}
+  opinion="대체 가능"
+  if ($5 ~ /^\[CRITICAL\]/) opinion="대체 불가(수동 수정 필요)"
+  else if ($5 ~ /^\[WARNING\]/) opinion="조건부 대체 가능"
+  printf "<tr><td><code>%s</code></td><td><code>%s</code></td><td><code>%s</code></td><td>%s</td><td>%s</td></tr>\n", $1, $2, $3, $5, opinion
+}' "$OUT_DIR/01_parameters.tsv")
+param_rows_html=$(default_row_if_empty "$param_rows_html" 5)
 
-pkg_detail_html=$(awk -F $'	' '''NR==1{next} {for(i=1;i<=NF;i++){gsub("&","\\&amp;",$i);gsub("<","\\&lt;",$i);gsub(">","\\&gt;",$i)} printf "<li><code>%s.%s</code> (%s) 에서 <code>%s</code> 검출</li>\n",$2,$3,$1,$4}''' "$OUT_DIR/02_summary_packages.tsv")
-pkg_detail_html=$(default_li_if_empty "$pkg_detail_html")
+pkg_rows_html=$(awk -F $'	' 'NR==1{next}
+{
+  for(i=1;i<=NF;i++){gsub("&","\&amp;",$i);gsub("<","\&lt;",$i);gsub(">","\&gt;",$i)}
+  printf "<tr><td>%s</td><td><code>%s.%s</code></td><td><code>%s</code></td><td>조건부 대체 가능</td></tr>\n", $1, $2, $3, $4
+}' "$OUT_DIR/02_summary_packages.tsv")
+pkg_rows_html=$(default_row_if_empty "$pkg_rows_html" 4)
 
-syn_detail_html=$(awk -F $'	' '''NR==1{next} {for(i=1;i<=NF;i++){gsub("&","\\&amp;",$i);gsub("<","\\&lt;",$i);gsub(">","\\&gt;",$i)} printf "<li><code>%s.%s</code> → <code>%s.%s</code></li>\n",$1,$2,$3,$4}''' "$OUT_DIR/02_summary_synonyms.tsv")
-syn_detail_html=$(default_li_if_empty "$syn_detail_html")
+syn_rows_html=$(awk -F $'	' 'NR==1{next}
+{
+  for(i=1;i<=NF;i++){gsub("&","\&amp;",$i);gsub("<","\&lt;",$i);gsub(">","\&gt;",$i)}
+  printf "<tr><td><code>%s.%s</code></td><td><code>%s.%s</code></td><td>%s</td></tr>\n", $1,$2,$3,$4, "조건부 대체 가능"
+}' "$OUT_DIR/02_summary_synonyms.tsv")
+syn_rows_html=$(default_row_if_empty "$syn_rows_html" 3)
 
-rls_detail_html=$(awk -F $'	' '''NR==1{next} {for(i=1;i<=NF;i++){gsub("&","\\&amp;",$i);gsub("<","\\&lt;",$i);gsub(">","\\&gt;",$i)} printf "<li><code>%s.%s</code> - policy <code>%s</code> (cmd: %s)</li>\n",$1,$2,$3,$6}''' "$OUT_DIR/02_summary_policies.tsv")
-rls_detail_html=$(default_li_if_empty "$rls_detail_html")
+rls_rows_html=$(awk -F $'	' 'NR==1{next}
+{
+  for(i=1;i<=NF;i++){gsub("&","\&amp;",$i);gsub("<","\&lt;",$i);gsub(">","\&gt;",$i)}
+  printf "<tr><td><code>%s.%s</code></td><td><code>%s</code></td><td>%s</td><td>%s</td></tr>\n", $1,$2,$3,$6,"조건부 대체 가능"
+}' "$OUT_DIR/02_summary_policies.tsv")
+rls_rows_html=$(default_row_if_empty "$rls_rows_html" 4)
 
-kw_detail_html=$(awk -F $'	' '''NR==1{next} {for(i=1;i<=NF;i++){gsub("&","\\&amp;",$i);gsub("<","\\&lt;",$i);gsub(">","\\&gt;",$i)} printf "<li><code>%s.%s</code> (%s): <code>%s</code></li>\n",$2,$3,$1,$4}''' "$OUT_DIR/03_detail_keywords.tsv")
-kw_detail_html=$(default_li_if_empty "$kw_detail_html")
+kw_rows_html=$(awk -F $'	' 'NR==1{next}
+{
+  for(i=1;i<=NF;i++){gsub("&","\&amp;",$i);gsub("<","\&lt;",$i);gsub(">","\&gt;",$i)}
+  printf "<tr><td>%s</td><td><code>%s.%s</code></td><td><code>%s</code></td><td>%s</td></tr>\n", $1,$2,$3,$4,"조건부 대체 가능"
+}' "$OUT_DIR/03_detail_keywords.tsv")
+kw_rows_html=$(default_row_if_empty "$kw_rows_html" 4)
 
-dtype_obj_detail_html=$(awk -F $'	' '''NR==1{next} {for(i=1;i<=NF;i++){gsub("&","\\&amp;",$i);gsub("<","\\&lt;",$i);gsub(">","\\&gt;",$i)} printf "<li><code>%s.%s</code> (%s): <code>%s</code></li>\n",$2,$3,$1,$4}''' "$OUT_DIR/03_detail_datatypes_objects.tsv")
-dtype_obj_detail_html=$(default_li_if_empty "$dtype_obj_detail_html")
+dtype_obj_rows_html=$(awk -F $'	' 'NR==1{next}
+{
+  for(i=1;i<=NF;i++){gsub("&","\&amp;",$i);gsub("<","\&lt;",$i);gsub(">","\&gt;",$i)}
+  printf "<tr><td>%s</td><td><code>%s.%s</code></td><td><code>%s</code></td><td>%s</td></tr>\n", $1,$2,$3,$4,"조건부 대체 가능"
+}' "$OUT_DIR/03_detail_datatypes_objects.tsv")
+dtype_obj_rows_html=$(default_row_if_empty "$dtype_obj_rows_html" 4)
 
-dtype_tbl_detail_html=$(awk -F $'	' '''NR==1{next} {for(i=1;i<=NF;i++){gsub("&","\\&amp;",$i);gsub("<","\\&lt;",$i);gsub(">","\\&gt;",$i)} printf "<li><code>%s.%s.%s</code>: <code>%s</code></li>\n",$1,$2,$3,$4}''' "$OUT_DIR/03_detail_datatypes_tables.tsv")
-dtype_tbl_detail_html=$(default_li_if_empty "$dtype_tbl_detail_html")
+dtype_tbl_rows_html=$(awk -F $'	' 'NR==1{next}
+{
+  for(i=1;i<=NF;i++){gsub("&","\&amp;",$i);gsub("<","\&lt;",$i);gsub(">","\&gt;",$i)}
+  printf "<tr><td><code>%s.%s.%s</code></td><td><code>%s</code></td><td>%s</td></tr>\n", $1,$2,$3,$4,"조건부 대체 가능"
+}' "$OUT_DIR/03_detail_datatypes_tables.tsv")
+dtype_tbl_rows_html=$(default_row_if_empty "$dtype_tbl_rows_html" 3)
 
-expr_detail_html=$(awk -F $'	' '''NR==1{next} {for(i=1;i<=NF;i++){gsub("&","\\&amp;",$i);gsub("<","\\&lt;",$i);gsub(">","\\&gt;",$i)} printf "<li><code>%s.%s</code> (%s): <code>%s</code> 검출</li>\n",$2,$3,$1,$6}''' "$OUT_DIR/03_detail_expr_keywords.tsv")
-expr_detail_html=$(default_li_if_empty "$expr_detail_html")
+expr_rows_html=$(awk -F $'	' 'NR==1{next}
+{
+  for(i=1;i<=NF;i++){gsub("&","\&amp;",$i);gsub("<","\&lt;",$i);gsub(">","\&gt;",$i)}
+  printf "<tr><td>%s</td><td><code>%s.%s</code></td><td><code>%s</code></td><td>%s</td></tr>\n", $1,$2,$3,$6,"조건부 대체 가능"
+}' "$OUT_DIR/03_detail_expr_keywords.tsv")
+expr_rows_html=$(default_row_if_empty "$expr_rows_html" 4)
 
-profile_detail_html=$(awk -F $'	' '''NR==1{next} {for(i=1;i<=NF;i++){gsub("&","\\&amp;",$i);gsub("<","\\&lt;",$i);gsub(">","\\&gt;",$i)} printf "<li>Profile: <code>%s</code></li>\n",$2}''' "$OUT_DIR/04_policy_edb_profile.tsv")
-profile_detail_html=$(default_li_if_empty "$profile_detail_html")
+profile_rows_html=$(awk -F $'	' 'NR==1{next}
+{
+  for(i=1;i<=NF;i++){gsub("&","\&amp;",$i);gsub("<","\&lt;",$i);gsub(">","\&gt;",$i)}
+  printf "<tr><td><code>%s</code></td><td>%s</td></tr>\n", $2,"조건부 대체 가능"
+}' "$OUT_DIR/04_policy_edb_profile.tsv")
+profile_rows_html=$(default_row_if_empty "$profile_rows_html" 2)
 
-rg_detail_html=$(awk -F $'	' '''NR==1{next} {for(i=1;i<=NF;i++){gsub("&","\\&amp;",$i);gsub("<","\\&lt;",$i);gsub(">","\\&gt;",$i)} printf "<li>Resource Group: <code>%s</code> (CPU limit: %s)</li>\n",$4,$2}''' "$OUT_DIR/04_policy_edb_resource_group.tsv")
-rg_detail_html=$(default_li_if_empty "$rg_detail_html")
+rg_rows_html=$(awk -F $'	' 'NR==1{next}
+{
+  for(i=1;i<=NF;i++){gsub("&","\&amp;",$i);gsub("<","\&lt;",$i);gsub(">","\&gt;",$i)}
+  printf "<tr><td><code>%s</code></td><td>%s</td><td>%s</td></tr>\n", $4,$2,"조건부 대체 가능"
+}' "$OUT_DIR/04_policy_edb_resource_group.tsv")
+rg_rows_html=$(default_row_if_empty "$rg_rows_html" 3)
 
-dblink_detail_html=$(awk -F $'	' '''NR==1{next} {for(i=1;i<=NF;i++){gsub("&","\\&amp;",$i);gsub("<","\\&lt;",$i);gsub(">","\\&gt;",$i)} printf "<li>DBLINK <code>%s</code> (user: %s, conn: <code>%s</code>)</li>\n",$1,$5,$6}''' "$OUT_DIR/04_policy_edb_dblink.tsv")
-dblink_detail_html=$(default_li_if_empty "$dblink_detail_html")
+dblink_rows_html=$(awk -F $'	' 'NR==1{next}
+{
+  for(i=1;i<=NF;i++){gsub("&","\&amp;",$i);gsub("<","\&lt;",$i);gsub(">","\&gt;",$i)}
+  printf "<tr><td><code>%s</code></td><td>%s</td><td><code>%s</code></td><td>%s</td></tr>\n", $1,$5,$6,"조건부 대체 가능"
+}' "$OUT_DIR/04_policy_edb_dblink.tsv")
+dblink_rows_html=$(default_row_if_empty "$dblink_rows_html" 4)
 
 cat >"$OUT_DIR/05_opinion.html" <<HTML
 <!doctype html>
@@ -474,64 +522,98 @@ cat >"$OUT_DIR/05_opinion.html" <<HTML
   <table>
     <tr><th>항목</th><th>검출 건수</th><th>가벼운 설명</th></tr>
     <tr class="group-title"><td colspan="3">1. 파라미터</td></tr>
-    <tr><td>1. 파라미터(점검 대상)</td><td>${param_cnt}</td><td>핵심 호환 파라미터 + 기본값 대비 변경값 점검</td></tr>
+    <tr><td>1-1. 파라미터(점검 대상)</td><td>${param_cnt}</td><td>핵심 호환 파라미터 + 기본값 대비 변경값 점검</td></tr>
 
     <tr class="group-title"><td colspan="3">2. EDB(Oracle) 특화기능 Summary</td></tr>
-    <tr><td>2. EDB 특화 기능(패키지/프로시저/함수/뷰)</td><td>${pkg_cnt}</td><td>DBMS/UTL/OWA/HTP/HTF 계열 사용 흔적</td></tr>
-    <tr><td>2. 시노님</td><td>${syn_cnt}</td><td>synonym → 실제 객체 매핑 현황</td></tr>
-    <tr><td>2. 정책(RLS)</td><td>${rls_cnt}</td><td>RLS 정책 존재 여부와 대상 테이블</td></tr>
+    <tr><td>2-1. EDB 특화 기능(패키지/프로시저/함수/뷰)</td><td>${pkg_cnt}</td><td>DBMS/UTL/OWA/HTP/HTF 계열 사용 흔적</td></tr>
+    <tr><td>2-2. 시노님</td><td>${syn_cnt}</td><td>synonym → 실제 객체 매핑 현황</td></tr>
+    <tr><td>2-3. 정책(RLS)</td><td>${rls_cnt}</td><td>RLS 정책 존재 여부와 대상 테이블</td></tr>
 
     <tr class="group-title"><td colspan="3">3. 디테일 (user created)</td></tr>
-    <tr><td>3. 오라클 키워드/함수</td><td>${kw_cnt}</td><td>객체 정의에서 Oracle 키워드/함수 의존 흔적</td></tr>
-    <tr><td>3. 오라클 데이터타입(함수/프로시저/뷰)</td><td>${dtype_obj_cnt}</td><td>코드/뷰 내부 Oracle 데이터타입 사용</td></tr>
-    <tr><td>3. 오라클 데이터타입(테이블)</td><td>${dtype_tbl_cnt}</td><td>테이블 컬럼 datatype 의존</td></tr>
-    <tr><td>3. 기본값/제약조건/인덱스 표현식</td><td>${expr_cnt}</td><td>표현식 내 Oracle 함수 사용</td></tr>
+    <tr><td>3-1. 오라클 키워드/함수</td><td>${kw_cnt}</td><td>객체 정의에서 Oracle 키워드/함수 의존 흔적</td></tr>
+    <tr><td>3-2. 오라클 데이터타입(함수/프로시저/뷰)</td><td>${dtype_obj_cnt}</td><td>코드/뷰 내부 Oracle 데이터타입 사용</td></tr>
+    <tr><td>3-3. 오라클 데이터타입(테이블)</td><td>${dtype_tbl_cnt}</td><td>테이블 컬럼 datatype 의존</td></tr>
+    <tr><td>3-4. 기본값/제약조건/인덱스 표현식</td><td>${expr_cnt}</td><td>표현식 내 Oracle 함수 사용</td></tr>
 
     <tr class="group-title"><td colspan="3">4. 폴리시 디테일 (user created)</td></tr>
-    <tr><td>4. 프로파일(Non-default)</td><td>${profile_cnt}</td><td>default 이외 profile 존재 여부</td></tr>
-    <tr><td>4. 리소스 그룹</td><td>${rg_cnt}</td><td>리소스 그룹 설정 현황</td></tr>
-    <tr><td>4. DBLINK</td><td>${dblink_cnt}</td><td>DBLINK 정의 현황</td></tr>
+    <tr><td>4-1. 프로파일(Non-default)</td><td>${profile_cnt}</td><td>default 이외 profile 존재 여부</td></tr>
+    <tr><td>4-2. 리소스 그룹</td><td>${rg_cnt}</td><td>리소스 그룹 설정 현황</td></tr>
+    <tr><td>4-3. DBLINK</td><td>${dblink_cnt}</td><td>DBLINK 정의 현황</td></tr>
   </table>
 
-  <h2>검출 건수 상세 (무엇이 검출되었는지)</h2>
+  <h2>검출 상세(표)</h2>
 
-  <h3>1. 파라미터 (${param_cnt}건)</h3>
+  <h3>1-1. 파라미터 (${param_cnt}건)</h3>
+  <table>
+    <tr><th>파라미터</th><th>기본값</th><th>현재값</th><th>설명</th><th>소견</th></tr>
+    ${param_rows_html}
+  </table>
+
+  <h3>2-1. EDB 특화 기능(패키지/프로시저/함수/뷰) (${pkg_cnt}건)</h3>
+  <table>
+    <tr><th>객체 타입</th><th>객체</th><th>검출 내용</th><th>소견</th></tr>
+    ${pkg_rows_html}
+  </table>
+
+  <h3>2-2. 시노님 (${syn_cnt}건)</h3>
+  <table>
+    <tr><th>시노님</th><th>대상 객체</th><th>소견</th></tr>
+    ${syn_rows_html}
+  </table>
+
+  <h3>2-3. 정책(RLS) (${rls_cnt}건)</h3>
+  <table>
+    <tr><th>대상 테이블</th><th>정책명</th><th>명령</th><th>소견</th></tr>
+    ${rls_rows_html}
+  </table>
+
+  <h3>3-1. 오라클 키워드/함수 (${kw_cnt}건)</h3>
+  <table>
+    <tr><th>객체 타입</th><th>객체</th><th>검출 키워드</th><th>소견</th></tr>
+    ${kw_rows_html}
+  </table>
+
+  <h3>3-2. 오라클 데이터타입(함수/프로시저/뷰) (${dtype_obj_cnt}건)</h3>
+  <table>
+    <tr><th>객체 타입</th><th>객체</th><th>데이터타입</th><th>소견</th></tr>
+    ${dtype_obj_rows_html}
+  </table>
+
+  <h3>3-3. 오라클 데이터타입(테이블) (${dtype_tbl_cnt}건)</h3>
+  <table>
+    <tr><th>컬럼</th><th>데이터타입</th><th>소견</th></tr>
+    ${dtype_tbl_rows_html}
+  </table>
+
+  <h3>3-4. 기본값/제약조건/인덱스 표현식 (${expr_cnt}건)</h3>
+  <table>
+    <tr><th>객체 타입</th><th>객체</th><th>검출 키워드</th><th>소견</th></tr>
+    ${expr_rows_html}
+  </table>
+
+  <h3>4-1. 프로파일(Non-default) (${profile_cnt}건)</h3>
+  <table>
+    <tr><th>프로파일</th><th>소견</th></tr>
+    ${profile_rows_html}
+  </table>
+
+  <h3>4-2. 리소스 그룹 (${rg_cnt}건)</h3>
+  <table>
+    <tr><th>리소스 그룹</th><th>CPU limit</th><th>소견</th></tr>
+    ${rg_rows_html}
+  </table>
+
+  <h3>4-3. DBLINK (${dblink_cnt}건)</h3>
+  <table>
+    <tr><th>DBLINK</th><th>USER</th><th>연결정보</th><th>소견</th></tr>
+    ${dblink_rows_html}
+  </table>
+
+  <h2>5. 종합 소견</h2>
   <ul>
-    ${param_detail_html}
-  </ul>
-
-  <h3>2. EDB 특화기능 Summary</h3>
-  <p><strong>패키지/프로시저/함수/뷰 (${pkg_cnt}건)</strong></p>
-  <ul>${pkg_detail_html}</ul>
-  <p><strong>시노님 (${syn_cnt}건)</strong></p>
-  <ul>${syn_detail_html}</ul>
-  <p><strong>정책(RLS) (${rls_cnt}건)</strong></p>
-  <ul>${rls_detail_html}</ul>
-
-  <h3>3. 디테일 (user created)</h3>
-  <p><strong>오라클 키워드/함수 (${kw_cnt}건)</strong></p>
-  <ul>${kw_detail_html}</ul>
-  <p><strong>오라클 데이터타입(함수/프로시저/뷰) (${dtype_obj_cnt}건)</strong></p>
-  <ul>${dtype_obj_detail_html}</ul>
-  <p><strong>오라클 데이터타입(테이블) (${dtype_tbl_cnt}건)</strong></p>
-  <ul>${dtype_tbl_detail_html}</ul>
-  <p><strong>기본값/제약조건/인덱스 표현식 (${expr_cnt}건)</strong></p>
-  <ul>${expr_detail_html}</ul>
-
-  <h3>4. 폴리시 디테일 (user created)</h3>
-  <p><strong>프로파일(Non-default) (${profile_cnt}건)</strong></p>
-  <ul>${profile_detail_html}</ul>
-  <p><strong>리소스 그룹 (${rg_cnt}건)</strong></p>
-  <ul>${rg_detail_html}</ul>
-  <p><strong>DBLINK (${dblink_cnt}건)</strong></p>
-  <ul>${dblink_detail_html}</ul>
-
-  <h2>5. 소견</h2>
-  <ul>
-    <li><span class="crit">대체 불가(수동 수정 필요)</span>: CRITICAL 파라미터/EDB 고유 보안·리소스 제어 기능은 PostgreSQL 기본 기능으로 1:1 대체가 어렵습니다. 애플리케이션 및 운영 절차 변경이 필요합니다.</li>
-    <li><span class="warn">조건부 대체 가능</span>: WARNING 항목(문자열 NULL 처리, 날짜/문법 호환, 힌트, 옵티마이저 관련)은 SQL 재작성과 성능 재튜닝을 통해 대체할 수 있습니다.</li>
-    <li><span class="ok">대체 가능</span>: INFO 항목 다수는 PostgreSQL 확장(예: <code>orafce</code>, <code>oracle_fdw</code>, <code>pg_hint_plan</code>) 또는 표준 기능 전환으로 대체 가능합니다.</li>
-    <li>검출 건수가 0인 항목은 현재 사용 흔적이 없거나, 카탈로그 권한/버전에 따라 조회되지 않을 수 있습니다. 운영 계정 권한으로 재검증을 권장합니다.</li>
+    <li><span class="crit">대체 불가(수동 수정 필요)</span>: CRITICAL 파라미터/EDB 고유 보안·리소스 제어 기능은 PostgreSQL 기본 기능으로 1:1 대체가 어렵습니다.</li>
+    <li><span class="warn">조건부 대체 가능</span>: SQL 재작성, 기능 대체 설계, 성능 재튜닝을 통해 전환 가능합니다.</li>
+    <li><span class="ok">대체 가능</span>: 일부 항목은 PostgreSQL 표준 기능 또는 확장(예: <code>orafce</code>, <code>oracle_fdw</code>, <code>pg_hint_plan</code>)으로 대체 가능합니다.</li>
   </ul>
 
   <h2>산출물 파일</h2>
