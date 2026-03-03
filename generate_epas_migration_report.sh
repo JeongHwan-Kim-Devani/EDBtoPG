@@ -504,20 +504,30 @@ cat >"$OUT_DIR/05_opinion.html" <<HTML
   <meta charset="utf-8" />
   <title>EPAS 이관 점검 리포트</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 24px; }
-    h1, h2, h3 { color: #1f2937; }
-    table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+    body { font-family: "Segoe UI", Arial, sans-serif; margin: 0; background: #f8fafc; color: #1f2937; }
+    .container { max-width: 1300px; margin: 28px auto; padding: 0 28px 36px; }
+    h1, h2, h3 { color: #1f2937; margin-top: 24px; }
+    .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 18px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; background: #fff; }
     th, td { border: 1px solid #d1d5db; padding: 8px; text-align: left; vertical-align: top; }
     th { background: #f3f4f6; }
-    .ok { color: #065f46; font-weight: 600; }
-    .warn { color: #92400e; font-weight: 600; }
+    .matrix th { text-align: center; font-size: 12px; }
+    .matrix td { text-align: center; font-weight: 600; }
+    .ok { color: #065f46; font-weight: 700; }
+    .warn { color: #92400e; font-weight: 700; }
     .crit { color: #991b1b; font-weight: 700; }
-    .group-title { background: #eef2ff; font-weight: 700; }
+    .group-title { background: #e0e7ff; font-weight: 700; }
+    .opinion-item { padding: 10px 12px; border-radius: 8px; margin: 8px 0; border: 1px solid transparent; }
+    .opinion-crit { background: #fef2f2; border-color: #fecaca; }
+    .opinion-warn { background: #fffbeb; border-color: #fde68a; }
+    .opinion-ok { background: #ecfdf5; border-color: #a7f3d0; }
     code { background: #f3f4f6; padding: 2px 4px; border-radius: 4px; }
   </style>
 </head>
 <body>
+  <div class="container">
   <h1>이관 리포트 (EPAS → PostgreSQL)</h1>
+  <div class="card">
   <h2>요약</h2>
   <table>
     <tr><th>항목</th><th>검출 건수</th><th>가벼운 설명</th></tr>
@@ -541,6 +551,38 @@ cat >"$OUT_DIR/05_opinion.html" <<HTML
     <tr><td>4-3. DBLINK</td><td>${dblink_cnt}</td><td>DBLINK 정의 현황</td></tr>
   </table>
 
+  <h3>요약 매트릭스 (X축: 항목 / Y축: 검출 건수)</h3>
+  <table class="matrix">
+    <tr>
+      <th>1-1 파라미터</th>
+      <th>2-1 특화 기능</th>
+      <th>2-2 시노님</th>
+      <th>2-3 정책(RLS)</th>
+      <th>3-1 키워드/함수</th>
+      <th>3-2 데이터타입(객체)</th>
+      <th>3-3 데이터타입(테이블)</th>
+      <th>3-4 표현식</th>
+      <th>4-1 프로파일</th>
+      <th>4-2 리소스 그룹</th>
+      <th>4-3 DBLINK</th>
+    </tr>
+    <tr>
+      <td>${param_cnt}</td>
+      <td>${pkg_cnt}</td>
+      <td>${syn_cnt}</td>
+      <td>${rls_cnt}</td>
+      <td>${kw_cnt}</td>
+      <td>${dtype_obj_cnt}</td>
+      <td>${dtype_tbl_cnt}</td>
+      <td>${expr_cnt}</td>
+      <td>${profile_cnt}</td>
+      <td>${rg_cnt}</td>
+      <td>${dblink_cnt}</td>
+    </tr>
+  </table>
+  </div>
+
+  <div class="card">
   <h2>검출 상세(표)</h2>
 
   <h3>1-1. 파라미터 (${param_cnt}건)</h3>
@@ -611,13 +653,15 @@ cat >"$OUT_DIR/05_opinion.html" <<HTML
 
   <h2>5. 종합 소견</h2>
   <ul>
-    <li><span class="crit">대체 불가(수동 수정 필요)</span>: CRITICAL 파라미터/EDB 고유 보안·리소스 제어 기능은 PostgreSQL 기본 기능으로 1:1 대체가 어렵습니다.</li>
-    <li><span class="warn">조건부 대체 가능</span>: SQL 재작성, 기능 대체 설계, 성능 재튜닝을 통해 전환 가능합니다.</li>
-    <li><span class="ok">대체 가능</span>: 일부 항목은 PostgreSQL 표준 기능 또는 확장(예: <code>orafce</code>, <code>oracle_fdw</code>, <code>pg_hint_plan</code>)으로 대체 가능합니다.</li>
+    <li class="opinion-item opinion-crit"><span class="crit">대체 불가(수동 수정 필요)</span>: CRITICAL 파라미터/EDB 고유 보안·리소스 제어 기능은 PostgreSQL 기본 기능으로 1:1 대체가 어렵습니다.</li>
+    <li class="opinion-item opinion-warn"><span class="warn">조건부 대체 가능</span>: SQL 재작성, 기능 대체 설계, 성능 재튜닝을 통해 전환 가능합니다.</li>
+    <li class="opinion-item opinion-ok"><span class="ok">대체 가능</span>: 일부 항목은 PostgreSQL 표준 기능 또는 확장(예: <code>orafce</code>, <code>oracle_fdw</code>, <code>pg_hint_plan</code>)으로 대체 가능합니다.</li>
   </ul>
 
   <h2>산출물 파일</h2>
   <p>같은 디렉터리의 <code>01_*.tsv</code> ~ <code>04_*.tsv</code> 파일을 근거 데이터로 사용하세요.</p>
+  </div>
+  </div>
 </body>
 </html>
 HTML
