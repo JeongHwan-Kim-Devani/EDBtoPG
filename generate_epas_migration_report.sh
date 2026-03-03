@@ -416,37 +416,37 @@ default_li_if_empty() {
   fi
 }
 
-param_detail_html=$(awk -F $'	' '''NR==1{next} {for(i=1;i<=NF;i++){gsub("&","\&amp;",$i);gsub("<","\&lt;",$i);gsub(">","\&gt;",$i)} printf "<li><code>%s</code>: 기본값 <code>%s</code>, 현재값 <code>%s</code> (%s)</li>\n",$1,$2,$3,$5}''' "$OUT_DIR/01_parameters.tsv")
+param_detail_html=$(awk -F $'	' '''NR==1{next} {for(i=1;i<=NF;i++){gsub("&","\\&amp;",$i);gsub("<","\\&lt;",$i);gsub(">","\\&gt;",$i)} printf "<li><code>%s</code>: 기본값 <code>%s</code>, 현재값 <code>%s</code> (%s)</li>\n",$1,$2,$3,$5}''' "$OUT_DIR/01_parameters.tsv")
 param_detail_html=$(default_li_if_empty "$param_detail_html")
 
-pkg_detail_html=$(awk -F $'	' '''NR==1{next} {for(i=1;i<=NF;i++){gsub("&","\&amp;",$i);gsub("<","\&lt;",$i);gsub(">","\&gt;",$i)} printf "<li><code>%s.%s</code> (%s) 에서 <code>%s</code> 검출</li>\n",$2,$3,$1,$4}''' "$OUT_DIR/02_summary_packages.tsv")
+pkg_detail_html=$(awk -F $'	' '''NR==1{next} {for(i=1;i<=NF;i++){gsub("&","\\&amp;",$i);gsub("<","\\&lt;",$i);gsub(">","\\&gt;",$i)} printf "<li><code>%s.%s</code> (%s) 에서 <code>%s</code> 검출</li>\n",$2,$3,$1,$4}''' "$OUT_DIR/02_summary_packages.tsv")
 pkg_detail_html=$(default_li_if_empty "$pkg_detail_html")
 
-syn_detail_html=$(awk -F $'	' '''NR==1{next} {for(i=1;i<=NF;i++){gsub("&","\&amp;",$i);gsub("<","\&lt;",$i);gsub(">","\&gt;",$i)} printf "<li><code>%s.%s</code> → <code>%s.%s</code></li>\n",$1,$2,$3,$4}''' "$OUT_DIR/02_summary_synonyms.tsv")
+syn_detail_html=$(awk -F $'	' '''NR==1{next} {for(i=1;i<=NF;i++){gsub("&","\\&amp;",$i);gsub("<","\\&lt;",$i);gsub(">","\\&gt;",$i)} printf "<li><code>%s.%s</code> → <code>%s.%s</code></li>\n",$1,$2,$3,$4}''' "$OUT_DIR/02_summary_synonyms.tsv")
 syn_detail_html=$(default_li_if_empty "$syn_detail_html")
 
-rls_detail_html=$(awk -F $'	' '''NR==1{next} {for(i=1;i<=NF;i++){gsub("&","\&amp;",$i);gsub("<","\&lt;",$i);gsub(">","\&gt;",$i)} printf "<li><code>%s.%s</code> - policy <code>%s</code> (cmd: %s)</li>\n",$1,$2,$3,$6}''' "$OUT_DIR/02_summary_policies.tsv")
+rls_detail_html=$(awk -F $'	' '''NR==1{next} {for(i=1;i<=NF;i++){gsub("&","\\&amp;",$i);gsub("<","\\&lt;",$i);gsub(">","\\&gt;",$i)} printf "<li><code>%s.%s</code> - policy <code>%s</code> (cmd: %s)</li>\n",$1,$2,$3,$6}''' "$OUT_DIR/02_summary_policies.tsv")
 rls_detail_html=$(default_li_if_empty "$rls_detail_html")
 
-kw_detail_html=$(awk -F $'	' '''NR==1{next} {for(i=1;i<=NF;i++){gsub("&","\&amp;",$i);gsub("<","\&lt;",$i);gsub(">","\&gt;",$i)} printf "<li><code>%s.%s</code> (%s): <code>%s</code></li>\n",$2,$3,$1,$4}''' "$OUT_DIR/03_detail_keywords.tsv")
+kw_detail_html=$(awk -F $'	' '''NR==1{next} {for(i=1;i<=NF;i++){gsub("&","\\&amp;",$i);gsub("<","\\&lt;",$i);gsub(">","\\&gt;",$i)} printf "<li><code>%s.%s</code> (%s): <code>%s</code></li>\n",$2,$3,$1,$4}''' "$OUT_DIR/03_detail_keywords.tsv")
 kw_detail_html=$(default_li_if_empty "$kw_detail_html")
 
-dtype_obj_detail_html=$(awk -F $'	' '''NR==1{next} {for(i=1;i<=NF;i++){gsub("&","\&amp;",$i);gsub("<","\&lt;",$i);gsub(">","\&gt;",$i)} printf "<li><code>%s.%s</code> (%s): <code>%s</code></li>\n",$2,$3,$1,$4}''' "$OUT_DIR/03_detail_datatypes_objects.tsv")
+dtype_obj_detail_html=$(awk -F $'	' '''NR==1{next} {for(i=1;i<=NF;i++){gsub("&","\\&amp;",$i);gsub("<","\\&lt;",$i);gsub(">","\\&gt;",$i)} printf "<li><code>%s.%s</code> (%s): <code>%s</code></li>\n",$2,$3,$1,$4}''' "$OUT_DIR/03_detail_datatypes_objects.tsv")
 dtype_obj_detail_html=$(default_li_if_empty "$dtype_obj_detail_html")
 
-dtype_tbl_detail_html=$(awk -F $'	' '''NR==1{next} {for(i=1;i<=NF;i++){gsub("&","\&amp;",$i);gsub("<","\&lt;",$i);gsub(">","\&gt;",$i)} printf "<li><code>%s.%s.%s</code>: <code>%s</code></li>\n",$1,$2,$3,$4}''' "$OUT_DIR/03_detail_datatypes_tables.tsv")
+dtype_tbl_detail_html=$(awk -F $'	' '''NR==1{next} {for(i=1;i<=NF;i++){gsub("&","\\&amp;",$i);gsub("<","\\&lt;",$i);gsub(">","\\&gt;",$i)} printf "<li><code>%s.%s.%s</code>: <code>%s</code></li>\n",$1,$2,$3,$4}''' "$OUT_DIR/03_detail_datatypes_tables.tsv")
 dtype_tbl_detail_html=$(default_li_if_empty "$dtype_tbl_detail_html")
 
-expr_detail_html=$(awk -F $'	' '''NR==1{next} {for(i=1;i<=NF;i++){gsub("&","\&amp;",$i);gsub("<","\&lt;",$i);gsub(">","\&gt;",$i)} printf "<li><code>%s.%s</code> (%s): <code>%s</code> 검출</li>\n",$2,$3,$1,$6}''' "$OUT_DIR/03_detail_expr_keywords.tsv")
+expr_detail_html=$(awk -F $'	' '''NR==1{next} {for(i=1;i<=NF;i++){gsub("&","\\&amp;",$i);gsub("<","\\&lt;",$i);gsub(">","\\&gt;",$i)} printf "<li><code>%s.%s</code> (%s): <code>%s</code> 검출</li>\n",$2,$3,$1,$6}''' "$OUT_DIR/03_detail_expr_keywords.tsv")
 expr_detail_html=$(default_li_if_empty "$expr_detail_html")
 
-profile_detail_html=$(awk -F $'	' '''NR==1{next} {for(i=1;i<=NF;i++){gsub("&","\&amp;",$i);gsub("<","\&lt;",$i);gsub(">","\&gt;",$i)} printf "<li>Profile: <code>%s</code></li>\n",$2}''' "$OUT_DIR/04_policy_edb_profile.tsv")
+profile_detail_html=$(awk -F $'	' '''NR==1{next} {for(i=1;i<=NF;i++){gsub("&","\\&amp;",$i);gsub("<","\\&lt;",$i);gsub(">","\\&gt;",$i)} printf "<li>Profile: <code>%s</code></li>\n",$2}''' "$OUT_DIR/04_policy_edb_profile.tsv")
 profile_detail_html=$(default_li_if_empty "$profile_detail_html")
 
-rg_detail_html=$(awk -F $'	' '''NR==1{next} {for(i=1;i<=NF;i++){gsub("&","\&amp;",$i);gsub("<","\&lt;",$i);gsub(">","\&gt;",$i)} printf "<li>Resource Group: <code>%s</code> (CPU limit: %s)</li>\n",$4,$2}''' "$OUT_DIR/04_policy_edb_resource_group.tsv")
+rg_detail_html=$(awk -F $'	' '''NR==1{next} {for(i=1;i<=NF;i++){gsub("&","\\&amp;",$i);gsub("<","\\&lt;",$i);gsub(">","\\&gt;",$i)} printf "<li>Resource Group: <code>%s</code> (CPU limit: %s)</li>\n",$4,$2}''' "$OUT_DIR/04_policy_edb_resource_group.tsv")
 rg_detail_html=$(default_li_if_empty "$rg_detail_html")
 
-dblink_detail_html=$(awk -F $'	' '''NR==1{next} {for(i=1;i<=NF;i++){gsub("&","\&amp;",$i);gsub("<","\&lt;",$i);gsub(">","\&gt;",$i)} printf "<li>DBLINK <code>%s</code> (user: %s, conn: <code>%s</code>)</li>\n",$1,$5,$6}''' "$OUT_DIR/04_policy_edb_dblink.tsv")
+dblink_detail_html=$(awk -F $'	' '''NR==1{next} {for(i=1;i<=NF;i++){gsub("&","\\&amp;",$i);gsub("<","\\&lt;",$i);gsub(">","\\&gt;",$i)} printf "<li>DBLINK <code>%s</code> (user: %s, conn: <code>%s</code>)</li>\n",$1,$5,$6}''' "$OUT_DIR/04_policy_edb_dblink.tsv")
 dblink_detail_html=$(default_li_if_empty "$dblink_detail_html")
 
 cat >"$OUT_DIR/05_opinion.html" <<HTML
