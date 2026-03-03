@@ -419,7 +419,7 @@ default_row_if_empty() {
 
 param_rows_html=$(awk -F $'	' 'NR==1{next}
 {
-  for(i=1;i<=NF;i++){gsub("&","\&amp;",$i);gsub("<","\&lt;",$i);gsub(">","\&gt;",$i)}
+  for(i=1;i<=NF;i++){gsub("&","\\&amp;",$i);gsub("<","\\&lt;",$i);gsub(">","\\&gt;",$i)}
   opinion="대체 가능"
   if ($5 ~ /^\[CRITICAL\]/) opinion="대체 불가(수동 수정 필요)"
   else if ($5 ~ /^\[WARNING\]/) opinion="조건부 대체 가능"
@@ -429,70 +429,70 @@ param_rows_html=$(default_row_if_empty "$param_rows_html" 5)
 
 pkg_rows_html=$(awk -F $'	' 'NR==1{next}
 {
-  for(i=1;i<=NF;i++){gsub("&","\&amp;",$i);gsub("<","\&lt;",$i);gsub(">","\&gt;",$i)}
+  for(i=1;i<=NF;i++){gsub("&","\\&amp;",$i);gsub("<","\\&lt;",$i);gsub(">","\\&gt;",$i)}
   printf "<tr><td>%s</td><td><code>%s.%s</code></td><td><code>%s</code></td><td>조건부 대체 가능</td></tr>\n", $1, $2, $3, $4
 }' "$OUT_DIR/02_summary_packages.tsv")
 pkg_rows_html=$(default_row_if_empty "$pkg_rows_html" 4)
 
 syn_rows_html=$(awk -F $'	' 'NR==1{next}
 {
-  for(i=1;i<=NF;i++){gsub("&","\&amp;",$i);gsub("<","\&lt;",$i);gsub(">","\&gt;",$i)}
+  for(i=1;i<=NF;i++){gsub("&","\\&amp;",$i);gsub("<","\\&lt;",$i);gsub(">","\\&gt;",$i)}
   printf "<tr><td><code>%s.%s</code></td><td><code>%s.%s</code></td><td>%s</td></tr>\n", $1,$2,$3,$4, "조건부 대체 가능"
 }' "$OUT_DIR/02_summary_synonyms.tsv")
 syn_rows_html=$(default_row_if_empty "$syn_rows_html" 3)
 
 rls_rows_html=$(awk -F $'	' 'NR==1{next}
 {
-  for(i=1;i<=NF;i++){gsub("&","\&amp;",$i);gsub("<","\&lt;",$i);gsub(">","\&gt;",$i)}
+  for(i=1;i<=NF;i++){gsub("&","\\&amp;",$i);gsub("<","\\&lt;",$i);gsub(">","\\&gt;",$i)}
   printf "<tr><td><code>%s.%s</code></td><td><code>%s</code></td><td>%s</td><td>%s</td></tr>\n", $1,$2,$3,$6,"조건부 대체 가능"
 }' "$OUT_DIR/02_summary_policies.tsv")
 rls_rows_html=$(default_row_if_empty "$rls_rows_html" 4)
 
 kw_rows_html=$(awk -F $'	' 'NR==1{next}
 {
-  for(i=1;i<=NF;i++){gsub("&","\&amp;",$i);gsub("<","\&lt;",$i);gsub(">","\&gt;",$i)}
+  for(i=1;i<=NF;i++){gsub("&","\\&amp;",$i);gsub("<","\\&lt;",$i);gsub(">","\\&gt;",$i)}
   printf "<tr><td>%s</td><td><code>%s.%s</code></td><td><code>%s</code></td><td>%s</td></tr>\n", $1,$2,$3,$4,"조건부 대체 가능"
 }' "$OUT_DIR/03_detail_keywords.tsv")
 kw_rows_html=$(default_row_if_empty "$kw_rows_html" 4)
 
 dtype_obj_rows_html=$(awk -F $'	' 'NR==1{next}
 {
-  for(i=1;i<=NF;i++){gsub("&","\&amp;",$i);gsub("<","\&lt;",$i);gsub(">","\&gt;",$i)}
+  for(i=1;i<=NF;i++){gsub("&","\\&amp;",$i);gsub("<","\\&lt;",$i);gsub(">","\\&gt;",$i)}
   printf "<tr><td>%s</td><td><code>%s.%s</code></td><td><code>%s</code></td><td>%s</td></tr>\n", $1,$2,$3,$4,"조건부 대체 가능"
 }' "$OUT_DIR/03_detail_datatypes_objects.tsv")
 dtype_obj_rows_html=$(default_row_if_empty "$dtype_obj_rows_html" 4)
 
 dtype_tbl_rows_html=$(awk -F $'	' 'NR==1{next}
 {
-  for(i=1;i<=NF;i++){gsub("&","\&amp;",$i);gsub("<","\&lt;",$i);gsub(">","\&gt;",$i)}
+  for(i=1;i<=NF;i++){gsub("&","\\&amp;",$i);gsub("<","\\&lt;",$i);gsub(">","\\&gt;",$i)}
   printf "<tr><td><code>%s.%s.%s</code></td><td><code>%s</code></td><td>%s</td></tr>\n", $1,$2,$3,$4,"조건부 대체 가능"
 }' "$OUT_DIR/03_detail_datatypes_tables.tsv")
 dtype_tbl_rows_html=$(default_row_if_empty "$dtype_tbl_rows_html" 3)
 
 expr_rows_html=$(awk -F $'	' 'NR==1{next}
 {
-  for(i=1;i<=NF;i++){gsub("&","\&amp;",$i);gsub("<","\&lt;",$i);gsub(">","\&gt;",$i)}
+  for(i=1;i<=NF;i++){gsub("&","\\&amp;",$i);gsub("<","\\&lt;",$i);gsub(">","\\&gt;",$i)}
   printf "<tr><td>%s</td><td><code>%s.%s</code></td><td><code>%s</code></td><td>%s</td></tr>\n", $1,$2,$3,$6,"조건부 대체 가능"
 }' "$OUT_DIR/03_detail_expr_keywords.tsv")
 expr_rows_html=$(default_row_if_empty "$expr_rows_html" 4)
 
 profile_rows_html=$(awk -F $'	' 'NR==1{next}
 {
-  for(i=1;i<=NF;i++){gsub("&","\&amp;",$i);gsub("<","\&lt;",$i);gsub(">","\&gt;",$i)}
+  for(i=1;i<=NF;i++){gsub("&","\\&amp;",$i);gsub("<","\\&lt;",$i);gsub(">","\\&gt;",$i)}
   printf "<tr><td><code>%s</code></td><td>%s</td></tr>\n", $2,"조건부 대체 가능"
 }' "$OUT_DIR/04_policy_edb_profile.tsv")
 profile_rows_html=$(default_row_if_empty "$profile_rows_html" 2)
 
 rg_rows_html=$(awk -F $'	' 'NR==1{next}
 {
-  for(i=1;i<=NF;i++){gsub("&","\&amp;",$i);gsub("<","\&lt;",$i);gsub(">","\&gt;",$i)}
+  for(i=1;i<=NF;i++){gsub("&","\\&amp;",$i);gsub("<","\\&lt;",$i);gsub(">","\\&gt;",$i)}
   printf "<tr><td><code>%s</code></td><td>%s</td><td>%s</td></tr>\n", $4,$2,"조건부 대체 가능"
 }' "$OUT_DIR/04_policy_edb_resource_group.tsv")
 rg_rows_html=$(default_row_if_empty "$rg_rows_html" 3)
 
 dblink_rows_html=$(awk -F $'	' 'NR==1{next}
 {
-  for(i=1;i<=NF;i++){gsub("&","\&amp;",$i);gsub("<","\&lt;",$i);gsub(">","\&gt;",$i)}
+  for(i=1;i<=NF;i++){gsub("&","\\&amp;",$i);gsub("<","\\&lt;",$i);gsub(">","\\&gt;",$i)}
   printf "<tr><td><code>%s</code></td><td>%s</td><td><code>%s</code></td><td>%s</td></tr>\n", $1,$5,$6,"조건부 대체 가능"
 }' "$OUT_DIR/04_policy_edb_dblink.tsv")
 dblink_rows_html=$(default_row_if_empty "$dblink_rows_html" 4)
