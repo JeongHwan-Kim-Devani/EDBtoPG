@@ -407,6 +407,48 @@ profile_cnt=$(line_count "$OUT_DIR/04_policy_edb_profile.tsv")
 rg_cnt=$(line_count "$OUT_DIR/04_policy_edb_resource_group.tsv")
 dblink_cnt=$(line_count "$OUT_DIR/04_policy_edb_dblink.tsv")
 
+default_li_if_empty() {
+  local s="$1"
+  if [[ -z "${s//[[:space:]]/}" ]]; then
+    echo "<li>검출 없음</li>"
+  else
+    printf "%s" "$s"
+  fi
+}
+
+param_detail_html=$(awk -F $'	' '''NR==1{next} {for(i=1;i<=NF;i++){gsub("&","\&amp;",$i);gsub("<","\&lt;",$i);gsub(">","\&gt;",$i)} printf "<li><code>%s</code>: 기본값 <code>%s</code>, 현재값 <code>%s</code> (%s)</li>\n",$1,$2,$3,$5}''' "$OUT_DIR/01_parameters.tsv")
+param_detail_html=$(default_li_if_empty "$param_detail_html")
+
+pkg_detail_html=$(awk -F $'	' '''NR==1{next} {for(i=1;i<=NF;i++){gsub("&","\&amp;",$i);gsub("<","\&lt;",$i);gsub(">","\&gt;",$i)} printf "<li><code>%s.%s</code> (%s) 에서 <code>%s</code> 검출</li>\n",$2,$3,$1,$4}''' "$OUT_DIR/02_summary_packages.tsv")
+pkg_detail_html=$(default_li_if_empty "$pkg_detail_html")
+
+syn_detail_html=$(awk -F $'	' '''NR==1{next} {for(i=1;i<=NF;i++){gsub("&","\&amp;",$i);gsub("<","\&lt;",$i);gsub(">","\&gt;",$i)} printf "<li><code>%s.%s</code> → <code>%s.%s</code></li>\n",$1,$2,$3,$4}''' "$OUT_DIR/02_summary_synonyms.tsv")
+syn_detail_html=$(default_li_if_empty "$syn_detail_html")
+
+rls_detail_html=$(awk -F $'	' '''NR==1{next} {for(i=1;i<=NF;i++){gsub("&","\&amp;",$i);gsub("<","\&lt;",$i);gsub(">","\&gt;",$i)} printf "<li><code>%s.%s</code> - policy <code>%s</code> (cmd: %s)</li>\n",$1,$2,$3,$6}''' "$OUT_DIR/02_summary_policies.tsv")
+rls_detail_html=$(default_li_if_empty "$rls_detail_html")
+
+kw_detail_html=$(awk -F $'	' '''NR==1{next} {for(i=1;i<=NF;i++){gsub("&","\&amp;",$i);gsub("<","\&lt;",$i);gsub(">","\&gt;",$i)} printf "<li><code>%s.%s</code> (%s): <code>%s</code></li>\n",$2,$3,$1,$4}''' "$OUT_DIR/03_detail_keywords.tsv")
+kw_detail_html=$(default_li_if_empty "$kw_detail_html")
+
+dtype_obj_detail_html=$(awk -F $'	' '''NR==1{next} {for(i=1;i<=NF;i++){gsub("&","\&amp;",$i);gsub("<","\&lt;",$i);gsub(">","\&gt;",$i)} printf "<li><code>%s.%s</code> (%s): <code>%s</code></li>\n",$2,$3,$1,$4}''' "$OUT_DIR/03_detail_datatypes_objects.tsv")
+dtype_obj_detail_html=$(default_li_if_empty "$dtype_obj_detail_html")
+
+dtype_tbl_detail_html=$(awk -F $'	' '''NR==1{next} {for(i=1;i<=NF;i++){gsub("&","\&amp;",$i);gsub("<","\&lt;",$i);gsub(">","\&gt;",$i)} printf "<li><code>%s.%s.%s</code>: <code>%s</code></li>\n",$1,$2,$3,$4}''' "$OUT_DIR/03_detail_datatypes_tables.tsv")
+dtype_tbl_detail_html=$(default_li_if_empty "$dtype_tbl_detail_html")
+
+expr_detail_html=$(awk -F $'	' '''NR==1{next} {for(i=1;i<=NF;i++){gsub("&","\&amp;",$i);gsub("<","\&lt;",$i);gsub(">","\&gt;",$i)} printf "<li><code>%s.%s</code> (%s): <code>%s</code> 검출</li>\n",$2,$3,$1,$6}''' "$OUT_DIR/03_detail_expr_keywords.tsv")
+expr_detail_html=$(default_li_if_empty "$expr_detail_html")
+
+profile_detail_html=$(awk -F $'	' '''NR==1{next} {for(i=1;i<=NF;i++){gsub("&","\&amp;",$i);gsub("<","\&lt;",$i);gsub(">","\&gt;",$i)} printf "<li>Profile: <code>%s</code></li>\n",$2}''' "$OUT_DIR/04_policy_edb_profile.tsv")
+profile_detail_html=$(default_li_if_empty "$profile_detail_html")
+
+rg_detail_html=$(awk -F $'	' '''NR==1{next} {for(i=1;i<=NF;i++){gsub("&","\&amp;",$i);gsub("<","\&lt;",$i);gsub(">","\&gt;",$i)} printf "<li>Resource Group: <code>%s</code> (CPU limit: %s)</li>\n",$4,$2}''' "$OUT_DIR/04_policy_edb_resource_group.tsv")
+rg_detail_html=$(default_li_if_empty "$rg_detail_html")
+
+dblink_detail_html=$(awk -F $'	' '''NR==1{next} {for(i=1;i<=NF;i++){gsub("&","\&amp;",$i);gsub("<","\&lt;",$i);gsub(">","\&gt;",$i)} printf "<li>DBLINK <code>%s</code> (user: %s, conn: <code>%s</code>)</li>\n",$1,$5,$6}''' "$OUT_DIR/04_policy_edb_dblink.tsv")
+dblink_detail_html=$(default_li_if_empty "$dblink_detail_html")
+
 cat >"$OUT_DIR/05_opinion.html" <<HTML
 <!doctype html>
 <html lang="ko">
@@ -415,13 +457,14 @@ cat >"$OUT_DIR/05_opinion.html" <<HTML
   <title>EPAS 이관 점검 리포트</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 24px; }
-    h1, h2 { color: #1f2937; }
+    h1, h2, h3 { color: #1f2937; }
     table { border-collapse: collapse; width: 100%; margin: 12px 0; }
-    th, td { border: 1px solid #d1d5db; padding: 8px; text-align: left; }
+    th, td { border: 1px solid #d1d5db; padding: 8px; text-align: left; vertical-align: top; }
     th { background: #f3f4f6; }
     .ok { color: #065f46; font-weight: 600; }
     .warn { color: #92400e; font-weight: 600; }
     .crit { color: #991b1b; font-weight: 700; }
+    .group-title { background: #eef2ff; font-weight: 700; }
     code { background: #f3f4f6; padding: 2px 4px; border-radius: 4px; }
   </style>
 </head>
@@ -429,19 +472,59 @@ cat >"$OUT_DIR/05_opinion.html" <<HTML
   <h1>이관 리포트 (EPAS → PostgreSQL)</h1>
   <h2>요약</h2>
   <table>
-    <tr><th>항목</th><th>검출 건수</th></tr>
-    <tr><td>1. 파라미터(점검 대상)</td><td>${param_cnt}</td></tr>
-    <tr><td>2. EDB 특화 기능(패키지/프로시저/함수/뷰)</td><td>${pkg_cnt}</td></tr>
-    <tr><td>2. 시노님</td><td>${syn_cnt}</td></tr>
-    <tr><td>2. 정책(RLS)</td><td>${rls_cnt}</td></tr>
-    <tr><td>3. 오라클 키워드/함수</td><td>${kw_cnt}</td></tr>
-    <tr><td>3. 오라클 데이터타입(함수/프로시저/뷰)</td><td>${dtype_obj_cnt}</td></tr>
-    <tr><td>3. 오라클 데이터타입(테이블)</td><td>${dtype_tbl_cnt}</td></tr>
-    <tr><td>3. 기본값/제약조건/인덱스 표현식</td><td>${expr_cnt}</td></tr>
-    <tr><td>4. 프로파일(Non-default)</td><td>${profile_cnt}</td></tr>
-    <tr><td>4. 리소스 그룹</td><td>${rg_cnt}</td></tr>
-    <tr><td>4. DBLINK</td><td>${dblink_cnt}</td></tr>
+    <tr><th>항목</th><th>검출 건수</th><th>가벼운 설명</th></tr>
+    <tr class="group-title"><td colspan="3">1. 파라미터</td></tr>
+    <tr><td>1. 파라미터(점검 대상)</td><td>${param_cnt}</td><td>핵심 호환 파라미터 + 기본값 대비 변경값 점검</td></tr>
+
+    <tr class="group-title"><td colspan="3">2. EDB(Oracle) 특화기능 Summary</td></tr>
+    <tr><td>2. EDB 특화 기능(패키지/프로시저/함수/뷰)</td><td>${pkg_cnt}</td><td>DBMS/UTL/OWA/HTP/HTF 계열 사용 흔적</td></tr>
+    <tr><td>2. 시노님</td><td>${syn_cnt}</td><td>synonym → 실제 객체 매핑 현황</td></tr>
+    <tr><td>2. 정책(RLS)</td><td>${rls_cnt}</td><td>RLS 정책 존재 여부와 대상 테이블</td></tr>
+
+    <tr class="group-title"><td colspan="3">3. 디테일 (user created)</td></tr>
+    <tr><td>3. 오라클 키워드/함수</td><td>${kw_cnt}</td><td>객체 정의에서 Oracle 키워드/함수 의존 흔적</td></tr>
+    <tr><td>3. 오라클 데이터타입(함수/프로시저/뷰)</td><td>${dtype_obj_cnt}</td><td>코드/뷰 내부 Oracle 데이터타입 사용</td></tr>
+    <tr><td>3. 오라클 데이터타입(테이블)</td><td>${dtype_tbl_cnt}</td><td>테이블 컬럼 datatype 의존</td></tr>
+    <tr><td>3. 기본값/제약조건/인덱스 표현식</td><td>${expr_cnt}</td><td>표현식 내 Oracle 함수 사용</td></tr>
+
+    <tr class="group-title"><td colspan="3">4. 폴리시 디테일 (user created)</td></tr>
+    <tr><td>4. 프로파일(Non-default)</td><td>${profile_cnt}</td><td>default 이외 profile 존재 여부</td></tr>
+    <tr><td>4. 리소스 그룹</td><td>${rg_cnt}</td><td>리소스 그룹 설정 현황</td></tr>
+    <tr><td>4. DBLINK</td><td>${dblink_cnt}</td><td>DBLINK 정의 현황</td></tr>
   </table>
+
+  <h2>검출 건수 상세 (무엇이 검출되었는지)</h2>
+
+  <h3>1. 파라미터 (${param_cnt}건)</h3>
+  <ul>
+    ${param_detail_html}
+  </ul>
+
+  <h3>2. EDB 특화기능 Summary</h3>
+  <p><strong>패키지/프로시저/함수/뷰 (${pkg_cnt}건)</strong></p>
+  <ul>${pkg_detail_html}</ul>
+  <p><strong>시노님 (${syn_cnt}건)</strong></p>
+  <ul>${syn_detail_html}</ul>
+  <p><strong>정책(RLS) (${rls_cnt}건)</strong></p>
+  <ul>${rls_detail_html}</ul>
+
+  <h3>3. 디테일 (user created)</h3>
+  <p><strong>오라클 키워드/함수 (${kw_cnt}건)</strong></p>
+  <ul>${kw_detail_html}</ul>
+  <p><strong>오라클 데이터타입(함수/프로시저/뷰) (${dtype_obj_cnt}건)</strong></p>
+  <ul>${dtype_obj_detail_html}</ul>
+  <p><strong>오라클 데이터타입(테이블) (${dtype_tbl_cnt}건)</strong></p>
+  <ul>${dtype_tbl_detail_html}</ul>
+  <p><strong>기본값/제약조건/인덱스 표현식 (${expr_cnt}건)</strong></p>
+  <ul>${expr_detail_html}</ul>
+
+  <h3>4. 폴리시 디테일 (user created)</h3>
+  <p><strong>프로파일(Non-default) (${profile_cnt}건)</strong></p>
+  <ul>${profile_detail_html}</ul>
+  <p><strong>리소스 그룹 (${rg_cnt}건)</strong></p>
+  <ul>${rg_detail_html}</ul>
+  <p><strong>DBLINK (${dblink_cnt}건)</strong></p>
+  <ul>${dblink_detail_html}</ul>
 
   <h2>5. 소견</h2>
   <ul>
