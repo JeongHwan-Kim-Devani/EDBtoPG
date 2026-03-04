@@ -3,6 +3,10 @@
 `generate_epas_migration_report.sh`는 EPAS(Oracle 호환 모드 포함) 환경에서 **현재 사용 중인 Oracle/EDB 특화 요소를 점검**하고,
 요청하신 5개 파트 형식의 이관 리포트 산출물(TSV + HTML)을 자동 생성하는 스크립트입니다.
 
+구성은 **2개 파일**로 분리되어 있습니다.
+- `generate_epas_migration_report.sh` : 실행/리포트 생성 로직
+- `migration_report_queries.sql` : 점검 SQL 모음
+
 ---
 
 ## 1) 무엇을 해주는 스크립트인가?
@@ -106,6 +110,9 @@ PSQL_BIN=/usr/edb/as16/bin/psql ./generate_epas_migration_report.sh
 04_policy_edb_dblink.tsv
 05_opinion.html
 REPORT_INDEX.txt
+
+# SQL source
+migration_report_queries.sql
 ```
 
 ---
@@ -208,3 +215,10 @@ PGUSER=enterprisedb \
 - 정규식 기반 탐지는 문자열/주석 맥락에 따라 오탐 가능성이 있습니다.
 - SQL 동적 생성 패턴은 정적 조회로 100% 식별되지 않을 수 있습니다.
 - 본 스크립트는 **점검 보고 자동화 도구**이며, 실제 이관 가능성 확정은 기능 테스트/성능 테스트를 통해 보완해야 합니다.
+
+
+## 12) SQL 정리 원칙
+
+- SQL 정규식에서 과도한 탐지를 유발할 수 있는 불필요 패턴은 제거했습니다.
+- 예: `\M|\m(?:user_[a-z0-9_]+|all_[a-z0-9_]+|dba_[a-z0-9_]+|v\$[a-z0-9_]+)\M` 패턴은 제외했습니다.
+- 표현식 점검도 핵심 함수 위주(`sysdate`, `nvl`, `add_months` 등)로 정리했습니다.
