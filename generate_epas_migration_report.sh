@@ -74,7 +74,7 @@ run_scalar(){ "$PSQL_BIN" -v ON_ERROR_STOP=1 -X -A -t -c "$1" | xargs; }
 table_exists(){ [[ "$(run_scalar "SELECT to_regclass('$1') IS NOT NULL;")" == "t" ]]; }
 row_count_tsv(){ [[ -s "$1" ]] && awk 'END{print (NR>0?NR-1:0)}' "$1" || echo 0; }
 count_rows(){ [[ -s "$1" ]] && wc -l < "$1" | xargs || echo 0; }
-count_bad(){ [[ -s "$1" ]] && grep -c '불가' "$1" || echo 0; }
+count_bad(){ [[ -s "$1" ]] && awk '/불가/{c++} END{print c+0}' "$1" || echo 0; }
 
 # data exports
 run_tsv "$OUT_DIR/01_parameters.tsv" "$(read_sql parameters)"
@@ -173,7 +173,7 @@ cat > "$HTML_PATH" <<HTML
 <tr><th>항목</th><th>검출 건수</th><th>가능</th><th>불가</th><th>설명</th></tr>
 <tr class="group-title"><td colspan="5">1. 파라미터</td></tr><tr><td>1-1. 파라미터</td><td>${param_total}</td><td>${param_ok}</td><td>${param_bad}</td><td>핵심 파라미터 + 변경값</td></tr>
 <tr class="group-title"><td colspan="5">2. EDB(Oracle) 특화기능 Summary</td></tr><tr><td>2-1. 특화기능+키워드</td><td>${feature_total}</td><td>${feature_ok}</td><td>${feature_bad}</td><td>패키지/키워드</td></tr><tr><td>2-2. 시노님</td><td>${syn_total}</td><td>${syn_ok}</td><td>${syn_bad}</td><td>시노님</td></tr><tr><td>2-3. 정책(RLS)</td><td>${rls_total}</td><td>${rls_ok}</td><td>${rls_bad}</td><td>RLS 정책</td></tr>
-<tr class="group-title"><td colspan="5">3. 디테일 (user created)</td></tr><tr><td>3-1. 오라클 데이터타입</td><td>${dtype_total}</td><td>${dtype_ok}</td><td>${dtype_bad}</td><td>객체/테이블</td></tr><tr><td>3-4. 표현식</td><td>${expr_total}</td><td>${expr_ok}</td><td>${expr_bad}</td><td>기본값/제약조건/인덱스</td></tr>
+<tr class="group-title"><td colspan="5">3. 디테일 (user created)</td></tr><tr><td>3-1. 오라클 데이터타입</td><td>${dtype_total}</td><td>${dtype_ok}</td><td>${dtype_bad}</td><td>객체/테이블</td></tr><tr><td>3-2. 표현식</td><td>${expr_total}</td><td>${expr_ok}</td><td>${expr_bad}</td><td>기본값/제약조건/인덱스</td></tr>
 <tr class="group-title"><td colspan="5">4. 폴리시 디테일 (user created)</td></tr><tr><td>4-1. 프로파일</td><td>${profile_total}</td><td>${profile_ok}</td><td>${profile_bad}</td><td>non-default</td></tr><tr><td>4-2. 리소스 그룹</td><td>${rg_total}</td><td>${rg_ok}</td><td>${rg_bad}</td><td>resource group</td></tr><tr><td>4-3. DBLINK</td><td>${dblink_total}</td><td>${dblink_ok}</td><td>${dblink_bad}</td><td>dblink</td></tr>
 </table></div>
 <div class="card"><h2>검출 상세(표)</h2><p>객체 클릭 시 원문: <a href="${SOURCE_HTML_BASENAME}">${SOURCE_HTML_BASENAME}</a></p>
@@ -182,7 +182,7 @@ cat > "$HTML_PATH" <<HTML
 <h3>2-2. 시노님</h3><table><tr><th>시노님</th><th>대상 객체</th><th>판정</th></tr>$( [ -n "$syn_rows_html" ] && echo "$syn_rows_html" || echo '<tr><td colspan="3">검출 없음</td></tr>' )</table>
 <h3>2-3. 정책(RLS)</h3><table><tr><th>대상 테이블</th><th>정책명</th><th>명령</th><th>판정</th></tr>$( [ -n "$rls_rows_html" ] && echo "$rls_rows_html" || echo '<tr><td colspan="4">검출 없음</td></tr>' )</table>
 <h3>3-1. 오라클 데이터타입</h3><table><tr><th>타입</th><th>객체</th><th>데이터타입</th></tr>$(default_row_if_empty "$DTYPE_ROWS" 3)</table>
-<h3>3-4. 표현식</h3><table><tr><th>객체</th><th>타입</th><th>검출 키워드</th><th>판정</th></tr>$(default_row_if_empty "$EXPR_ROWS" 4)</table>
+<h3>3-2. 표현식</h3><table><tr><th>객체</th><th>타입</th><th>검출 키워드</th><th>판정</th></tr>$(default_row_if_empty "$EXPR_ROWS" 4)</table>
 <h3>4-1. 프로파일</h3><table><tr><th>프로파일</th><th>판정</th></tr>$( [ -n "$profile_rows_html" ] && echo "$profile_rows_html" || echo '<tr><td colspan="2">검출 없음</td></tr>' )</table>
 <h3>4-2. 리소스 그룹</h3><table><tr><th>리소스 그룹</th><th>CPU limit</th><th>판정</th></tr>$( [ -n "$rg_rows_html" ] && echo "$rg_rows_html" || echo '<tr><td colspan="3">검출 없음</td></tr>' )</table>
 <h3>4-3. DBLINK</h3><table><tr><th>DBLINK</th><th>USER</th><th>연결정보</th><th>판정</th></tr>$( [ -n "$dblink_rows_html" ] && echo "$dblink_rows_html" || echo '<tr><td colspan="4">검출 없음</td></tr>' )</table>
