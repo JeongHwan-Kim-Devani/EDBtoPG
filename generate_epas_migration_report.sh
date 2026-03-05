@@ -21,7 +21,7 @@ Options:
   -U, --user USER         Database user (required)
   -W, --password PASSWORD Database password (or use PGPASSWORD env)
   -s, --schema SCHEMA     Reserved option (current report uses all user schemas)
-  -o, --output DIR        Output directory (default: ./migration_report_<timestamp>)
+  -o, --output DIR        Output directory (if omitted, only ./opinion.html is kept)
   --oracle-checks         Reserved option
   --connect-timeout SEC   libpq connect timeout seconds (default: 5)
   --help                  Show this help
@@ -41,6 +41,9 @@ SCHEMA=""
 OUT_DIR=""
 ORACLE_CHECKS=0
 CONNECT_TIMEOUT="5"
+OUTPUT_SPECIFIED=0
+CLEANUP_TEMP=0
+FINAL_OPINION_FILE="opinion.html"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -61,7 +64,7 @@ while [[ $# -gt 0 ]]; do
     -s|--schema)
       SCHEMA="$2"; shift 2 ;;
     -o|--output)
-      OUT_DIR="$2"; shift 2 ;;
+      OUT_DIR="$2"; OUTPUT_SPECIFIED=1; shift 2 ;;
     --oracle-checks)
       ORACLE_CHECKS=1; shift ;;
     --connect-timeout)
@@ -81,9 +84,11 @@ done
 if [[ -z "$OUT_DIR" ]]; then
   if [[ $# -gt 0 ]]; then
     OUT_DIR="$1"
+    OUTPUT_SPECIFIED=1
     shift
   else
-    OUT_DIR="migration_report_$(date +%Y%m%d_%H%M%S)"
+    OUT_DIR="$(mktemp -d migration_report_tmp_XXXXXX)"
+    CLEANUP_TEMP=1
   fi
 fi
 
@@ -532,5 +537,11 @@ Connection hints : host=${HOST:-N/A}, port=${PORT:-N/A}, db=${DBNAME:-N/A}, user
 Note: Summary counts in HTML exclude TSV header rows.
 TXT
 
-echo "[DONE] Report generated at: $OUT_DIR"
-echo "       Open HTML: $OUT_DIR/05_opinion.html"
+if [[ "$CLEANUP_TEMP" -eq 1 ]]; then
+  cp "$OUT_DIR/05_opinion.html" "./$FINAL_OPINION_FILE"
+  rm -rf "$OUT_DIR"
+  echo "[DONE] Report generated: ./$FINAL_OPINION_FILE (temporary TSV files removed)"
+else
+  echo "[DONE] Report generated at: $OUT_DIR"
+  echo "       Open HTML: $OUT_DIR/05_opinion.html"
+fi
