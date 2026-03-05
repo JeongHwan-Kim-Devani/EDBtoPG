@@ -81,7 +81,21 @@ HTML_PATH="$OUT_DIR/$HTML_BASENAME"
 
 read_sql() {
   local key="$1"
-  awk -v marker="--@@ ${key}" 'BEGIN{capture=0} $0==marker{capture=1;next} /^--@@ /&&capture{exit} capture{print}' "$SQL_FILE"
+  local marker="--@@ ${key}"
+  local capturing=0
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    if [[ "$capturing" -eq 0 ]]; then
+      if [[ "$line" == "$marker" ]]; then
+        capturing=1
+      fi
+      continue
+    fi
+    if [[ "$line" == --@@\ * ]]; then
+      break
+    fi
+    printf '%s
+' "$line"
+  done < "$SQL_FILE"
 }
 run_tsv(){ local f="$1"; shift; "$PSQL_BIN" -v ON_ERROR_STOP=1 -X -A -F $'\t' -P footer=off -c "$*" > "$f"; }
 run_scalar(){ "$PSQL_BIN" -v ON_ERROR_STOP=1 -X -A -t -c "$1" | xargs; }
