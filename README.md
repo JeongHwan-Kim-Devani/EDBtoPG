@@ -17,11 +17,11 @@
    - 핵심 Oracle 호환 파라미터 강제 점검
    - 기본값 대비 현재값이 달라진 파라미터만 추출
 2. **EDB(Oracle) 특화 기능 Summary**
-   - 2-1에서 패키지 + Oracle 키워드를 통합 표시(동일 객체 merge)
+   - 2-1에서 패키지 + Oracle 키워드를 통합 표시
    - Synonym
    - 정책(RLS)
 3. **디테일(User Created)**
-   - 3-2/3-3에서 Oracle 데이터타입을 통합 표시(소견 제외)
+   - 3-1에서 Oracle 데이터타입을 통합 표시
    - 기본값/제약조건/함수기반 인덱스 표현식의 Oracle 함수 사용(인덱스는 인덱스명 표시)
 4. **폴리시 디테일(User Created)**
    - EDB Profile (default 제외)
@@ -118,6 +118,7 @@ PSQL_BIN=/usr/edb/as16/bin/psql ./generate_epas_migration_report.sh
 04_policy_edb_resource_group.tsv
 04_policy_edb_dblink.tsv
 <DBNAME>.html
+<DBNAME>_source.html
 REPORT_INDEX.txt
 
 # SQL source
@@ -134,10 +135,9 @@ migration_report_queries.sql
 - `description` 컬럼으로 파라미터 영향도 설명 확인
 
 ### `02_summary_*`, `03_detail_*`
-- HTML에서 `02_summary_packages.tsv` + `03_detail_keywords.tsv`를 **통합(2-1)** 하여 표시합니다.
-- 동일 객체 기준으로 키워드/패키지 검출값을 merge하고 중복을 제거합니다.
-- 정렬은 스키마 기준, 동일 스키마 내 객체 타입 `P/F/V` 순으로 표시합니다.
-- 데이터타입은 `03_detail_datatypes_objects.tsv` + `03_detail_datatypes_tables.tsv`를 **통합(3-2/3-3)** 하여 소견 없이 표시합니다.
+- HTML에서 `02_summary_packages.tsv` + `03_detail_keywords.tsv` 결과를 한 번에 확인할 수 있습니다.
+- 2-1은 타입 기준 정렬 후 `FUNCTION/PROCEDURE/VIEW`로 표시합니다.
+- 3-1은 타입 기준 정렬 후 `PROCEDURE/FUNCTION/VIEW/TABLE COLUMN`로 표시합니다.
 
 ### `04_policy_*`
 - 이관 시 운영정책 영향이 큰 항목
@@ -146,6 +146,7 @@ migration_report_queries.sql
 ### `<DBNAME>.html`
 - 비기술 담당자도 보기 쉬운 형태의 최종 소견
 - 1~4 항목이 그룹 단위로 구분된 요약 표 제공 (예: 2-1, 2-2, 2-3)
+- 요약은 `검출 건수 / 가능 / 불가` 3개 지표를 함께 제공합니다
 - 요약 표에서 검출 건수와 함께 가능/불가 상태를 함께 표시하고, 항목별 **상세 표**를 제공합니다
 - 상세 표 마지막 컬럼에 항목별 소견(대체 가능/조건부 대체 가능/대체 불가) 제공
 
@@ -184,7 +185,7 @@ migration_report_queries.sql
 - 운영 권한 계정으로 재실행 권장
 
 ### Q3. HTML 요약 건수가 TSV 행수와 다름
-- 일부 구간(2-1, 3-2/3-3, 3-4)은 HTML에서 **객체 단위 merge/중복제거** 후 카운트됩니다.
+- 요약은 HTML 표시 기준(검출/가능/불가)으로 계산됩니다.
 
 ### Q4. synonym/profile/dblink 결과가 없음
 - 해당 기능 미사용 또는 카탈로그 미노출 가능
@@ -234,3 +235,10 @@ PGUSER=enterprisedb \
 
 - `-o` 옵션으로 출력 디렉터리를 지정하면 `*_raw.tsv` 파일이 함께 생성되어 원문(함수/뷰 본문, 표현식)을 확인할 수 있습니다.
 - HTML의 객체명은 클릭 가능한 링크로 표시되며, 문서 하단 **원문 상세** 섹션으로 이동해 원문을 볼 수 있습니다.
+
+
+## 원문 상세
+
+- 객체 클릭 시 `<DBNAME>_source.html`로 이동해 원문을 확인합니다.
+- 원문에는 검출 키워드가 하이라이트(`<mark>`) 처리됩니다.
+- `$$__EDBwrapped__$$` 블록/과도한 암호화 문자열 등 불필요 라인은 원문 상세에서 제외됩니다.
