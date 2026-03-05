@@ -242,12 +242,11 @@ param_rows_html=$(awk -F $'	' 'NR==1{next}
 }' "$OUT_DIR/01_parameters.tsv")
 param_rows_html=$(default_row_if_empty "$param_rows_html" 5)
 
-pkg_rows_html=$(awk -F $'	' 'NR==1{next}
+pkg_rows_html=$(awk -F $'\t' 'NR==1{next}
 {
   for(i=1;i<=NF;i++){gsub("&","&amp;",$i);gsub("<","&lt;",$i);gsub(">","&gt;",$i)}
   opinion="조건부 대체 가능";
-  badge="badge-warn";
-  printf "<tr><td>%s</td><td><code>%s.%s</code></td><td><code>%s</code></td><td><span class=\"badge %s\">%s</span></td></tr>\n", $1, $2, $3, $4, badge, opinion
+    printf "<tr><td>%s</td><td><code>%s</code></td><td><code>%s</code></td><td><span class=\"badge %s\">%s</span></td></tr>\n", a[1],a[2],featset[k],badge,a[3];
 }' "$OUT_DIR/02_summary_packages.tsv")
 pkg_rows_html=$(default_row_if_empty "$pkg_rows_html" 4)
 
