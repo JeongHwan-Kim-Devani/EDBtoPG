@@ -74,7 +74,7 @@ chmod +x generate_epas_migration_report.sh
 - `-d, --dbname` : DB name (필수)
 - `-U, --user` : DB user (필수)
 - `-W, --password` : DB password
-- `-o, --output` : 출력 디렉터리 (미지정 시 `./<DBNAME>.html`만 최종 보관, 중간 TSV는 임시 생성 후 삭제)
+- `-o, --output` : 출력 디렉터리 (미지정 시 `./<DBNAME>.html`, `./<DBNAME>_source.html`만 최종 보관, 중간 TSV는 임시 생성 후 삭제)
 - `--connect-timeout` : 연결 타임아웃 초
 
 ---
