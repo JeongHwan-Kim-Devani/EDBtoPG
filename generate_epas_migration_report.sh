@@ -81,7 +81,7 @@ HTML_PATH="$OUT_DIR/$HTML_BASENAME"
 
 read_sql() {
   local key="$1"
-  awk -v marker="--@@ ${key}" 'BEGIN{in=0} $0==marker{in=1;next} /^--@@ /&&in{exit} in{print}' "$SQL_FILE"
+  awk -v marker="--@@ ${key}" 'BEGIN{capture=0} $0==marker{capture=1;next} /^--@@ /&&capture{exit} capture{print}' "$SQL_FILE"
 }
 run_tsv(){ local f="$1"; shift; "$PSQL_BIN" -v ON_ERROR_STOP=1 -X -A -F $'\t' -P footer=off -c "$*" > "$f"; }
 run_scalar(){ "$PSQL_BIN" -v ON_ERROR_STOP=1 -X -A -t -c "$1" | xargs; }
@@ -201,6 +201,31 @@ profile_cnt=$(row_count_tsv "$OUT_DIR/04_policy_edb_profile.tsv")
 rg_cnt=$(row_count_tsv "$OUT_DIR/04_policy_edb_resource_group.tsv")
 dblink_cnt=$(row_count_tsv "$OUT_DIR/04_policy_edb_dblink.tsv")
 
+section_status() {
+  local file="$1"
+  if [[ ! -s "$file" ]]; then
+    echo "대체 가능"
+    return
+  fi
+  if grep -q "대체 불가" "$file"; then
+    echo "대체 불가 포함"
+  elif grep -q "조건부" "$file"; then
+    echo "조건부 대체"
+  else
+    echo "대체 가능"
+  fi
+}
+
+param_status=$(section_status "$PARAM_ROWS")
+feature_status=$(section_status "$FEATURE_ROWS")
+syn_status="조건부 대체"
+rls_status="조건부 대체"
+dtype_status="조건부 대체"
+expr_status=$(section_status "$EXPR_ROWS")
+profile_status="조건부 대체"
+rg_status="조건부 대체"
+dblink_status="조건부 대체"
+
 default_row_if_empty(){ [[ -s "$1" ]] && cat "$1" || printf '<tr><td colspan="%s">검출 없음</td></tr>' "$2"; }
 
 syn_rows_html=$(awk -F $'\t' 'NR==1{next}{printf "<tr><td><code>%s.%s</code></td><td><code>%s.%s</code></td><td><span class=\"badge badge-warn\">조건부 대체 가능</span></td></tr>\n",$1,$2,$3,$4}' "$OUT_DIR/02_summary_synonyms.tsv")
@@ -217,11 +242,11 @@ body{font-family:Arial,sans-serif;background:#f8fafc;margin:0;color:#111827}.con
 </style></head><body><div class="container">
 <h1>EPAS to PostgreSQL Precheck</h1>
 <div class="card"><h2>요약</h2><table>
-<tr><th>항목</th><th>검출 건수</th><th>설명</th></tr>
-<tr class="group-title"><td colspan="3">1. 파라미터</td></tr><tr><td>1-1. 파라미터</td><td>${param_cnt}</td><td>핵심 파라미터 + 변경값</td></tr>
-<tr class="group-title"><td colspan="3">2. EDB(Oracle) 특화기능 + 키워드</td></tr><tr><td>2-1. 패키지/키워드 통합</td><td>${feature_cnt}</td><td>2-1 + 3-1 통합, 동일 객체 merge</td></tr><tr><td>2-2. 시노님</td><td>${syn_cnt}</td><td>시노님 정의</td></tr><tr><td>2-3. 정책(RLS)</td><td>${rls_cnt}</td><td>RLS 정책</td></tr>
-<tr class="group-title"><td colspan="3">3. 디테일 (user created)</td></tr><tr><td>3-2/3-3. 오라클 데이터타입 통합</td><td>${dtype_cnt}</td><td>객체+테이블 merge (소견 제외)</td></tr><tr><td>3-4. 기본값/제약조건/인덱스 표현식</td><td>${expr_cnt}</td><td>오브젝트/타입 순 정렬</td></tr>
-<tr class="group-title"><td colspan="3">4. 폴리시 디테일 (user created)</td></tr><tr><td>4-1. 프로파일</td><td>${profile_cnt}</td><td>non-default</td></tr><tr><td>4-2. 리소스 그룹</td><td>${rg_cnt}</td><td>resource group</td></tr><tr><td>4-3. DBLINK</td><td>${dblink_cnt}</td><td>dblink</td></tr>
+<tr><th>항목</th><th>검출 건수</th><th>가능/불가</th><th>설명</th></tr>
+<tr class="group-title"><td colspan="4">1. 파라미터</td></tr><tr><td>1-1. 파라미터</td><td>${param_cnt}</td><td>${param_status}</td><td>핵심 파라미터 + 변경값</td></tr>
+<tr class="group-title"><td colspan="4">2. EDB(Oracle) 특화기능 + 키워드</td></tr><tr><td>2-1. 패키지/키워드 통합</td><td>${feature_cnt}</td><td>${feature_status}</td><td>2-1 + 3-1 통합, 동일 객체 merge</td></tr><tr><td>2-2. 시노님</td><td>${syn_cnt}</td><td>${syn_status}</td><td>시노님 정의</td></tr><tr><td>2-3. 정책(RLS)</td><td>${rls_cnt}</td><td>${rls_status}</td><td>RLS 정책</td></tr>
+<tr class="group-title"><td colspan="4">3. 디테일 (user created)</td></tr><tr><td>3-2/3-3. 오라클 데이터타입 통합</td><td>${dtype_cnt}</td><td>${dtype_status}</td><td>객체+테이블 merge (소견 제외)</td></tr><tr><td>3-4. 기본값/제약조건/인덱스 표현식</td><td>${expr_cnt}</td><td>${expr_status}</td><td>오브젝트/타입 순 정렬</td></tr>
+<tr class="group-title"><td colspan="4">4. 폴리시 디테일 (user created)</td></tr><tr><td>4-1. 프로파일</td><td>${profile_cnt}</td><td>${profile_status}</td><td>non-default</td></tr><tr><td>4-2. 리소스 그룹</td><td>${rg_cnt}</td><td>${rg_status}</td><td>resource group</td></tr><tr><td>4-3. DBLINK</td><td>${dblink_cnt}</td><td>${dblink_status}</td><td>dblink</td></tr>
 </table></div>
 <div class="card"><h2>대체 가능 여부</h2><table><tr><th>구분</th><th>설명</th></tr><tr><td><span class="badge badge-crit">대체 불가(수동 수정 필요)</span></td><td>수동 재작성 또는 기능 재설계가 필요합니다.</td></tr><tr><td><span class="badge badge-warn">조건부 대체 가능</span></td><td>부분 재작성/확장모듈/설정 변경으로 전환 가능합니다.</td></tr><tr><td><span class="badge badge-ok">대체 가능</span></td><td>표준 기능 또는 대체 함수로 대응 가능합니다.</td></tr></table></div>
 <div class="card"><h2>검출 상세(표)</h2>
