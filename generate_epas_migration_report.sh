@@ -409,18 +409,10 @@ cat >"$OUT_DIR/05_opinion.html" <<HTML
 <body>
   <div class="container">
   <h1>EPAS to PostgreSQL Precheck</h1>
-  <h2>5. 대체 가능 여부</h2>
-  <table>
-    <tr><th>구분</th><th>설명</th></tr>
-    <tr><td><span class="badge badge-crit">대체 불가(수동 수정 필요)</span></td><td>CRITICAL 파라미터/EDB 고유 보안·리소스 제어 기능은 PostgreSQL 기본 기능으로 1:1 대체가 어렵습니다.</td></tr>
-    <tr><td><span class="badge badge-warn">조건부 대체 가능</span></td><td>SQL 재작성, 기능 대체 설계, 성능 재튜닝을 통해 전환 가능합니다.</td></tr>
-    <tr><td><span class="badge badge-ok">대체 가능</span></td><td>일부 항목은 PostgreSQL 표준 기능 또는 확장(예: <code>orafce</code>, <code>oracle_fdw</code>, <code>pg_hint_plan</code>)으로 대체 가능합니다.</td></tr>
-  </table>
-
   <div class="card">
   <h2>요약</h2>
   <table>
-    <tr><th>항목</th><th>검출 건수</th><th>가벼운 설명</th></tr>
+    <tr><th>항목</th><th>검출 건수</th><th>설명</th></tr>
     <tr class="group-title"><td colspan="3">1. 파라미터</td></tr>
     <tr><td>1-1. 파라미터(점검 대상)</td><td>${param_cnt}</td><td>핵심 호환 파라미터 + 기본값 대비 변경값 점검</td></tr>
 
@@ -439,6 +431,16 @@ cat >"$OUT_DIR/05_opinion.html" <<HTML
     <tr><td>4-1. 프로파일(Non-default)</td><td>${profile_cnt}</td><td>default 이외 profile 존재 여부</td></tr>
     <tr><td>4-2. 리소스 그룹</td><td>${rg_cnt}</td><td>리소스 그룹 설정 현황</td></tr>
     <tr><td>4-3. DBLINK</td><td>${dblink_cnt}</td><td>DBLINK 정의 현황</td></tr>
+  </table>
+  </div>
+
+  <div class="card">
+  <h2>대체 가능 여부</h2>
+  <table>
+    <tr><th>구분</th><th>설명</th></tr>
+    <tr><td><span class="badge badge-crit">대체 불가(수동 수정 필요)</span></td><td>CRITICAL 파라미터/EDB 고유 보안·리소스 제어 기능은 PostgreSQL 기본 기능으로 1:1 대체가 어렵습니다.</td></tr>
+    <tr><td><span class="badge badge-warn">조건부 대체 가능</span></td><td>SQL 재작성, 기능 대체 설계, 성능 재튜닝을 통해 전환 가능합니다.</td></tr>
+    <tr><td><span class="badge badge-ok">대체 가능</span></td><td>일부 항목은 PostgreSQL 표준 기능 또는 확장(예: <code>orafce</code>, <code>oracle_fdw</code>, <code>pg_hint_plan</code>)으로 대체 가능합니다.</td></tr>
   </table>
   </div>
 
