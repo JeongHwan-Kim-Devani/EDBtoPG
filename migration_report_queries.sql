@@ -94,7 +94,7 @@ SELECT
     feature
 FROM (
     SELECT
-        'FUNCTION/PROCEDURE' AS object_type,
+        CASE WHEN p.prokind='p' THEN 'P' ELSE 'F' END AS object_type,
         n.nspname AS schema_name,
         p.proname AS object_name,
         m[1] AS feature
@@ -106,7 +106,7 @@ FROM (
       AND n.nspname NOT LIKE 'utl_%'
     UNION ALL
     SELECT
-        'VIEW' AS object_type,
+        'V' AS object_type,
         v.schemaname AS schema_name,
         v.viewname AS object_name,
         m[1] AS feature
@@ -116,7 +116,7 @@ FROM (
       AND v.schemaname NOT LIKE 'dbms_%'
       AND v.schemaname NOT LIKE 'utl_%'
 ) x
-ORDER BY object_type, schema_name, object_name;
+ORDER BY schema_name, CASE object_type WHEN 'P' THEN 1 WHEN 'F' THEN 2 WHEN 'V' THEN 3 ELSE 9 END, object_name;
 
 --@@ summary_synonyms
 SELECT ns.nspname AS synonym_schema, s.synname, s.synobjschema, s.synobjname, COALESCE(s.synlink,'') AS synlink
@@ -133,38 +133,38 @@ ORDER BY schemaname, tablename, policyname;
 --@@ detail_keywords
 SELECT object_type, schema_name, object_name, detected_keyword
 FROM (
-    SELECT 'FUNCTION/PROCEDURE' AS object_type, n.nspname AS schema_name, p.proname AS object_name,
+    SELECT CASE WHEN p.prokind='p' THEN 'P' ELSE 'F' END AS object_type, n.nspname AS schema_name, p.proname AS object_name,
            m[1] AS detected_keyword
     FROM pg_proc p
     JOIN pg_namespace n ON p.pronamespace = n.oid,
     LATERAL regexp_matches(lower(p.prosrc), '(\m(?:clob|bfile|raw|greatest|least|sysdate|systimestamp|rownum|rowid|level|nvl|nvl2|decode|add_months|months_between|last_day|next_day|instr|listagg|wm_concat|dual|minus|sys_connect_by_path|connect_by_root|connect_by_isleaf|pragma|sqlcode|sqlerrm|raise_application_error|numtodsinterval|numtoyminterval|sys_extract_utc|tz_offset|dbtimezone|sessiontimezone|lnnvl|nanvl|ratio_to_report|substrb|instrb|lengthb)\M)', 'g') AS m
     WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
     UNION ALL
-    SELECT 'VIEW' AS object_type, v.schemaname AS schema_name, v.viewname AS object_name,
+    SELECT 'V' AS object_type, v.schemaname AS schema_name, v.viewname AS object_name,
            m[1] AS detected_keyword
     FROM pg_views v,
     LATERAL regexp_matches(lower(v.definition), '(\m(?:clob|bfile|raw|greatest|least|sysdate|systimestamp|rownum|rowid|level|nvl|nvl2|decode|add_months|months_between|last_day|next_day|instr|listagg|wm_concat|dual|minus|sys_connect_by_path|connect_by_root|connect_by_isleaf|pragma|sqlcode|sqlerrm|raise_application_error|numtodsinterval|numtoyminterval|sys_extract_utc|tz_offset|dbtimezone|sessiontimezone|lnnvl|nanvl|ratio_to_report|substrb|instrb|lengthb)\M)', 'g') AS m
     WHERE v.schemaname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
 ) z
-ORDER BY object_type, schema_name, object_name;
+ORDER BY schema_name, CASE object_type WHEN 'P' THEN 1 WHEN 'F' THEN 2 WHEN 'V' THEN 3 ELSE 9 END, object_name;
 
 --@@ detail_datatypes_objects
 SELECT object_type, schema_name, object_name, detected_datatype
 FROM (
-    SELECT 'FUNCTION/PROCEDURE' AS object_type, n.nspname AS schema_name, p.proname AS object_name,
+    SELECT CASE WHEN p.prokind='p' THEN 'P' ELSE 'F' END AS object_type, n.nspname AS schema_name, p.proname AS object_name,
            m[1] AS detected_datatype
     FROM pg_proc p
     JOIN pg_namespace n ON p.pronamespace = n.oid,
     LATERAL regexp_matches(lower(p.prosrc), '(\m(?:clob|bfile|raw)\M)', 'g') AS m
     WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
     UNION ALL
-    SELECT 'VIEW' AS object_type, v.schemaname AS schema_name, v.viewname AS object_name,
+    SELECT 'V' AS object_type, v.schemaname AS schema_name, v.viewname AS object_name,
            m[1] AS detected_datatype
     FROM pg_views v,
     LATERAL regexp_matches(lower(v.definition), '(\m(?:clob|bfile|raw)\M)', 'g') AS m
     WHERE v.schemaname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
 ) z
-ORDER BY object_type, schema_name, object_name;
+ORDER BY schema_name, CASE object_type WHEN 'P' THEN 1 WHEN 'F' THEN 2 WHEN 'V' THEN 3 ELSE 9 END, object_name;
 
 --@@ detail_datatypes_tables
 SELECT table_schema AS schema_name, table_name, column_name,
@@ -206,7 +206,7 @@ FROM (
       AND n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
       AND pg_get_expr(idx.indexprs, idx.indrelid) ~* '\m(sysdate|systimestamp|nvl|nvl2|decode|add_months|months_between|last_day|next_day|instr)\M'
 ) z
-ORDER BY object_type, schema_name, table_name;
+ORDER BY schema_name, table_name, target_name, object_type;
 
 --@@ policy_edb_profile
 SELECT * FROM pg_catalog.edb_profile WHERE prfname <> 'default' ORDER BY prfname;
@@ -221,7 +221,7 @@ ORDER BY lnkname;
 
 
 --@@ summary_packages_raw
-SELECT 'FUNCTION/PROCEDURE' AS object_type,
+SELECT CASE WHEN p.prokind='p' THEN 'P' ELSE 'F' END AS object_type,
        n.nspname AS schema_name,
        p.proname AS object_name,
        p.prosrc AS source_text
@@ -229,7 +229,7 @@ FROM pg_proc p
 JOIN pg_namespace n ON p.pronamespace = n.oid
 WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
 UNION ALL
-SELECT 'VIEW' AS object_type,
+SELECT 'V' AS object_type,
        v.schemaname AS schema_name,
        v.viewname AS object_name,
        v.definition AS source_text
@@ -237,7 +237,7 @@ FROM pg_views v
 WHERE v.schemaname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb');
 
 --@@ detail_keywords_raw
-SELECT 'FUNCTION/PROCEDURE' AS object_type,
+SELECT CASE WHEN p.prokind='p' THEN 'P' ELSE 'F' END AS object_type,
        n.nspname AS schema_name,
        p.proname AS object_name,
        p.prosrc AS source_text
@@ -245,7 +245,7 @@ FROM pg_proc p
 JOIN pg_namespace n ON p.pronamespace = n.oid
 WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
 UNION ALL
-SELECT 'VIEW' AS object_type,
+SELECT 'V' AS object_type,
        v.schemaname AS schema_name,
        v.viewname AS object_name,
        v.definition AS source_text

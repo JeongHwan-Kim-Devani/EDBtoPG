@@ -17,14 +17,12 @@
    - 핵심 Oracle 호환 파라미터 강제 점검
    - 기본값 대비 현재값이 달라진 파라미터만 추출
 2. **EDB(Oracle) 특화 기능 Summary**
-   - 패키지 계열(DBMS/UTL/OWA/HTP/HTF) 사용 흔적
+   - 2-1에서 패키지 + Oracle 키워드를 통합 표시(동일 객체 merge)
    - Synonym
    - 정책(RLS)
 3. **디테일(User Created)**
-   - Oracle 전용 키워드/함수
-   - Oracle 데이터타입(함수/프로시저/뷰)
-   - Oracle 데이터타입(테이블 컬럼)
-   - 기본값/제약조건/함수기반 인덱스 표현식의 Oracle 함수 사용
+   - 3-2/3-3에서 Oracle 데이터타입을 통합 표시(소견 제외)
+   - 기본값/제약조건/함수기반 인덱스 표현식의 Oracle 함수 사용(인덱스는 인덱스명 표시)
 4. **폴리시 디테일(User Created)**
    - EDB Profile (default 제외)
    - EDB Resource Group
@@ -135,14 +133,11 @@ migration_report_queries.sql
 - `check_required = O` 는 반드시 검토 권장
 - `description` 컬럼으로 파라미터 영향도 설명 확인
 
-### `02_summary_*`
-- EDB/Oracle 특화 사용의 **요약 레벨**
-- `packages`는 코드/뷰 정의에서 package 계열 문자열이 감지된 경우
-- `synonyms`, `policies`는 카탈로그 기준으로 현재 객체 현황
-
-### `03_detail_*`
-- 실제 사용자 객체에서 Oracle 의존 흔적을 상세 탐지
-- 키워드/함수/데이터타입/표현식 단위로 분리되어 있어 수동 수정 우선순위 수립에 유용
+### `02_summary_*`, `03_detail_*`
+- HTML에서 `02_summary_packages.tsv` + `03_detail_keywords.tsv`를 **통합(2-1)** 하여 표시합니다.
+- 동일 객체 기준으로 키워드/패키지 검출값을 merge하고 중복을 제거합니다.
+- 정렬은 스키마 기준, 동일 스키마 내 객체 타입 `P/F/V` 순으로 표시합니다.
+- 데이터타입은 `03_detail_datatypes_objects.tsv` + `03_detail_datatypes_tables.tsv`를 **통합(3-2/3-3)** 하여 소견 없이 표시합니다.
 
 ### `04_policy_*`
 - 이관 시 운영정책 영향이 큰 항목
@@ -188,8 +183,8 @@ migration_report_queries.sql
 - 또는 계정 권한 부족/EPAS 버전 차이 가능
 - 운영 권한 계정으로 재실행 권장
 
-### Q3. HTML 요약 건수가 예상보다 작거나 큼
-- HTML 카운트는 TSV의 **헤더를 제외한 데이터 행 기준**으로 계산됨
+### Q3. HTML 요약 건수가 TSV 행수와 다름
+- 일부 구간(2-1, 3-2/3-3, 3-4)은 HTML에서 **객체 단위 merge/중복제거** 후 카운트됩니다.
 
 ### Q4. synonym/profile/dblink 결과가 없음
 - 해당 기능 미사용 또는 카탈로그 미노출 가능
