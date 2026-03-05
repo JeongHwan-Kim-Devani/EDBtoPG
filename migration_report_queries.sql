@@ -137,13 +137,13 @@ FROM (
            m[1] AS detected_keyword
     FROM pg_proc p
     JOIN pg_namespace n ON p.pronamespace = n.oid,
-    LATERAL regexp_matches(lower(p.prosrc), '(\m(?:blob|clob|varchar2|nvarchar2|bfile|raw|greatest|least|sysdate|systimestamp|rownum|rowid|level|nvl|nvl2|decode|add_months|months_between|last_day|next_day|instr|listagg|wm_concat|dual|minus|sys_connect_by_path|connect_by_root|connect_by_isleaf|pragma|sqlcode|sqlerrm|raise_application_error|numtodsinterval|numtoyminterval|sys_extract_utc|tz_offset|dbtimezone|sessiontimezone|lnnvl|nanvl|ratio_to_report|substrb|instrb|lengthb)\M)', 'g') AS m
+    LATERAL regexp_matches(lower(p.prosrc), '(\m(?:clob|bfile|raw|greatest|least|sysdate|systimestamp|rownum|rowid|level|nvl|nvl2|decode|add_months|months_between|last_day|next_day|instr|listagg|wm_concat|dual|minus|sys_connect_by_path|connect_by_root|connect_by_isleaf|pragma|sqlcode|sqlerrm|raise_application_error|numtodsinterval|numtoyminterval|sys_extract_utc|tz_offset|dbtimezone|sessiontimezone|lnnvl|nanvl|ratio_to_report|substrb|instrb|lengthb)\M)', 'g') AS m
     WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
     UNION ALL
     SELECT 'VIEW' AS object_type, v.schemaname AS schema_name, v.viewname AS object_name,
            m[1] AS detected_keyword
     FROM pg_views v,
-    LATERAL regexp_matches(lower(v.definition), '(\m(?:blob|clob|varchar2|nvarchar2|bfile|raw|greatest|least|sysdate|systimestamp|rownum|rowid|level|nvl|nvl2|decode|add_months|months_between|last_day|next_day|instr|listagg|wm_concat|dual|minus|sys_connect_by_path|connect_by_root|connect_by_isleaf|pragma|sqlcode|sqlerrm|raise_application_error|numtodsinterval|numtoyminterval|sys_extract_utc|tz_offset|dbtimezone|sessiontimezone|lnnvl|nanvl|ratio_to_report|substrb|instrb|lengthb)\M)', 'g') AS m
+    LATERAL regexp_matches(lower(v.definition), '(\m(?:clob|bfile|raw|greatest|least|sysdate|systimestamp|rownum|rowid|level|nvl|nvl2|decode|add_months|months_between|last_day|next_day|instr|listagg|wm_concat|dual|minus|sys_connect_by_path|connect_by_root|connect_by_isleaf|pragma|sqlcode|sqlerrm|raise_application_error|numtodsinterval|numtoyminterval|sys_extract_utc|tz_offset|dbtimezone|sessiontimezone|lnnvl|nanvl|ratio_to_report|substrb|instrb|lengthb)\M)', 'g') AS m
     WHERE v.schemaname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
 ) z
 ORDER BY object_type, schema_name, object_name;
@@ -155,13 +155,13 @@ FROM (
            m[1] AS detected_datatype
     FROM pg_proc p
     JOIN pg_namespace n ON p.pronamespace = n.oid,
-    LATERAL regexp_matches(lower(p.prosrc), '(\m(?:blob|clob|varchar2|nvarchar2|bfile|raw)\M)', 'g') AS m
+    LATERAL regexp_matches(lower(p.prosrc), '(\m(?:clob|bfile|raw)\M)', 'g') AS m
     WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
     UNION ALL
     SELECT 'VIEW' AS object_type, v.schemaname AS schema_name, v.viewname AS object_name,
            m[1] AS detected_datatype
     FROM pg_views v,
-    LATERAL regexp_matches(lower(v.definition), '(\m(?:blob|clob|varchar2|nvarchar2|bfile|raw)\M)', 'g') AS m
+    LATERAL regexp_matches(lower(v.definition), '(\m(?:clob|bfile|raw)\M)', 'g') AS m
     WHERE v.schemaname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
 ) z
 ORDER BY object_type, schema_name, object_name;
@@ -171,15 +171,14 @@ SELECT table_schema AS schema_name, table_name, column_name,
        COALESCE(domain_name, udt_name) AS current_datatype
 FROM information_schema.columns
 WHERE table_schema NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
-  AND (udt_name IN ('blob', 'clob', 'varchar2', 'nvarchar2', 'bfile', 'raw')
-       OR domain_name IN ('blob', 'clob', 'varchar2', 'nvarchar2', 'bfile', 'raw'))
+  AND (udt_name IN ('clob', 'bfile', 'raw')
+       OR domain_name IN ('clob', 'bfile', 'raw'))
 ORDER BY schema_name, table_name, column_name;
 
 --@@ detail_expr_keywords
-SELECT object_type, schema_name, table_name, target_name, expression, detected_keyword
+SELECT object_type, schema_name, table_name, target_name, detected_keyword
 FROM (
     SELECT 'DEFAULT VALUE' AS object_type, n.nspname AS schema_name, c.relname AS table_name, a.attname AS target_name,
-           pg_get_expr(d.adbin, d.adrelid) AS expression,
            substring(lower(pg_get_expr(d.adbin, d.adrelid)) from '\m(sysdate|systimestamp|nvl|nvl2|decode|add_months|months_between|last_day|next_day|instr)\M') AS detected_keyword
     FROM pg_attrdef d
     JOIN pg_attribute a ON d.adrelid = a.attrelid AND d.adnum = a.attnum
@@ -189,7 +188,6 @@ FROM (
       AND pg_get_expr(d.adbin, d.adrelid) ~* '\m(sysdate|systimestamp|nvl|nvl2|decode|add_months|months_between|last_day|next_day|instr)\M'
     UNION ALL
     SELECT 'CHECK CONSTRAINT' AS object_type, n.nspname AS schema_name, c.relname AS table_name, con.conname AS target_name,
-           pg_get_expr(con.conbin, con.conrelid) AS expression,
            substring(lower(pg_get_expr(con.conbin, con.conrelid)) from '\m(sysdate|systimestamp|nvl|nvl2|decode|add_months|months_between|last_day|next_day|instr)\M') AS detected_keyword
     FROM pg_constraint con
     JOIN pg_class c ON con.conrelid = c.oid
@@ -199,7 +197,6 @@ FROM (
       AND pg_get_expr(con.conbin, con.conrelid) ~* '\m(sysdate|systimestamp|nvl|nvl2|decode|add_months|months_between|last_day|next_day|instr)\M'
     UNION ALL
     SELECT 'INDEX EXPRESSION' AS object_type, n.nspname AS schema_name, c.relname AS table_name, i.relname AS target_name,
-           pg_get_expr(idx.indexprs, idx.indrelid) AS expression,
            substring(lower(pg_get_expr(idx.indexprs, idx.indrelid)) from '\m(sysdate|systimestamp|nvl|nvl2|decode|add_months|months_between|last_day|next_day|instr)\M') AS detected_keyword
     FROM pg_index idx
     JOIN pg_class c ON idx.indrelid = c.oid

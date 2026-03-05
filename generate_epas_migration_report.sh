@@ -205,8 +205,20 @@ kw_rows_html=$(awk -F $'	' 'NR==1{next}
   keyword=$4; opinion="조건부 대체 가능";
   if (keyword ~ /^(rownum|rowid|dual|minus|sys_connect_by_path|connect_by_root|connect_by_isleaf|level|pragma|sqlcode|sqlerrm|raise_application_error)$/) opinion="대체 불가(수동 수정 필요)";
   else if (keyword ~ /^(sysdate|systimestamp|nvl|nvl2|add_months|months_between|last_day|next_day|instr|greatest|least|substrb|instrb|lengthb|numtodsinterval|numtoyminterval)$/) opinion="대체 가능";
-  badge=(opinion=="대체 불가(수동 수정 필요)"?"badge-crit":(opinion=="조건부 대체 가능"?"badge-warn":"badge-ok"));
-  printf "<tr><td>%s</td><td><code>%s.%s</code></td><td><code>%s</code></td><td><span class=\"badge %s\">%s</span></td></tr>\n", $1,$2,$3,$4,badge,opinion
+  obj=$2 "." $3;
+  k=$1 SUBSEP obj SUBSEP opinion;
+  if (keyword != "") {
+    if (!(k in kwset) || index("," kwset[k] ",", "," keyword ",") == 0) {
+      kwset[k]=(k in kwset && kwset[k]!="" ? kwset[k] ", " : "") keyword;
+    }
+  }
+}
+END {
+  for (k in kwset) {
+    split(k,a,SUBSEP);
+    badge=(a[3]=="대체 불가(수동 수정 필요)"?"badge-crit":(a[3]=="조건부 대체 가능"?"badge-warn":"badge-ok"));
+    printf "<tr><td>%s</td><td><code>%s</code></td><td><code>%s</code></td><td><span class=\"badge %s\">%s</span></td></tr>\n", a[1],a[2],kwset[k],badge,a[3];
+  }
 }' "$OUT_DIR/03_detail_keywords.tsv")
 kw_rows_html=$(default_row_if_empty "$kw_rows_html" 4)
 
@@ -214,7 +226,7 @@ dtype_obj_rows_html=$(awk -F $'	' 'NR==1{next}
 {
   for(i=1;i<=NF;i++){gsub("&","&amp;",$i);gsub("<","&lt;",$i);gsub(">","&gt;",$i)}
   dtype=$4; opinion="조건부 대체 가능";
-  if (dtype ~ /^(varchar2|nvarchar2|clob|blob)$/) opinion="대체 가능";
+  if (dtype ~ /^(clob)$/) opinion="대체 가능";
   badge=(opinion=="조건부 대체 가능"?"badge-warn":"badge-ok");
   printf "<tr><td>%s</td><td><code>%s.%s</code></td><td><code>%s</code></td><td><span class=\"badge %s\">%s</span></td></tr>\n", $1,$2,$3,$4,badge,opinion
 }' "$OUT_DIR/03_detail_datatypes_objects.tsv")
@@ -224,7 +236,7 @@ dtype_tbl_rows_html=$(awk -F $'	' 'NR==1{next}
 {
   for(i=1;i<=NF;i++){gsub("&","&amp;",$i);gsub("<","&lt;",$i);gsub(">","&gt;",$i)}
   dtype=$4; opinion="조건부 대체 가능";
-  if (dtype ~ /^(varchar2|nvarchar2|clob|blob)$/) opinion="대체 가능";
+  if (dtype ~ /^(clob)$/) opinion="대체 가능";
   badge=(opinion=="조건부 대체 가능"?"badge-warn":"badge-ok");
   printf "<tr><td><code>%s.%s.%s</code></td><td><code>%s</code></td><td><span class=\"badge %s\">%s</span></td></tr>\n", $1,$2,$3,$4,badge,opinion
 }' "$OUT_DIR/03_detail_datatypes_tables.tsv")
@@ -233,10 +245,22 @@ dtype_tbl_rows_html=$(default_row_if_empty "$dtype_tbl_rows_html" 3)
 expr_rows_html=$(awk -F $'	' 'NR==1{next}
 {
   for(i=1;i<=NF;i++){gsub("&","&amp;",$i);gsub("<","&lt;",$i);gsub(">","&gt;",$i)}
-  kw=$6; opinion="조건부 대체 가능";
+  kw=$5; opinion="조건부 대체 가능";
   if (kw ~ /^(sysdate|systimestamp|add_months|months_between|last_day|next_day|instr)$/) opinion="대체 가능";
-  badge=(opinion=="대체 불가(수동 수정 필요)"?"badge-crit":(opinion=="조건부 대체 가능"?"badge-warn":"badge-ok"));
-  printf "<tr><td>%s</td><td><code>%s.%s</code></td><td><code>%s</code></td><td><span class=\"badge %s\">%s</span></td></tr>\n", $1,$2,$3,$6,badge,opinion
+  obj=$2 "." $3;
+  k=$1 SUBSEP obj SUBSEP opinion;
+  if (kw != "") {
+    if (!(k in kwset) || index("," kwset[k] ",", "," kw ",") == 0) {
+      kwset[k]=(k in kwset && kwset[k]!="" ? kwset[k] ", " : "") kw;
+    }
+  }
+}
+END {
+  for (k in kwset) {
+    split(k,a,SUBSEP);
+    badge=(a[3]=="대체 불가(수동 수정 필요)"?"badge-crit":(a[3]=="조건부 대체 가능"?"badge-warn":"badge-ok"));
+    printf "<tr><td>%s</td><td><code>%s</code></td><td><code>%s</code></td><td><span class=\"badge %s\">%s</span></td></tr>\n", a[1],a[2],kwset[k],badge,a[3];
+  }
 }' "$OUT_DIR/03_detail_expr_keywords.tsv")
 expr_rows_html=$(default_row_if_empty "$expr_rows_html" 4)
 
