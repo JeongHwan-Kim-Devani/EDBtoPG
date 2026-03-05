@@ -38,7 +38,7 @@
 
 - Bash
 - `psql` 클라이언트
-- 점검 대상 DB 접속 정보 (`PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER` 등)
+- 점검 대상 DB 접속 정보 (`-h/-p/-d/-U` 옵션 또는 `PG*` 환경변수)
 - (권장) 메타데이터 조회 권한
 
 > 참고: EPAS 버전/권한에 따라 `pg_catalog.edb_profile`, `pg_catalog.edb_resource_group`, `pg_catalog.edb_dblink`가 없거나 조회 불가일 수 있습니다.
@@ -56,10 +56,10 @@
 chmod +x generate_epas_migration_report.sh
 
 # 기본 출력 디렉터리 사용
-./generate_epas_migration_report.sh
+./generate_epas_migration_report.sh -d edb -U enterprisedb
 
 # 출력 디렉터리 지정
-./generate_epas_migration_report.sh ./migration_report_prod_2026-03-03
+./generate_epas_migration_report.sh -h 127.0.0.1 -p 5444 -d edb -U enterprisedb -o ./migration_report_prod_2026-03-03
 ```
 
 ### 도움말
@@ -67,6 +67,16 @@ chmod +x generate_epas_migration_report.sh
 ```bash
 ./generate_epas_migration_report.sh --help
 ```
+
+### 주요 옵션
+
+- `-h, --host` : DB host (default: `localhost`)
+- `-p, --port` : DB port (default: `5444`)
+- `-d, --dbname` : DB name (필수)
+- `-U, --user` : DB user (필수)
+- `-W, --password` : DB password
+- `-o, --output` : 출력 디렉터리
+- `--connect-timeout` : 연결 타임아웃 초
 
 ---
 

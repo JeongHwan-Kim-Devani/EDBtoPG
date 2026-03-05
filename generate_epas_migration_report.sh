@@ -7,31 +7,90 @@ set -euo pipefail
 #  - TSV raw extracts per section
 #  - HTML report (includes migration opinion in HTML)
 
-PSQL_BIN="${PSQL_BIN:-psql}"
-DBNAME="${PGDATABASE:-}"
-DBHOST="${PGHOST:-}"
-DBPORT="${PGPORT:-}"
-DBUSER="${PGUSER:-}"
-
-if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+usage() {
   cat <<'USAGE'
-Usage: ./generate_epas_migration_report.sh [OUT_DIR]
+EPAS -> PostgreSQL migration report helper
 
-Generate EPAS migration inspection artifacts and HTML opinion report.
+Usage:
+  ./generate_epas_migration_report.sh [options] [OUT_DIR]
 
-Arguments:
-  OUT_DIR   Optional output directory path.
-            Default: migration_report_YYYYmmdd_HHMMSS
-
-Environment:
-  PSQL_BIN  psql executable path (default: psql)
-  PGHOST, PGPORT, PGDATABASE, PGUSER, PGPASSWORD, ...
+Options:
+  -h, --host HOST         Database host (default: localhost)
+  -p, --port PORT         Database port (default: 5444)
+  -d, --dbname DBNAME     Database name (required)
+  -U, --user USER         Database user (required)
+  -W, --password PASSWORD Database password (or use PGPASSWORD env)
+  -s, --schema SCHEMA     Reserved option (current report uses all user schemas)
+  -o, --output DIR        Output directory (default: ./migration_report_<timestamp>)
+  --oracle-checks         Reserved option
+  --connect-timeout SEC   libpq connect timeout seconds (default: 5)
+  --help                  Show this help
 
 Example:
-  PGHOST=127.0.0.1 PGPORT=5444 PGDATABASE=edb PGUSER=enterprisedb \
-    ./generate_epas_migration_report.sh ./report_$(date +%F)
+  ./generate_epas_migration_report.sh -h 10.0.0.10 -p 5444 -d appdb -U enterprisedb -o ./report
 USAGE
-  exit 0
+}
+
+PSQL_BIN="${PSQL_BIN:-psql}"
+HOST="${PGHOST:-localhost}"
+PORT="${PGPORT:-5444}"
+DBNAME="${PGDATABASE:-}"
+DBUSER="${PGUSER:-}"
+DBPASSWORD="${PGPASSWORD:-}"
+SCHEMA=""
+OUT_DIR=""
+ORACLE_CHECKS=0
+CONNECT_TIMEOUT="5"
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --help)
+      usage
+      exit 0
+      ;;
+    -h|--host)
+      HOST="$2"; shift 2 ;;
+    -p|--port)
+      PORT="$2"; shift 2 ;;
+    -d|--dbname)
+      DBNAME="$2"; shift 2 ;;
+    -U|--user)
+      DBUSER="$2"; shift 2 ;;
+    -W|--password)
+      DBPASSWORD="$2"; shift 2 ;;
+    -s|--schema)
+      SCHEMA="$2"; shift 2 ;;
+    -o|--output)
+      OUT_DIR="$2"; shift 2 ;;
+    --oracle-checks)
+      ORACLE_CHECKS=1; shift ;;
+    --connect-timeout)
+      CONNECT_TIMEOUT="$2"; shift 2 ;;
+    --)
+      shift; break ;;
+    -*)
+      echo "[ERROR] Unknown option: $1" >&2
+      usage
+      exit 1
+      ;;
+    *)
+      break ;;
+  esac
+done
+
+if [[ -z "$OUT_DIR" ]]; then
+  if [[ $# -gt 0 ]]; then
+    OUT_DIR="$1"
+    shift
+  else
+    OUT_DIR="migration_report_$(date +%Y%m%d_%H%M%S)"
+  fi
+fi
+
+if [[ -z "$DBNAME" || -z "$DBUSER" ]]; then
+  echo "[ERROR] --dbname and --user are required." >&2
+  usage
+  exit 1
 fi
 
 if ! command -v "$PSQL_BIN" >/dev/null 2>&1; then
@@ -39,8 +98,32 @@ if ! command -v "$PSQL_BIN" >/dev/null 2>&1; then
   exit 1
 fi
 
-OUT_DIR="${1:-migration_report_$(date +%Y%m%d_%H%M%S)}"
+export PGHOST="$HOST"
+export PGPORT="$PORT"
+export PGDATABASE="$DBNAME"
+export PGUSER="$DBUSER"
+export PGCONNECT_TIMEOUT="$CONNECT_TIMEOUT"
+if [[ -n "$DBPASSWORD" ]]; then
+  export PGPASSWORD="$DBPASSWORD"
+fi
+
 mkdir -p "$OUT_DIR"
+
+SQL_FILE="${SQL_FILE:-$(cd "$(dirname "$0")" && pwd)/migration_report_queries.sql}"
+if [[ ! -f "$SQL_FILE" ]]; then
+  echo "[ERROR] SQL file not found: $SQL_FILE" >&2
+  exit 1
+fi
+
+read_sql() {
+  local key="$1"
+  awk -v marker="--@@ $key" '
+    BEGIN { capture=0 }
+    $0 == marker { capture=1; next }
+    /^--@@ / && capture { exit }
+    capture { print }
+  ' "$SQL_FILE"
+}
 
 run_tsv() {
   local outfile="$1"
@@ -57,21 +140,6 @@ table_exists() {
   local exists
   exists=$(run_scalar "SELECT to_regclass('$regclass') IS NOT NULL;")
   [[ "$exists" == "t" ]]
-}
-
-SQL_FILE="${SQL_FILE:-$(cd "$(dirname "$0")" && pwd)/migration_report_queries.sql}"
-if [[ ! -f "$SQL_FILE" ]]; then
-  echo "[ERROR] SQL file not found: $SQL_FILE" >&2
-  exit 1
-fi
-
-read_sql() {
-  local key="$1"
-  awk -v k="$key" '
-    $0=="--@@ " k {in=1; next}
-    /^--@@ / && in {exit}
-    in {print}
-  ' "$SQL_FILE"
 }
 
 # -----------------------------
@@ -464,7 +532,7 @@ HTML
 cat >"$OUT_DIR/REPORT_INDEX.txt" <<TXT
 [EPAS Migration Inspection Report]
 Output directory : $OUT_DIR
-Connection hints : host=${DBHOST:-N/A}, port=${DBPORT:-N/A}, db=${DBNAME:-N/A}, user=${DBUSER:-N/A}
+Connection hints : host=${HOST:-N/A}, port=${PORT:-N/A}, db=${DBNAME:-N/A}, user=${DBUSER:-N/A}
 
 1) Parameters                 : 01_parameters.tsv
 2) EDB Summary                : 02_summary_packages.tsv, 02_summary_synonyms.tsv, 02_summary_policies.tsv
