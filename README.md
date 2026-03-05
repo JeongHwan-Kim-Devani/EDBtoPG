@@ -1,4 +1,4 @@
-# EPAS 이관 점검 리포트 생성기
+# EPAS to PostgreSQL Precheck
 
 `generate_epas_migration_report.sh`는 EPAS(Oracle 호환 모드 포함) 환경에서 **현재 사용 중인 Oracle/EDB 특화 요소를 점검**하고,
 요청하신 5개 파트 형식의 이관 리포트 산출물(TSV + HTML)을 자동 생성하는 스크립트입니다.
@@ -56,7 +56,7 @@
 chmod +x generate_epas_migration_report.sh
 
 # 기본 실행(출력 디렉터리 미지정)
-# => 최종 결과는 ./opinion.html 만 남고, 중간 TSV는 삭제됨
+# => 최종 결과는 ./<DBNAME>.html 만 남고, 중간 TSV는 삭제됨
 ./generate_epas_migration_report.sh -d edb -U enterprisedb
 
 # 출력 디렉터리 지정
@@ -76,7 +76,7 @@ chmod +x generate_epas_migration_report.sh
 - `-d, --dbname` : DB name (필수)
 - `-U, --user` : DB user (필수)
 - `-W, --password` : DB password
-- `-o, --output` : 출력 디렉터리 (미지정 시 `./opinion.html`만 최종 보관, 중간 TSV는 임시 생성 후 삭제)
+- `-o, --output` : 출력 디렉터리 (미지정 시 `./<DBNAME>.html`만 최종 보관, 중간 TSV는 임시 생성 후 삭제)
 - `--connect-timeout` : 연결 타임아웃 초
 
 ---
@@ -119,7 +119,7 @@ PSQL_BIN=/usr/edb/as16/bin/psql ./generate_epas_migration_report.sh
 04_policy_edb_profile.tsv
 04_policy_edb_resource_group.tsv
 04_policy_edb_dblink.tsv
-05_opinion.html
+<DBNAME>.html
 REPORT_INDEX.txt
 
 # SQL source
@@ -133,7 +133,7 @@ migration_report_queries.sql
 ### `01_parameters.tsv`
 - 핵심 점검 파라미터 또는 기본값 대비 변경된 파라미터 목록
 - `check_required = O` 는 반드시 검토 권장
-- `description` 컬럼으로 CRITICAL/WARNING/INFO 성격 파악
+- `description` 컬럼으로 파라미터 영향도 설명 확인
 
 ### `02_summary_*`
 - EDB/Oracle 특화 사용의 **요약 레벨**
@@ -148,16 +148,16 @@ migration_report_queries.sql
 - 이관 시 운영정책 영향이 큰 항목
 - profile/resource group/dblink는 대체 설계 필요성이 큰 편
 
-### `05_opinion.html`
+### `<DBNAME>.html`
 - 비기술 담당자도 보기 쉬운 형태의 최종 소견
 - 1~4 항목이 그룹 단위로 구분된 요약 표 제공 (예: 2-1, 2-2, 2-3)
 - 요약 건수뿐 아니라, 검출된 객체/설정이 무엇인지 항목별 **상세 표** 제공
 - 상세 표 마지막 컬럼에 항목별 소견(대체 가능/조건부 대체 가능/대체 불가) 제공
 
 ### 소견 분류 규칙(상세 표)
-- `파라미터`는 description의 접두어로 자동 분류합니다.
-  - `[CRITICAL]` → 대체 불가(수동 수정 필요)
-  - `[WARNING]` → 조건부 대체 가능
+- `파라미터`는 파라미터 이름 기준으로 자동 분류합니다.
+  - EDB 고유 보안/감사/리소스 제어 파라미터 → 대체 불가(수동 수정 필요)
+  - 문법/동작 차이 유발 파라미터 → 조건부 대체 가능
   - 그 외 → 대체 가능
 - `오라클 키워드/함수`는 대표 키워드 기반으로 분류합니다.
   - 예: `rownum`, `rowid`, `dual` 등은 대체 불가(수동 수정 필요)
@@ -170,8 +170,8 @@ migration_report_queries.sql
 
 1. 사전 백업/스냅샷 확보
 2. 운영계정(또는 점검용 읽기권한 계정)으로 스크립트 실행
-3. `05_opinion.html`로 전체 위험도 확인
-4. `03_detail_*` 기준으로 SQL/PL 코드 수정 Backlog 생성
+3. `<DBNAME>.html`로 전체 위험도 확인
+4. `03_detail_*` 및 `*_raw.tsv` 기준으로 SQL/PL 코드 수정 Backlog 생성
 5. CRITICAL 항목 우선 대체 설계
 6. 테스트 환경에서 회귀 테스트 후 본 이관 계획 확정
 
@@ -216,7 +216,7 @@ PGUSER=enterprisedb \
 
 실행 완료 후:
 
-- `./report_edb_prod/05_opinion.html` 열어서 전체 소견 확인
+- `./report_edb_prod/<DBNAME>.html` 열어서 전체 소견 확인
 - `./report_edb_prod/03_detail_*.tsv` 기준으로 수동 수정 대상 리스트업
 
 ---
@@ -233,3 +233,9 @@ PGUSER=enterprisedb \
 - SQL 정규식에서 과도한 탐지를 유발할 수 있는 불필요 패턴은 제거했습니다.
 - 예: `\M|\m(?:user_[a-z0-9_]+|all_[a-z0-9_]+|dba_[a-z0-9_]+|v\$[a-z0-9_]+)\M` 패턴은 제외했습니다.
 - 표현식 점검도 핵심 함수 위주(`sysdate`, `nvl`, `add_months` 등)로 정리했습니다.
+
+
+## 추가 동작
+
+- `-o` 옵션으로 출력 디렉터리를 지정하면 `*_raw.tsv` 파일이 함께 생성되어 원문(함수/뷰 본문, 표현식)을 확인할 수 있습니다.
+- HTML의 객체명은 클릭 가능한 링크로 표시되며, 문서 하단 **원문 상세** 섹션으로 이동해 원문을 볼 수 있습니다.

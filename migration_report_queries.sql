@@ -34,30 +34,30 @@ FROM (
         END AS default_value,
         setting AS current_value,
         CASE name
-            WHEN 'edb_audit' THEN '[CRITICAL] EDB 전용 감사 기능 (PostgreSQL에서 사용 불가)'
-            WHEN 'edb_audit_archiver' THEN '[CRITICAL] EDB 전용 기능 (PostgreSQL에서 사용 불가)'
-            WHEN 'edb_early_lock_release' THEN '[CRITICAL] EDB 전용 락 제어 (PostgreSQL에서 사용 불가)'
-            WHEN 'edb_max_capture_privileges_policies' THEN '[CRITICAL] EDB 전용 보안 정책 (PostgreSQL에서 사용 불가)'
-            WHEN 'qreplace_function' THEN '[CRITICAL] 쿼리를 자동으로 수정하게 조정 (PostgreSQL에서 사용 불가)'
-            WHEN 'edb_stmt_level_tx' THEN '[CRITICAL] 트랜잭션 내 오류 발생 시 해당 문장만 롤백 여부 (PostgreSQL에서 사용 불가)'
-            WHEN 'data_encryption_key_unwrap_command' THEN '[CRITICAL] EDB 전용 TDE 암호화 제어 (PostgreSQL에서 사용 불가)'
-            WHEN 'edb_max_resource_groups' THEN '[CRITICAL] EDB 전용 리소스 제어 한도 (PostgreSQL에서 사용 불가)'
-            WHEN 'edb_resource_group' THEN '[CRITICAL] EDB 전용 세션별 리소스 할당 (PostgreSQL에서 사용 불가)'
-            WHEN 'edb_redwood_strings' THEN '[WARNING] 빈 문자열과 NULL 처리 방식 변경 (앱 로직 수정 필요)'
-            WHEN 'db_dialect' THEN '[WARNING] 오라클 호환 문법 비활성화 (표준 SQL 재작성 필요)'
-            WHEN 'datestyle' THEN '[WARNING] 날짜 문자열 파싱 이슈 가능 (ISO 통일 필요)'
-            WHEN 'edb_redwood_greatest_least' THEN '[WARNING] GREATEST/LEAST의 NULL 처리 차이 주의'
-            WHEN 'edb_redwood_date' THEN '[WARNING] DATE 시간 정보 유실 위험 (TIMESTAMP 권장)'
-            WHEN 'edb_dynatune' THEN '[WARNING] 자동 메모리 튜닝 상실 (수동 튜닝 필요)'
-            WHEN 'edb_dynatune_profile' THEN '[WARNING] 동적 프로파일링 상실 (work_mem 등 수동 설정 필요)'
-            WHEN 'optimizer_mode' THEN '[WARNING] 오라클 방식 실행 계획 무시됨 (재튜닝 필요)'
-            WHEN 'default_with_rowids' THEN '[WARNING] ROWID 의존 쿼리 비호환 가능'
-            WHEN 'enable_hints' THEN '[WARNING] EDB 힌트 기능 상실 (pg_hint_plan 검토 필요)'
-            WHEN 'oracle_home' THEN '[INFO] 오라클 DB 링크 경로 정보'
-            WHEN 'extension_control_path' THEN '[INFO] EDB 확장 제어 경로'
-            WHEN 'edb_redwood_raw_names' THEN '[INFO] 대문자 객체명 처리 관련'
-            WHEN 'timed_statistics' THEN '[INFO] track_io_timing 등으로 대체 가능'
-            WHEN 'max_generic_plan_partition_size' THEN '[INFO] EDB 전용 제네릭 플랜 제어'
+            WHEN 'edb_audit' THEN 'EDB 전용 감사 기능 (PostgreSQL에서 사용 불가)'
+            WHEN 'edb_audit_archiver' THEN 'EDB 전용 기능 (PostgreSQL에서 사용 불가)'
+            WHEN 'edb_early_lock_release' THEN 'EDB 전용 락 제어 (PostgreSQL에서 사용 불가)'
+            WHEN 'edb_max_capture_privileges_policies' THEN 'EDB 전용 보안 정책 (PostgreSQL에서 사용 불가)'
+            WHEN 'qreplace_function' THEN '쿼리를 자동으로 수정하게 조정 (PostgreSQL에서 사용 불가)'
+            WHEN 'edb_stmt_level_tx' THEN '트랜잭션 내 오류 발생 시 해당 문장만 롤백 여부 (PostgreSQL에서 사용 불가)'
+            WHEN 'data_encryption_key_unwrap_command' THEN 'EDB 전용 TDE 암호화 제어 (PostgreSQL에서 사용 불가)'
+            WHEN 'edb_max_resource_groups' THEN 'EDB 전용 리소스 제어 한도 (PostgreSQL에서 사용 불가)'
+            WHEN 'edb_resource_group' THEN 'EDB 전용 세션별 리소스 할당 (PostgreSQL에서 사용 불가)'
+            WHEN 'edb_redwood_strings' THEN '빈 문자열과 NULL 처리 방식 변경 (앱 로직 수정 필요)'
+            WHEN 'db_dialect' THEN '오라클 호환 문법 비활성화 (표준 SQL 재작성 필요)'
+            WHEN 'datestyle' THEN '날짜 문자열 파싱 이슈 가능 (ISO 통일 필요)'
+            WHEN 'edb_redwood_greatest_least' THEN 'GREATEST/LEAST의 NULL 처리 차이 주의'
+            WHEN 'edb_redwood_date' THEN 'DATE 시간 정보 유실 위험 (TIMESTAMP 권장)'
+            WHEN 'edb_dynatune' THEN '자동 메모리 튜닝 상실 (수동 튜닝 필요)'
+            WHEN 'edb_dynatune_profile' THEN '동적 프로파일링 상실 (work_mem 등 수동 설정 필요)'
+            WHEN 'optimizer_mode' THEN '오라클 방식 실행 계획 무시됨 (재튜닝 필요)'
+            WHEN 'default_with_rowids' THEN 'ROWID 의존 쿼리 비호환 가능'
+            WHEN 'enable_hints' THEN 'EDB 힌트 기능 상실 (pg_hint_plan 검토 필요)'
+            WHEN 'oracle_home' THEN '오라클 DB 링크 경로 정보'
+            WHEN 'extension_control_path' THEN 'EDB 확장 제어 경로'
+            WHEN 'edb_redwood_raw_names' THEN '대문자 객체명 처리 관련'
+            WHEN 'timed_statistics' THEN 'track_io_timing 등으로 대체 가능'
+            WHEN 'max_generic_plan_partition_size' THEN 'EDB 전용 제네릭 플랜 제어'
             ELSE '[UNKNOWN] 기타 파라미터'
         END AS description
     FROM pg_settings
@@ -80,8 +80,8 @@ WHERE
     END
 ORDER BY
     CASE
-        WHEN description LIKE '[CRITICAL]%' THEN 1
-        WHEN description LIKE '[WARNING]%' THEN 2
+        WHEN parameter_name IN ('edb_audit','edb_audit_archiver','edb_early_lock_release','edb_max_capture_privileges_policies','qreplace_function','edb_stmt_level_tx','data_encryption_key_unwrap_command','edb_max_resource_groups','edb_resource_group') THEN 1
+        WHEN parameter_name IN ('edb_redwood_strings','db_dialect','datestyle','edb_redwood_greatest_least','edb_redwood_date','edb_dynatune','edb_dynatune_profile','optimizer_mode','default_with_rowids','enable_hints') THEN 2
         ELSE 3
     END,
     parameter_name;
@@ -218,3 +218,60 @@ SELECT * FROM pg_catalog.edb_resource_group ORDER BY rgrpname;
 SELECT lnkname, lnkowner, lnktype, lnkispublic, lnkuser, lnkconnstr, oid
 FROM pg_catalog.edb_dblink
 ORDER BY lnkname;
+
+
+--@@ summary_packages_raw
+SELECT 'FUNCTION/PROCEDURE' AS object_type,
+       n.nspname AS schema_name,
+       p.proname AS object_name,
+       p.prosrc AS source_text
+FROM pg_proc p
+JOIN pg_namespace n ON p.pronamespace = n.oid
+WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
+UNION ALL
+SELECT 'VIEW' AS object_type,
+       v.schemaname AS schema_name,
+       v.viewname AS object_name,
+       v.definition AS source_text
+FROM pg_views v
+WHERE v.schemaname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb');
+
+--@@ detail_keywords_raw
+SELECT 'FUNCTION/PROCEDURE' AS object_type,
+       n.nspname AS schema_name,
+       p.proname AS object_name,
+       p.prosrc AS source_text
+FROM pg_proc p
+JOIN pg_namespace n ON p.pronamespace = n.oid
+WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
+UNION ALL
+SELECT 'VIEW' AS object_type,
+       v.schemaname AS schema_name,
+       v.viewname AS object_name,
+       v.definition AS source_text
+FROM pg_views v
+WHERE v.schemaname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb');
+
+--@@ detail_expr_raw
+SELECT 'DEFAULT VALUE' AS object_type, n.nspname AS schema_name, c.relname AS table_name, a.attname AS target_name,
+       pg_get_expr(d.adbin, d.adrelid) AS expression
+FROM pg_attrdef d
+JOIN pg_attribute a ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+JOIN pg_class c ON d.adrelid = c.oid
+JOIN pg_namespace n ON c.relnamespace = n.oid
+WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
+UNION ALL
+SELECT 'CHECK CONSTRAINT' AS object_type, n.nspname AS schema_name, c.relname AS table_name, con.conname AS target_name,
+       pg_get_expr(con.conbin, con.conrelid) AS expression
+FROM pg_constraint con
+JOIN pg_class c ON con.conrelid = c.oid
+JOIN pg_namespace n ON c.relnamespace = n.oid
+WHERE con.contype = 'c' AND n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
+UNION ALL
+SELECT 'INDEX EXPRESSION' AS object_type, n.nspname AS schema_name, c.relname AS table_name, i.relname AS target_name,
+       pg_get_expr(idx.indexprs, idx.indrelid) AS expression
+FROM pg_index idx
+JOIN pg_class c ON idx.indrelid = c.oid
+JOIN pg_class i ON idx.indexrelid = i.oid
+JOIN pg_namespace n ON c.relnamespace = n.oid
+WHERE idx.indexprs IS NOT NULL AND n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb');
