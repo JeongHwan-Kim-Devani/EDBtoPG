@@ -224,37 +224,75 @@ ORDER BY lnkname;
 SELECT CASE WHEN p.prokind='p' THEN 'P' ELSE 'F' END AS object_type,
        n.nspname AS schema_name,
        p.proname AS object_name,
-       ('CREATE OR REPLACE ' || CASE WHEN p.prokind='p' THEN 'PROCEDURE ' ELSE 'FUNCTION ' END || n.nspname || '.' || p.proname || E'\n' || COALESCE(pg_catalog.pg_get_function_sqlbody(p.oid), p.prosrc)) AS source_text
+       regexp_replace(
+         'Schema: ' || n.nspname || E'\n' ||
+         'Name: ' || p.proname || E'\n' ||
+         'Result data type: ' || pg_catalog.pg_get_function_result(p.oid) || E'\n' ||
+         'Argument data types: ' || COALESCE(pg_catalog.pg_get_function_arguments(p.oid), '') || E'\n' ||
+         'Type: ' || CASE p.prokind WHEN 'p' THEN 'proc' WHEN 'a' THEN 'agg' WHEN 'w' THEN 'window' ELSE 'func' END || E'\n' ||
+         'Volatility: ' || CASE p.provolatile WHEN 'i' THEN 'immutable' WHEN 's' THEN 'stable' WHEN 'v' THEN 'volatile' ELSE p.provolatile::text END || E'\n' ||
+         'Parallel: ' || CASE p.proparallel WHEN 'r' THEN 'restricted' WHEN 's' THEN 'safe' WHEN 'u' THEN 'unsafe' ELSE p.proparallel::text END || E'\n' ||
+         'Owner: ' || pg_catalog.pg_get_userbyid(p.proowner) || E'\n' ||
+         'Security: ' || CASE WHEN p.prosecdef THEN 'definer' ELSE 'invoker' END || E'\n' ||
+         'Language: ' || l.lanname || E'\n' ||
+         'Source code:' || E'\n' || COALESCE(pg_catalog.pg_get_function_sqlbody(p.oid), p.prosrc),
+         E'[\r\n]+', E'\\n', 'g'
+       ) AS source_text
 FROM pg_proc p
 JOIN pg_namespace n ON p.pronamespace = n.oid
+LEFT JOIN pg_catalog.pg_language l ON l.oid = p.prolang
 WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
 UNION ALL
 SELECT 'V' AS object_type,
        v.schemaname AS schema_name,
        v.viewname AS object_name,
-       v.definition AS source_text
+       regexp_replace(
+         'Schema: ' || v.schemaname || E'\n' ||
+         'Name: ' || v.viewname || E'\n' ||
+         'Type: view' || E'\n' ||
+         'Source code:' || E'\n' || v.definition,
+         E'[\r\n]+', E'\\n', 'g'
+       ) AS source_text
 FROM pg_views v
 WHERE v.schemaname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb');
-
 --@@ detail_keywords_raw
 SELECT CASE WHEN p.prokind='p' THEN 'P' ELSE 'F' END AS object_type,
        n.nspname AS schema_name,
        p.proname AS object_name,
-       ('CREATE OR REPLACE ' || CASE WHEN p.prokind='p' THEN 'PROCEDURE ' ELSE 'FUNCTION ' END || n.nspname || '.' || p.proname || E'\n' || COALESCE(pg_catalog.pg_get_function_sqlbody(p.oid), p.prosrc)) AS source_text
+       regexp_replace(
+         'Schema: ' || n.nspname || E'\n' ||
+         'Name: ' || p.proname || E'\n' ||
+         'Result data type: ' || pg_catalog.pg_get_function_result(p.oid) || E'\n' ||
+         'Argument data types: ' || COALESCE(pg_catalog.pg_get_function_arguments(p.oid), '') || E'\n' ||
+         'Type: ' || CASE p.prokind WHEN 'p' THEN 'proc' WHEN 'a' THEN 'agg' WHEN 'w' THEN 'window' ELSE 'func' END || E'\n' ||
+         'Volatility: ' || CASE p.provolatile WHEN 'i' THEN 'immutable' WHEN 's' THEN 'stable' WHEN 'v' THEN 'volatile' ELSE p.provolatile::text END || E'\n' ||
+         'Parallel: ' || CASE p.proparallel WHEN 'r' THEN 'restricted' WHEN 's' THEN 'safe' WHEN 'u' THEN 'unsafe' ELSE p.proparallel::text END || E'\n' ||
+         'Owner: ' || pg_catalog.pg_get_userbyid(p.proowner) || E'\n' ||
+         'Security: ' || CASE WHEN p.prosecdef THEN 'definer' ELSE 'invoker' END || E'\n' ||
+         'Language: ' || l.lanname || E'\n' ||
+         'Source code:' || E'\n' || COALESCE(pg_catalog.pg_get_function_sqlbody(p.oid), p.prosrc),
+         E'[\r\n]+', E'\\n', 'g'
+       ) AS source_text
 FROM pg_proc p
 JOIN pg_namespace n ON p.pronamespace = n.oid
+LEFT JOIN pg_catalog.pg_language l ON l.oid = p.prolang
 WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
 UNION ALL
 SELECT 'V' AS object_type,
        v.schemaname AS schema_name,
        v.viewname AS object_name,
-       v.definition AS source_text
+       regexp_replace(
+         'Schema: ' || v.schemaname || E'\n' ||
+         'Name: ' || v.viewname || E'\n' ||
+         'Type: view' || E'\n' ||
+         'Source code:' || E'\n' || v.definition,
+         E'[\r\n]+', E'\\n', 'g'
+       ) AS source_text
 FROM pg_views v
 WHERE v.schemaname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb');
-
 --@@ detail_expr_raw
 SELECT 'DEFAULT VALUE' AS object_type, n.nspname AS schema_name, c.relname AS table_name, a.attname AS target_name,
-       pg_get_expr(d.adbin, d.adrelid) AS expression
+       regexp_replace(pg_get_expr(d.adbin, d.adrelid), E'[\r\n]+', E'\\n', 'g') AS expression
 FROM pg_attrdef d
 JOIN pg_attribute a ON d.adrelid = a.attrelid AND d.adnum = a.attnum
 JOIN pg_class c ON d.adrelid = c.oid
@@ -262,14 +300,14 @@ JOIN pg_namespace n ON c.relnamespace = n.oid
 WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
 UNION ALL
 SELECT 'CHECK CONSTRAINT' AS object_type, n.nspname AS schema_name, c.relname AS table_name, con.conname AS target_name,
-       pg_get_expr(con.conbin, con.conrelid) AS expression
+       regexp_replace(pg_get_expr(con.conbin, con.conrelid), E'[\r\n]+', E'\\n', 'g') AS expression
 FROM pg_constraint con
 JOIN pg_class c ON con.conrelid = c.oid
 JOIN pg_namespace n ON c.relnamespace = n.oid
 WHERE con.contype = 'c' AND n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
 UNION ALL
 SELECT 'INDEX EXPRESSION' AS object_type, n.nspname AS schema_name, c.relname AS table_name, i.relname AS target_name,
-       pg_get_expr(idx.indexprs, idx.indrelid) AS expression
+       regexp_replace(pg_get_expr(idx.indexprs, idx.indrelid), E'[\r\n]+', E'\\n', 'g') AS expression
 FROM pg_index idx
 JOIN pg_class c ON idx.indrelid = c.oid
 JOIN pg_class i ON idx.indexrelid = i.oid
