@@ -74,7 +74,7 @@ chmod +x generate_epas_migration_report.sh
 - `-d, --dbname` : DB name (필수)
 - `-U, --user` : DB user (필수)
 - `-W, --password` : DB password
-- `-o, --output` : 출력 디렉터리 (미지정 시 `./<DBNAME>.html`, `./<DBNAME>_source.html`만 최종 보관, 중간 TSV는 임시 생성 후 삭제)
+- `-o, --output` : 출력 디렉터리 (미지정 시 `./<DBNAME>.html`, `./<DBNAME>_source.html`, `./<DBNAME>_sources/`만 최종 보관, 중간 TSV는 임시 생성 후 삭제)
 - `--connect-timeout` : 연결 타임아웃 초
 
 ---
@@ -119,6 +119,7 @@ PSQL_BIN=/usr/edb/as16/bin/psql ./generate_epas_migration_report.sh
 04_policy_edb_dblink.tsv
 <DBNAME>.html
 <DBNAME>_source.html
+<DBNAME>_sources/
 REPORT_INDEX.txt
 
 # SQL source
@@ -234,11 +235,11 @@ PGUSER=enterprisedb \
 ## 추가 동작
 
 - `-o` 옵션으로 출력 디렉터리를 지정하면 `*_raw.tsv` 파일이 함께 생성되어 원문(함수/뷰 본문, 표현식)을 확인할 수 있습니다.
-- HTML의 객체명은 클릭 가능한 링크로 표시되며, 문서 하단 **원문 상세** 섹션으로 이동해 원문을 볼 수 있습니다.
+- HTML의 객체명은 클릭 가능한 링크로 표시되며, 객체별 원문 페이지(`<DBNAME>_sources/src-*.html`)로 바로 이동합니다.
 
 
 ## 원문 상세
 
-- 객체 클릭 시 `<DBNAME>_source.html`로 이동해 원문을 확인합니다.
-- 원문에는 검출 키워드가 하이라이트(`<mark>`) 처리됩니다.
-- `$$__EDBwrapped__$$` 블록/과도한 암호화 문자열 등 불필요 라인은 원문 상세에서 제외됩니다.
+- 객체 클릭 시 `<DBNAME>_sources/src-*.html`로 이동해 원문을 확인합니다.
+- `<DBNAME>_source.html`은 원문 인덱스 페이지이며, 객체/타입/키워드 기준으로 탐색할 수 있습니다.
+- 객체별 페이지에는 **키워드 하이라이트 버전**과 **Raw Full Text(전체 원문)**이 함께 표시됩니다.

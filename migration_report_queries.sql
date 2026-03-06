@@ -224,7 +224,7 @@ ORDER BY lnkname;
 SELECT CASE WHEN p.prokind='p' THEN 'P' ELSE 'F' END AS object_type,
        n.nspname AS schema_name,
        p.proname AS object_name,
-       p.prosrc AS source_text
+       pg_get_functiondef(p.oid) AS source_text
 FROM pg_proc p
 JOIN pg_namespace n ON p.pronamespace = n.oid
 WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
@@ -240,7 +240,7 @@ WHERE v.schemaname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sy
 SELECT CASE WHEN p.prokind='p' THEN 'P' ELSE 'F' END AS object_type,
        n.nspname AS schema_name,
        p.proname AS object_name,
-       p.prosrc AS source_text
+       pg_get_functiondef(p.oid) AS source_text
 FROM pg_proc p
 JOIN pg_namespace n ON p.pronamespace = n.oid
 WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')

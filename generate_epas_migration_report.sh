@@ -59,7 +59,8 @@ SQL_FILE="${SQL_FILE:-$(cd "$(dirname "$0")" && pwd)/migration_report_queries.sq
 DBNAME_SAFE="$(printf '%s' "$DBNAME" | tr -cs '[:alnum:]_.-' '_')"
 HTML_BASENAME="${DBNAME_SAFE}.html"; HTML_PATH="$OUT_DIR/$HTML_BASENAME"
 SOURCE_HTML_BASENAME="${DBNAME_SAFE}_source.html"; SOURCE_HTML_PATH="$OUT_DIR/$SOURCE_HTML_BASENAME"
-export SOURCE_HTML_BASENAME
+SOURCE_DIR_BASENAME="${DBNAME_SAFE}_sources"; SOURCE_DIR_PATH="$OUT_DIR/$SOURCE_DIR_BASENAME"
+export SOURCE_HTML_BASENAME SOURCE_DIR_BASENAME
 
 read_sql(){
   local key="$1" marker="--@@ $1" cap=0 line
@@ -98,13 +99,13 @@ awk -F $'\t' 'NR>1{op="가능"; if($1 ~ /^(edb_audit|edb_audit_archiver|edb_earl
 
 awk -F $'\t' 'NR>1{print $1"\t"$2"\t"$3"\t"$4"\tPACKAGE"}' "$OUT_DIR/02_summary_packages.tsv" > "$OUT_DIR/.f.tsv"
 awk -F $'\t' 'NR>1{print $1"\t"$2"\t"$3"\t"$4"\tKEYWORD"}' "$OUT_DIR/03_detail_keywords.tsv" >> "$OUT_DIR/.f.tsv"
-awk -F $'\t' '{t=$1;s=$2;o=$3;token=$4;k=t SUBSEP s SUBSEP o; if(!((k SUBSEP token) in seen)){seen[k SUBSEP token]=1; toks[k]=(toks[k]?toks[k]", ":"")token}; op="가능"; if(token ~ /^(rownum|rowid|dual|minus|sys_connect_by_path|connect_by_root|connect_by_isleaf|level|pragma|sqlcode|sqlerrm|raise_application_error)$/)op="불가"; if(!((k SUBSEP op) in opseen)){opseen[k SUBSEP op]=1; ops[k]=(ops[k]?ops[k]", ":"")op}; role[k]=($5=="PACKAGE"?(role[k]?role[k]"+":"")"패키지":(role[k]?role[k]"+":"")"키워드")} END{for(k in toks){split(k,a,SUBSEP); ord=(a[1]=="F"?1:(a[1]=="P"?2:3)); tn=(a[1]=="F"?"FUNCTION":(a[1]=="P"?"PROCEDURE":"VIEW")); print ord"\t"a[2]"\t"tn"\t"role[k]"\t"a[2]"."a[3]"\t"toks[k]"\t"ops[k]"\t"a[2]"."a[3]}}' "$OUT_DIR/.f.tsv" | sort -t $'\t' -k1,1n -k2,2 -k5,5 | awk -F $'\t' '{id=$8; gsub(/[^[:alnum:]_.-]/,"_",id); gsub("&","&amp;",$6); gsub("<","&lt;",$6); gsub(">","&gt;",$6); b=(index($7,"불가")?"badge-crit":"badge-ok"); printf "<tr><td><code>%s</code></td><td>%s</td><td><a href=\"%s#src-%s\"><code>%s</code></a></td><td><code>%s</code></td><td><span class=\"badge %s\">%s</span></td></tr>\n",$3,$4,ENVIRON["SOURCE_HTML_BASENAME"],id,$5,$6,b,$7}' > "$FEATURE_ROWS"
+awk -F $'\t' '{t=$1;s=$2;o=$3;token=$4;k=t SUBSEP s SUBSEP o; if(!((k SUBSEP token) in seen)){seen[k SUBSEP token]=1; toks[k]=(toks[k]?toks[k]", ":"")token}; op="가능"; if(token ~ /^(rownum|rowid|dual|minus|sys_connect_by_path|connect_by_root|connect_by_isleaf|level|pragma|sqlcode|sqlerrm|raise_application_error)$/)op="불가"; if(!((k SUBSEP op) in opseen)){opseen[k SUBSEP op]=1; ops[k]=(ops[k]?ops[k]", ":"")op}; role[k]=($5=="PACKAGE"?(role[k]?role[k]"+":"")"패키지":(role[k]?role[k]"+":"")"키워드")} END{for(k in toks){split(k,a,SUBSEP); ord=(a[1]=="F"?1:(a[1]=="P"?2:3)); tn=(a[1]=="F"?"FUNCTION":(a[1]=="P"?"PROCEDURE":"VIEW")); print ord"\t"a[2]"\t"tn"\t"role[k]"\t"a[2]"."a[3]"\t"toks[k]"\t"ops[k]"\t"a[2]"."a[3]}}' "$OUT_DIR/.f.tsv" | sort -t $'\t' -k1,1n -k2,2 -k5,5 | awk -F $'\t' '{id=$8; gsub(/[^[:alnum:]_.-]/,"_",id); gsub("&","&amp;",$6); gsub("<","&lt;",$6); gsub(">","&gt;",$6); b=(index($7,"불가")?"badge-crit":"badge-ok"); printf "<tr><td><code>%s</code></td><td>%s</td><td><a href=\"%s/src-%s.html\"><code>%s</code></a></td><td><code>%s</code></td><td><span class=\"badge %s\">%s</span></td></tr>\n",$3,$4,ENVIRON["SOURCE_DIR_BASENAME"],id,$5,$6,b,$7}' > "$FEATURE_ROWS"
 
 awk -F $'\t' 'NR>1{print $1"\t"$2"\t"$3"\t"$4}' "$OUT_DIR/03_detail_datatypes_objects.tsv" > "$OUT_DIR/.d.tsv"
 awk -F $'\t' 'NR>1{print "T\t"$1"\t"$2"."$3"\t"$4}' "$OUT_DIR/03_detail_datatypes_tables.tsv" >> "$OUT_DIR/.d.tsv"
 awk -F $'\t' '{ord=($1=="P"?1:($1=="F"?2:($1=="V"?3:4))); tn=($1=="P"?"PROCEDURE":($1=="F"?"FUNCTION":($1=="V"?"VIEW":"TABLE COLUMN"))); print ord"\t"$2"\t"tn"\t"$3"\t"$4}' "$OUT_DIR/.d.tsv" | sort -t $'\t' -k1,1n -k2,2 -k4,4 | awk -F $'\t' '{printf "<tr><td><code>%s</code></td><td><code>%s</code></td><td><code>%s</code></td></tr>\n",$3,$4,$5}' > "$DTYPE_ROWS"
 
-awk -F $'\t' 'NR>1{obj=($1=="INDEX EXPRESSION"?$2"."$4:$2"."$3"."$4);k=obj SUBSEP $1; if(!((k SUBSEP $5) in seen)){seen[k SUBSEP $5]=1; kws[k]=(kws[k]?kws[k]", ":"")$5}; op="가능"; if($5 !~ /^(sysdate|systimestamp|add_months|months_between|last_day|next_day|instr)$/)op="불가"; if(!((k SUBSEP op) in opseen)){opseen[k SUBSEP op]=1; ops[k]=(ops[k]?ops[k]", ":"")op}} END{for(k in kws){split(k,a,SUBSEP); print a[1]"\t"a[2]"\t"kws[k]"\t"ops[k]}}' "$OUT_DIR/03_detail_expr_keywords.tsv" | sort -t $'\t' -k1,1 -k2,2 | awk -F $'\t' '{id=$1; gsub(/[^[:alnum:]_.-]/,"_",id); gsub("&","&amp;",$3); gsub("<","&lt;",$3); gsub(">","&gt;",$3); b=(index($4,"불가")?"badge-crit":"badge-ok"); printf "<tr><td><a href=\"%s#src-%s\"><code>%s</code></a></td><td><code>%s</code></td><td><code>%s</code></td><td><span class=\"badge %s\">%s</span></td></tr>\n",ENVIRON["SOURCE_HTML_BASENAME"],id,$1,$2,$3,b,$4}' > "$EXPR_ROWS"
+awk -F $'\t' 'NR>1{obj=($1=="INDEX EXPRESSION"?$2"."$4:$2"."$3"."$4);k=obj SUBSEP $1; if(!((k SUBSEP $5) in seen)){seen[k SUBSEP $5]=1; kws[k]=(kws[k]?kws[k]", ":"")$5}; op="가능"; if($5 !~ /^(sysdate|systimestamp|add_months|months_between|last_day|next_day|instr)$/)op="불가"; if(!((k SUBSEP op) in opseen)){opseen[k SUBSEP op]=1; ops[k]=(ops[k]?ops[k]", ":"")op}} END{for(k in kws){split(k,a,SUBSEP); print a[1]"\t"a[2]"\t"kws[k]"\t"ops[k]}}' "$OUT_DIR/03_detail_expr_keywords.tsv" | sort -t $'\t' -k1,1 -k2,2 | awk -F $'\t' '{id=$1; gsub(/[^[:alnum:]_.-]/,"_",id); gsub("&","&amp;",$3); gsub("<","&lt;",$3); gsub(">","&gt;",$3); b=(index($4,"불가")?"badge-crit":"badge-ok"); printf "<tr><td><a href=\"%s/src-%s.html\"><code>%s</code></a></td><td><code>%s</code></td><td><code>%s</code></td><td><span class=\"badge %s\">%s</span></td></tr>\n",ENVIRON["SOURCE_DIR_BASENAME"],id,$1,$2,$3,b,$4}' > "$EXPR_ROWS"
 
 calc_counts(){ local f="$1" t b; t=$(count_rows "$f"); b=$(count_bad "$f"); echo "$t $((t-b)) $b"; }
 read -r param_total param_ok param_bad < <(calc_counts "$PARAM_ROWS")
@@ -120,14 +121,17 @@ dblink_total=$(row_count_tsv "$OUT_DIR/04_policy_edb_dblink.tsv"); dblink_ok=$db
 # source html best-effort
 if command -v python3 >/dev/null 2>&1 || command -v python >/dev/null 2>&1; then
   PYBIN=$(command -v python3 || command -v python)
-  "$PYBIN" - <<'PY' "$OUT_DIR" "$SOURCE_HTML_PATH"
+  "$PYBIN" - <<'PY' "$OUT_DIR" "$SOURCE_HTML_PATH" "$SOURCE_DIR_PATH"
 import csv,html,re,sys
 from pathlib import Path
-out=Path(sys.argv[1]); target=Path(sys.argv[2])
+out=Path(sys.argv[1]); target=Path(sys.argv[2]); src_dir=Path(sys.argv[3])
+src_dir.mkdir(parents=True, exist_ok=True)
+
 def rows(p):
   if not p.exists(): return []
   with p.open(encoding='utf-8',newline='') as f:
-    r=csv.reader(f,delimiter='	'); next(r,None); return list(r)
+    r=csv.reader(f,delimiter='\t'); next(r,None); return list(r)
+
 def iter_fields(path, size):
   for row in rows(path):
     if not row:
@@ -135,33 +139,62 @@ def iter_fields(path, size):
     if len(row) < size:
       row = row + [''] * (size - len(row))
     elif len(row) > size:
-      row = row[:size-1] + ['	'.join(row[size-1:])]
+      row = row[:size-1] + ['\t'.join(row[size-1:])]
     yield row
+
+def slug(name):
+  return re.sub(r'[^A-Za-z0-9_.-]', '_', name)
+
 kw={}
-for t,s,o,k in iter_fields(out/'03_detail_keywords.tsv', 4): kw.setdefault(f'{s}.{o}',set()).add(k)
-for ot,s,t,tr,k in iter_fields(out/'03_detail_expr_keywords.tsv', 5): kw.setdefault(f'{s}.{tr}' if ot=='INDEX EXPRESSION' else f'{s}.{t}.{tr}',set()).add(k)
-for t,s,o,k in iter_fields(out/'02_summary_packages.tsv', 4): kw.setdefault(f'{s}.{o}',set()).add(k)
+for t,s,o,k in iter_fields(out/'03_detail_keywords.tsv', 4):
+  if k: kw.setdefault(f'{s}.{o}',set()).add(k)
+for ot,s,t,tr,k in iter_fields(out/'03_detail_expr_keywords.tsv', 5):
+  obj = f'{s}.{tr}' if ot=='INDEX EXPRESSION' else f'{s}.{t}.{tr}'
+  if k: kw.setdefault(obj,set()).add(k)
+for t,s,o,k in iter_fields(out/'02_summary_packages.tsv', 4):
+  if k: kw.setdefault(f'{s}.{o}',set()).add(k)
+
 raw={}
-for t,s,o,src in list(iter_fields(out/'02_summary_packages_raw.tsv', 4))+list(iter_fields(out/'03_detail_keywords_raw.tsv', 4)): raw[f'{s}.{o}']=(t,src)
-for ot,s,t,tr,e in iter_fields(out/'03_detail_expr_raw.tsv', 5): raw[f'{s}.{tr}' if ot=='INDEX EXPRESSION' else f'{s}.{t}.{tr}']=(ot,e)
-parts=['<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>원문 상세</title><style>body{font-family:Arial;background:#f8fafc;margin:0}.container{max-width:1200px;margin:0 auto;padding:24px}.card{background:#fff;border:1px solid #ddd;border-radius:10px;padding:14px;margin-bottom:10px}pre{background:#111827;color:#e5e7eb;padding:12px;border-radius:8px;white-space:pre-wrap}mark{background:#fde68a}</style></head><body><div class="container"><h1>원문 상세</h1>']
-for obj,(typ,src) in sorted(raw.items()):
-  kws=sorted(kw.get(obj,[]),key=len,reverse=True)
-  if not kws or '$$__EDBwrapped__' in src: continue
-  lines=[]
-  for ln in src.splitlines():
-    st=ln.strip()
-    if not st: continue
-    if len(st)>200 and re.fullmatch(r'[A-Za-z0-9+/=_$().-]+', st): continue
-    lines.append(ln)
-  txt='\n'.join(lines).strip()
-  if not txt: continue
-  esc=html.escape(txt)
-  for k in kws: esc=re.sub(rf'(?i)\\b({re.escape(k)})\\b', r'<mark>\1</mark>', esc)
-  aid=re.sub(r'[^A-Za-z0-9_.-]','_',obj)
-  parts.append(f'<div class="card" id="src-{aid}"><h3><code>{html.escape(obj)}</code> ({html.escape(typ)})</h3><p>검출 키워드: {html.escape(", ".join(sorted(kws)))}</p><pre>{esc}</pre></div>')
-if len(parts)==2: parts.append('<div class="card">원문 없음</div>')
-parts.append('</div></body></html>')
+for t,s,o,src in list(iter_fields(out/'02_summary_packages_raw.tsv', 4))+list(iter_fields(out/'03_detail_keywords_raw.tsv', 4)):
+  if src:
+    raw[f'{s}.{o}']=(t,src)
+for ot,s,t,tr,e in iter_fields(out/'03_detail_expr_raw.tsv', 5):
+  obj = f'{s}.{tr}' if ot=='INDEX EXPRESSION' else f'{s}.{t}.{tr}'
+  if e:
+    raw[obj]=(ot,e)
+
+objects=[]
+for obj in sorted(set(kw) | set(raw)):
+  kws=sorted(kw.get(obj,[]), key=len, reverse=True)
+  typ,src = raw.get(obj, ('UNKNOWN',''))
+  if not src:
+    src='(원문을 찾지 못했습니다.)'
+  esc=html.escape(src)
+  for k in kws:
+    esc=re.sub(rf'(?i)\\b({re.escape(k)})\\b', r'<mark>\\1</mark>', esc)
+  sid=slug(obj)
+  file_name=f'src-{sid}.html'
+  obj_html = (
+    '<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>'+html.escape(obj)+' 원문</title>'
+    '<style>body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}.container{max-width:1300px;margin:0 auto;padding:22px 30px}.card{background:#fff;border:1px solid #ddd;border-radius:10px;padding:14px;margin-bottom:14px}pre{background:#111827;color:#e5e7eb;padding:12px;border-radius:8px;overflow:auto;white-space:pre-wrap}mark{background:#fde68a}a{color:#1d4ed8}</style></head><body><div class="container">'
+    '<h1><code>'+html.escape(obj)+'</code></h1>'
+    '<p><a href="../'+html.escape(target.name)+'">Back to source index</a></p>'
+    '<div class="card"><h3>객체 정보</h3><p><b>타입:</b> '+html.escape(typ)+'</p><p><b>검출 키워드:</b> '+html.escape(', '.join(kws) if kws else '-')+'</p></div>'
+    '<div class="card"><h3>원문 (키워드 하이라이트)</h3><pre>'+esc+'</pre></div>'
+    '<div class="card"><h3>원문 (Raw Full Text)</h3><pre>'+html.escape(src)+'</pre></div>'
+    '</div></body></html>'
+  )
+  (src_dir/file_name).write_text(obj_html, encoding='utf-8')
+  objects.append((obj, typ, ', '.join(kws) if kws else '-', file_name))
+
+parts=['<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>원문 인덱스</title><style>body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}.container{max-width:1300px;margin:0 auto;padding:24px 36px}.card{background:#fff;border:1px solid #ddd;border-radius:10px;padding:16px;margin-bottom:14px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #d1d5db;padding:8px}th{background:#f3f4f6}code{background:#f3f4f6;padding:2px 4px;border-radius:4px}a{color:#1d4ed8}</style></head><body><div class="container"><h1>원문 인덱스</h1>']
+parts.append('<div class="card"><p>객체명을 클릭하면 전체 원문 페이지로 이동합니다.</p><table><tr><th>객체</th><th>타입</th><th>검출 키워드</th></tr>')
+if objects:
+  for obj, typ, kws, file_name in objects:
+    parts.append('<tr><td><a href="'+html.escape(src_dir.name)+'/'+html.escape(file_name)+'"><code>'+html.escape(obj)+'</code></a></td><td>'+html.escape(typ)+'</td><td>'+html.escape(kws)+'</td></tr>')
+else:
+  parts.append('<tr><td colspan="3">원문 없음</td></tr>')
+parts.append('</table></div></div></body></html>')
 target.write_text('\n'.join(parts),encoding='utf-8')
 PY
 fi
@@ -207,15 +240,21 @@ Output directory : $OUT_DIR
 Connection hints : host=${HOST:-N/A}, port=${PORT:-N/A}, db=${DBNAME:-N/A}, user=${DBUSER:-N/A}
 HTML report      : ${HTML_BASENAME}
 Source HTML      : ${SOURCE_HTML_BASENAME}
+Source directory : ${SOURCE_DIR_BASENAME}/
 TXT
 
 if [[ "$CLEANUP_TEMP" -eq 1 ]]; then
   cp "$HTML_PATH" "./$HTML_BASENAME"
   cp "$SOURCE_HTML_PATH" "./$SOURCE_HTML_BASENAME"
+  if [[ -d "$SOURCE_DIR_PATH" ]]; then
+    rm -rf "./$SOURCE_DIR_BASENAME"
+    cp -R "$SOURCE_DIR_PATH" "./$SOURCE_DIR_BASENAME"
+  fi
   rm -rf "$OUT_DIR"
-  echo "[DONE] Report generated: ./$HTML_BASENAME, ./$SOURCE_HTML_BASENAME (temporary TSV files removed)"
+  echo "[DONE] Report generated: ./$HTML_BASENAME, ./$SOURCE_HTML_BASENAME, ./$SOURCE_DIR_BASENAME/ (temporary TSV files removed)"
 else
   echo "[DONE] Report generated at: $OUT_DIR"
   echo "       Open HTML: $OUT_DIR/$HTML_BASENAME"
   echo "       Source   : $OUT_DIR/$SOURCE_HTML_BASENAME"
+  echo "       Objects  : $OUT_DIR/$SOURCE_DIR_BASENAME/"
 fi
