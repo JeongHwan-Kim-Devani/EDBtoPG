@@ -275,3 +275,13 @@ JOIN pg_class c ON idx.indrelid = c.oid
 JOIN pg_class i ON idx.indexrelid = i.oid
 JOIN pg_namespace n ON c.relnamespace = n.oid
 WHERE idx.indexprs IS NOT NULL AND n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb');
+
+--@@ detail_table_columns_raw
+SELECT table_schema, table_name, column_name,
+       COALESCE(domain_name, udt_name) AS column_type,
+       is_nullable,
+       COALESCE(column_default, '') AS column_default
+FROM information_schema.columns
+WHERE table_schema NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
+ORDER BY table_schema, table_name, ordinal_position;
+

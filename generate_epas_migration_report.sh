@@ -60,7 +60,7 @@ DBNAME_SAFE="$(printf '%s' "$DBNAME" | tr -cs '[:alnum:]_.-' '_')"
 HTML_BASENAME="${DBNAME_SAFE}.html"; HTML_PATH="$OUT_DIR/$HTML_BASENAME"
 SOURCE_HTML_BASENAME="${DBNAME_SAFE}_source.html"; SOURCE_HTML_PATH="$OUT_DIR/$SOURCE_HTML_BASENAME"
 SOURCE_DIR_BASENAME="${DBNAME_SAFE}_sources"; SOURCE_DIR_PATH="$OUT_DIR/$SOURCE_DIR_BASENAME"
-export SOURCE_HTML_BASENAME SOURCE_DIR_BASENAME
+export SOURCE_HTML_BASENAME SOURCE_DIR_BASENAME HTML_BASENAME
 
 read_sql(){
   local key="$1" marker="--@@ $1" cap=0 line
@@ -92,20 +92,21 @@ if table_exists pg_catalog.edb_dblink; then run_tsv "$OUT_DIR/04_policy_edb_dbli
 run_tsv "$OUT_DIR/02_summary_packages_raw.tsv" "$(read_sql summary_packages_raw)"
 run_tsv "$OUT_DIR/03_detail_keywords_raw.tsv" "$(read_sql detail_keywords_raw)"
 run_tsv "$OUT_DIR/03_detail_expr_raw.tsv" "$(read_sql detail_expr_raw)"
+run_tsv "$OUT_DIR/03_detail_table_columns_raw.tsv" "$(read_sql detail_table_columns_raw)"
 
 PARAM_ROWS="$OUT_DIR/.param_rows.html"; FEATURE_ROWS="$OUT_DIR/.feature_rows.html"; DTYPE_ROWS="$OUT_DIR/.dtype_rows.html"; EXPR_ROWS="$OUT_DIR/.expr_rows.html"
 
-awk -F $'\t' 'NR>1{op="가능"; if($1 ~ /^(edb_audit|edb_audit_archiver|edb_early_lock_release|edb_max_capture_privileges_policies|qreplace_function|edb_stmt_level_tx|data_encryption_key_unwrap_command|edb_max_resource_groups|edb_resource_group)$/)op="불가"; for(i=1;i<=NF;i++){gsub("&","&amp;",$i);gsub("<","&lt;",$i);gsub(">","&gt;",$i)}; b=(op=="불가"?"badge-crit":"badge-ok"); printf "<tr><td><code>%s</code></td><td><code>%s</code></td><td><code>%s</code></td><td>%s</td><td><span class=\"badge %s\">%s</span></td></tr>\n",$1,$2,$3,$5,b,op}' "$OUT_DIR/01_parameters.tsv" > "$PARAM_ROWS"
+awk -F $'	' 'NR>1{  op="가능(난이도 낮음)";  if($1 ~ /^(edb_audit|edb_audit_archiver|edb_early_lock_release|edb_max_capture_privileges_policies|qreplace_function|edb_stmt_level_tx|data_encryption_key_unwrap_command|edb_max_resource_groups|edb_resource_group)$/) op="불가";  else if($1 ~ /^(edb_redwood_strings|db_dialect|datestyle|edb_redwood_greatest_least|edb_redwood_date|edb_dynatune|edb_dynatune_profile|optimizer_mode|default_with_rowids|enable_hints)$/) op="가능(난이도 높음)";  for(i=1;i<=NF;i++){gsub("&","&amp;",$i);gsub("<","&lt;",$i);gsub(">","&gt;",$i)};  b=(op=="불가"?"badge-bad":(op=="가능(난이도 높음)"?"badge-high":"badge-low"));  printf "<tr><td><code>%s</code></td><td><code>%s</code></td><td><code>%s</code></td><td>%s</td><td><span class=\"badge %s\">%s</span></td></tr>\n",$1,$2,$3,$5,b,op}' "$OUT_DIR/01_parameters.tsv" > "$PARAM_ROWS"
 
-awk -F $'\t' 'NR>1{print $1"\t"$2"\t"$3"\t"$4"\tPACKAGE"}' "$OUT_DIR/02_summary_packages.tsv" > "$OUT_DIR/.f.tsv"
-awk -F $'\t' 'NR>1{print $1"\t"$2"\t"$3"\t"$4"\tKEYWORD"}' "$OUT_DIR/03_detail_keywords.tsv" >> "$OUT_DIR/.f.tsv"
-awk -F $'\t' '{t=$1;s=$2;o=$3;token=$4;k=t SUBSEP s SUBSEP o; if(!((k SUBSEP token) in seen)){seen[k SUBSEP token]=1; toks[k]=(toks[k]?toks[k]", ":"")token}; op="가능"; if(token ~ /^(rownum|rowid|dual|minus|sys_connect_by_path|connect_by_root|connect_by_isleaf|level|pragma|sqlcode|sqlerrm|raise_application_error)$/)op="불가"; if(!((k SUBSEP op) in opseen)){opseen[k SUBSEP op]=1; ops[k]=(ops[k]?ops[k]", ":"")op}; role[k]=($5=="PACKAGE"?(role[k]?role[k]"+":"")"패키지":(role[k]?role[k]"+":"")"키워드")} END{for(k in toks){split(k,a,SUBSEP); ord=(a[1]=="F"?1:(a[1]=="P"?2:3)); tn=(a[1]=="F"?"FUNCTION":(a[1]=="P"?"PROCEDURE":"VIEW")); print ord"\t"a[2]"\t"tn"\t"role[k]"\t"a[2]"."a[3]"\t"toks[k]"\t"ops[k]"\t"a[2]"."a[3]}}' "$OUT_DIR/.f.tsv" | sort -t $'\t' -k1,1n -k2,2 -k5,5 | awk -F $'\t' '{id=$8; gsub(/[^[:alnum:]_.-]/,"_",id); gsub("&","&amp;",$6); gsub("<","&lt;",$6); gsub(">","&gt;",$6); b=(index($7,"불가")?"badge-crit":"badge-ok"); printf "<tr><td><code>%s</code></td><td>%s</td><td><a href=\"%s/src-%s.html\"><code>%s</code></a></td><td><code>%s</code></td><td><span class=\"badge %s\">%s</span></td></tr>\n",$3,$4,ENVIRON["SOURCE_DIR_BASENAME"],id,$5,$6,b,$7}' > "$FEATURE_ROWS"
+awk -F $'	' 'NR>1{print $1"	"$2"	"$3"	"$4"	PACKAGE"}' "$OUT_DIR/02_summary_packages.tsv" > "$OUT_DIR/.f.tsv"
+awk -F $'	' 'NR>1{print $1"	"$2"	"$3"	"$4"	KEYWORD"}' "$OUT_DIR/03_detail_keywords.tsv" >> "$OUT_DIR/.f.tsv"
+awk -F $'	' '{  t=$1;s=$2;o=$3;token=tolower($4);k=t SUBSEP s SUBSEP o;  if(token=="") token="(검출 키워드 없음)";  if(!((k SUBSEP token) in seen)){seen[k SUBSEP token]=1; toks[k]=(toks[k]?toks[k]", ":"")token};  lv=0;  if(token ~ /^(rownum|rowid|dual|minus|sys_connect_by_path|connect_by_root|connect_by_isleaf|level|pragma|sqlcode|sqlerrm|raise_application_error)$/) lv=2;  else if(token ~ /^(sysdate|systimestamp|nvl|nvl2|decode|add_months|months_between|last_day|next_day|instr|greatest|least|clob|bfile|raw|listagg|wm_concat|substrb|instrb|lengthb)$/) lv=1;  if(lv > level[k]) level[k]=lv;  role[k]=($5=="PACKAGE"?(role[k]?role[k]"+":"")"패키지":(role[k]?role[k]"+":"")"키워드")} END{  for(k in toks){    split(k,a,SUBSEP);    ord=(a[1]=="F"?1:(a[1]=="P"?2:3));    tn=(a[1]=="F"?"FUNCTION":(a[1]=="P"?"PROCEDURE":"VIEW"));    op=(level[k]==2?"불가":(level[k]==1?"가능(난이도 높음)":"가능(난이도 낮음)"));    print ord"	"a[2]"	"tn"	"role[k]"	"a[2]"."a[3]"	"toks[k]"	"op"	"a[2]"."a[3]  }}' "$OUT_DIR/.f.tsv" | sort -t $'	' -k1,1n -k2,2 -k5,5 | awk -F $'	' '{  id=$8; gsub(/[^[:alnum:]_.-]/,"_",id);  gsub("&","&amp;",$6);gsub("<","&lt;",$6);gsub(">","&gt;",$6);  b=($7=="불가"?"badge-bad":($7=="가능(난이도 높음)"?"badge-high":"badge-low"));  printf "<tr><td><code>%s</code></td><td>%s</td><td><a href=\"%s/src-%s.html\"><code>%s</code></a></td><td><code>%s</code></td><td><span class=\"badge %s\">%s</span></td></tr>\n",$3,$4,ENVIRON["SOURCE_DIR_BASENAME"],id,$5,$6,b,$7}' > "$FEATURE_ROWS"
 
-awk -F $'\t' 'NR>1{print $1"\t"$2"\t"$3"\t"$4}' "$OUT_DIR/03_detail_datatypes_objects.tsv" > "$OUT_DIR/.d.tsv"
-awk -F $'\t' 'NR>1{print "T\t"$1"\t"$2"."$3"\t"$4}' "$OUT_DIR/03_detail_datatypes_tables.tsv" >> "$OUT_DIR/.d.tsv"
-awk -F $'\t' '{ord=($1=="P"?1:($1=="F"?2:($1=="V"?3:4))); tn=($1=="P"?"PROCEDURE":($1=="F"?"FUNCTION":($1=="V"?"VIEW":"TABLE COLUMN"))); print ord"\t"$2"\t"tn"\t"$3"\t"$4}' "$OUT_DIR/.d.tsv" | sort -t $'\t' -k1,1n -k2,2 -k4,4 | awk -F $'\t' '{printf "<tr><td><code>%s</code></td><td><code>%s</code></td><td><code>%s</code></td></tr>\n",$3,$4,$5}' > "$DTYPE_ROWS"
+awk -F $'	' 'NR>1{print $1"	"$2"	"$3"	"$4}' "$OUT_DIR/03_detail_datatypes_objects.tsv" > "$OUT_DIR/.d.tsv"
+awk -F $'	' 'NR>1{print "T	"$1"	"$2"."$3"."$4"	"$4}' "$OUT_DIR/03_detail_datatypes_tables.tsv" >> "$OUT_DIR/.d.tsv"
+awk -F $'	' '{  ord=($1=="P"?1:($1=="F"?2:($1=="V"?3:4)));  tn=($1=="P"?"PROCEDURE":($1=="F"?"FUNCTION":($1=="V"?"VIEW":"TABLE COLUMN")));  print ord"	"$2"	"tn"	"$3"	"$4}' "$OUT_DIR/.d.tsv" | sort -t $'	' -k1,1n -k2,2 -k4,4 | awk -F $'	' '{  obj=$4; id=obj; gsub(/[^[:alnum:]_.-]/,"_",id);  printf "<tr><td><code>%s</code></td><td><a href=\"%s/src-%s.html\"><code>%s</code></a></td><td><code>%s</code></td></tr>\n",$3,ENVIRON["SOURCE_DIR_BASENAME"],id,obj,$5}' > "$DTYPE_ROWS"
 
-awk -F $'\t' 'NR>1{obj=($1=="INDEX EXPRESSION"?$2"."$4:$2"."$3"."$4);k=obj SUBSEP $1; if(!((k SUBSEP $5) in seen)){seen[k SUBSEP $5]=1; kws[k]=(kws[k]?kws[k]", ":"")$5}; op="가능"; if($5 !~ /^(sysdate|systimestamp|add_months|months_between|last_day|next_day|instr)$/)op="불가"; if(!((k SUBSEP op) in opseen)){opseen[k SUBSEP op]=1; ops[k]=(ops[k]?ops[k]", ":"")op}} END{for(k in kws){split(k,a,SUBSEP); print a[1]"\t"a[2]"\t"kws[k]"\t"ops[k]}}' "$OUT_DIR/03_detail_expr_keywords.tsv" | sort -t $'\t' -k1,1 -k2,2 | awk -F $'\t' '{id=$1; gsub(/[^[:alnum:]_.-]/,"_",id); gsub("&","&amp;",$3); gsub("<","&lt;",$3); gsub(">","&gt;",$3); b=(index($4,"불가")?"badge-crit":"badge-ok"); printf "<tr><td><a href=\"%s/src-%s.html\"><code>%s</code></a></td><td><code>%s</code></td><td><code>%s</code></td><td><span class=\"badge %s\">%s</span></td></tr>\n",ENVIRON["SOURCE_DIR_BASENAME"],id,$1,$2,$3,b,$4}' > "$EXPR_ROWS"
+awk -F $'	' 'NR>1{  obj=($1=="INDEX EXPRESSION"?$2"."$4:$2"."$3"."$4);  k=obj SUBSEP $1; token=tolower($5); if(token=="") token="(검출 키워드 없음)";  if(!((k SUBSEP token) in seen)){seen[k SUBSEP token]=1; kws[k]=(kws[k]?kws[k]", ":"")token};  lv=0;  if(token ~ /^(rownum|rowid|dual|minus|sys_connect_by_path|connect_by_root|connect_by_isleaf|level|pragma|sqlcode|sqlerrm|raise_application_error)$/) lv=2;  else if(token ~ /^(sysdate|systimestamp|nvl|nvl2|decode|add_months|months_between|last_day|next_day|instr|greatest|least)$/) lv=1;  if(lv > level[k]) level[k]=lv} END{  for(k in kws){split(k,a,SUBSEP); op=(level[k]==2?"불가":(level[k]==1?"가능(난이도 높음)":"가능(난이도 낮음)")); print a[1]"	"a[2]"	"kws[k]"	"op}}' "$OUT_DIR/03_detail_expr_keywords.tsv" | sort -t $'	' -k1,1 -k2,2 | awk -F $'	' '{  id=$1; gsub(/[^[:alnum:]_.-]/,"_",id);  gsub("&","&amp;",$3);gsub("<","&lt;",$3);gsub(">","&gt;",$3);  b=($4=="불가"?"badge-bad":($4=="가능(난이도 높음)"?"badge-high":"badge-low"));  printf "<tr><td><a href=\"%s/src-%s.html\"><code>%s</code></a></td><td><code>%s</code></td><td><code>%s</code></td><td><span class=\"badge %s\">%s</span></td></tr>\n",ENVIRON["SOURCE_DIR_BASENAME"],id,$1,$2,$3,b,$4}' > "$EXPR_ROWS"
 
 calc_counts(){ local f="$1" t b; t=$(count_rows "$f"); b=$(count_bad "$f"); echo "$t $((t-b)) $b"; }
 read -r param_total param_ok param_bad < <(calc_counts "$PARAM_ROWS")
@@ -121,10 +122,10 @@ dblink_total=$(row_count_tsv "$OUT_DIR/04_policy_edb_dblink.tsv"); dblink_ok=$db
 # source html best-effort
 if command -v python3 >/dev/null 2>&1 || command -v python >/dev/null 2>&1; then
   PYBIN=$(command -v python3 || command -v python)
-  "$PYBIN" - <<'PY' "$OUT_DIR" "$SOURCE_HTML_PATH" "$SOURCE_DIR_PATH"
+  "$PYBIN" - <<'PY' "$OUT_DIR" "$SOURCE_HTML_PATH" "$SOURCE_DIR_PATH" "$HTML_BASENAME"
 import csv,html,re,sys
 from pathlib import Path
-out=Path(sys.argv[1]); target=Path(sys.argv[2]); src_dir=Path(sys.argv[3])
+out=Path(sys.argv[1]); target=Path(sys.argv[2]); src_dir=Path(sys.argv[3]); precheck_name=sys.argv[4]
 src_dir.mkdir(parents=True, exist_ok=True)
 
 def rows(p):
@@ -145,74 +146,111 @@ def iter_fields(path, size):
 def slug(name):
   return re.sub(r'[^A-Za-z0-9_.-]', '_', name)
 
+def full_type(t):
+  m={
+    'F':'FUNCTION','P':'PROCEDURE','V':'VIEW','T':'TABLE COLUMN',
+    'DEFAULT VALUE':'DEFAULT VALUE','CHECK CONSTRAINT':'CHECK CONSTRAINT','INDEX EXPRESSION':'INDEX EXPRESSION','UNKNOWN':'UNKNOWN','TABLE':'TABLE'
+  }
+  return m.get(t, t)
+
+def highlight_text(src, kws):
+  esc=html.escape(src)
+  for k in sorted([x for x in kws if x and x != '(검출 키워드 없음)'], key=len, reverse=True):
+    esc=re.sub(rf'(?i)({re.escape(k)})', r'<span class="kw">\\1</span>', esc)
+  return esc
+
 kw={}
 for t,s,o,k in iter_fields(out/'03_detail_keywords.tsv', 4):
-  if k: kw.setdefault(f'{s}.{o}',set()).add(k)
+  obj=f'{s}.{o}'
+  kw.setdefault(obj,set()).add(k.lower() if k else '(검출 키워드 없음)')
 for ot,s,t,tr,k in iter_fields(out/'03_detail_expr_keywords.tsv', 5):
   obj = f'{s}.{tr}' if ot=='INDEX EXPRESSION' else f'{s}.{t}.{tr}'
-  if k: kw.setdefault(obj,set()).add(k)
+  kw.setdefault(obj,set()).add(k.lower() if k else '(검출 키워드 없음)')
 for t,s,o,k in iter_fields(out/'02_summary_packages.tsv', 4):
-  if k: kw.setdefault(f'{s}.{o}',set()).add(k)
+  kw.setdefault(f'{s}.{o}',set()).add(k.lower() if k else '(검출 키워드 없음)')
+for s,t,c,d in iter_fields(out/'03_detail_datatypes_tables.tsv', 4):
+  kw.setdefault(f'{s}.{t}.{c}',set()).add(d.lower() if d else '(검출 키워드 없음)')
 
 raw={}
 for t,s,o,src in list(iter_fields(out/'02_summary_packages_raw.tsv', 4))+list(iter_fields(out/'03_detail_keywords_raw.tsv', 4)):
   if src:
-    raw[f'{s}.{o}']=(t,src)
+    raw[f'{s}.{o}']=(full_type(t),src)
 for ot,s,t,tr,e in iter_fields(out/'03_detail_expr_raw.tsv', 5):
   obj = f'{s}.{tr}' if ot=='INDEX EXPRESSION' else f'{s}.{t}.{tr}'
   if e:
-    raw[obj]=(ot,e)
+    raw[obj]=(full_type(ot),e)
+
+table_lines={}
+for s,t,c,ctype,nullok,default in iter_fields(out/'03_detail_table_columns_raw.tsv', 6):
+  key=f'{s}.{t}'
+  line=f"- {c} {ctype} {'NOT NULL' if (nullok or '').upper()=='NO' else 'NULL'}"
+  if default:
+    line += f" DEFAULT {default}"
+  table_lines.setdefault(key,[]).append(line)
+
+for obj in list(kw.keys()):
+  parts=obj.split('.')
+  if len(parts)==3:
+    table_key=f'{parts[0]}.{parts[1]}'
+    if table_key in table_lines and (obj not in raw or raw[obj][0]=='DEFAULT VALUE'):
+      extra=''
+      if obj in raw and raw[obj][0]=='DEFAULT VALUE':
+        extra='\n\n[Detected Expression]\n'+raw[obj][1]
+      raw[obj]=('TABLE COLUMN', 'TABLE '+table_key+'\n'+'\n'.join(table_lines[table_key])+extra)
 
 objects=[]
 for obj in sorted(set(kw) | set(raw)):
   kws=sorted(kw.get(obj,[]), key=len, reverse=True)
-  typ,src = raw.get(obj, ('UNKNOWN',''))
-  if not src:
-    src='(원문을 찾지 못했습니다.)'
-  esc=html.escape(src)
-  for k in kws:
-    esc=re.sub(rf'(?i)\\b({re.escape(k)})\\b', r'<mark>\\1</mark>', esc)
+  typ,src = raw.get(obj, ('UNKNOWN','(원문을 찾지 못했습니다.)'))
   sid=slug(obj)
   file_name=f'src-{sid}.html'
+  kw_label=', '.join(kws) if kws else '키워드 없음'
+  kw_badge = '<span class="badge badge-none">키워드 없음</span>' if (not kws or kws==['(검출 키워드 없음)']) else html.escape(kw_label)
+  highlighted = highlight_text(src, kws)
+  raw_text = html.escape(src)
   obj_html = (
     '<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>'+html.escape(obj)+' 원문</title>'
-    '<style>body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}.container{max-width:1300px;margin:0 auto;padding:22px 30px}.card{background:#fff;border:1px solid #ddd;border-radius:10px;padding:14px;margin-bottom:14px}pre{background:#111827;color:#e5e7eb;padding:12px;border-radius:8px;overflow:auto;white-space:pre-wrap}mark{background:#fde68a}a{color:#1d4ed8}</style></head><body><div class="container">'
+    '<style>body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}.container{max-width:1300px;margin:0 auto;padding:22px 30px}.card{background:#fff;border:1px solid #ddd;border-radius:10px;padding:14px;margin-bottom:14px}pre{background:#111827;color:#e5e7eb;padding:12px;border-radius:8px;overflow:auto;white-space:pre-wrap}.kw{color:#f59e0b;font-weight:700}.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700}.badge-none{color:#374151;background:#e5e7eb;border:1px solid #d1d5db}a{color:#1d4ed8}</style></head><body><div class="container">'
     '<h1><code>'+html.escape(obj)+'</code></h1>'
-    '<p><a href="../'+html.escape(target.name)+'">Back to source index</a></p>'
-    '<div class="card"><h3>객체 정보</h3><p><b>타입:</b> '+html.escape(typ)+'</p><p><b>검출 키워드:</b> '+html.escape(', '.join(kws) if kws else '-')+'</p></div>'
-    '<div class="card"><h3>원문 (키워드 하이라이트)</h3><pre>'+esc+'</pre></div>'
-    '<div class="card"><h3>원문 (Raw Full Text)</h3><pre>'+html.escape(src)+'</pre></div>'
+    '<p><a href="../'+html.escape(target.name)+'">Back to source index</a> &nbsp;|&nbsp; <a href="../'+html.escape(precheck_name)+'">Back to precheck</a></p>'
+    '<div class="card"><h3>객체 정보</h3><p><b>타입:</b> '+html.escape(full_type(typ))+'</p><p><b>검출 키워드:</b> '+kw_badge+'</p></div>'
+    '<div class="card"><h3>원문 전체 (키워드 색상 강조)</h3><pre>'+highlighted+'</pre></div>'
+    '<div class="card"><h3>원문 전체 (원본)</h3><pre>'+raw_text+'</pre></div>'
     '</div></body></html>'
   )
   (src_dir/file_name).write_text(obj_html, encoding='utf-8')
-  objects.append((obj, typ, ', '.join(kws) if kws else '-', file_name))
+  objects.append((obj, full_type(typ), kws, file_name))
 
-parts=['<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>원문 인덱스</title><style>body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}.container{max-width:1300px;margin:0 auto;padding:24px 36px}.card{background:#fff;border:1px solid #ddd;border-radius:10px;padding:16px;margin-bottom:14px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #d1d5db;padding:8px}th{background:#f3f4f6}code{background:#f3f4f6;padding:2px 4px;border-radius:4px}a{color:#1d4ed8}</style></head><body><div class="container"><h1>원문 인덱스</h1>']
-parts.append('<div class="card"><p>객체명을 클릭하면 전체 원문 페이지로 이동합니다.</p><table><tr><th>객체</th><th>타입</th><th>검출 키워드</th></tr>')
+parts=['<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>원문 인덱스</title><style>body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}.container{max-width:1300px;margin:0 auto;padding:24px 36px}.card{background:#fff;border:1px solid #ddd;border-radius:10px;padding:16px;margin-bottom:14px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #d1d5db;padding:8px}th{background:#f3f4f6}code{background:#f3f4f6;padding:2px 4px;border-radius:4px}a{color:#1d4ed8}.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700}.badge-none{color:#374151;background:#e5e7eb;border:1px solid #d1d5db}</style></head><body><div class="container"><h1>원문 인덱스</h1>']
+parts.append('<div class="card"><p><a href="'+html.escape(precheck_name)+'">Back to precheck</a></p><p>객체명을 클릭하면 전체 원문 페이지로 이동합니다.</p><table><tr><th>객체</th><th>타입</th><th>검출 키워드</th></tr>')
 if objects:
   for obj, typ, kws, file_name in objects:
-    parts.append('<tr><td><a href="'+html.escape(src_dir.name)+'/'+html.escape(file_name)+'"><code>'+html.escape(obj)+'</code></a></td><td>'+html.escape(typ)+'</td><td>'+html.escape(kws)+'</td></tr>')
+    if kws and kws != ['(검출 키워드 없음)']:
+      kw_cell=html.escape(', '.join(kws))
+    else:
+      kw_cell='<span class="badge badge-none">키워드 없음</span>'
+    parts.append('<tr><td><a href="'+html.escape(src_dir.name)+'/'+html.escape(file_name)+'"><code>'+html.escape(obj)+'</code></a></td><td>'+html.escape(typ)+'</td><td>'+kw_cell+'</td></tr>')
 else:
   parts.append('<tr><td colspan="3">원문 없음</td></tr>')
 parts.append('</table></div></div></body></html>')
-target.write_text('\n'.join(parts),encoding='utf-8')
+target.write_text('\\n'.join(parts),encoding='utf-8')
 PY
 fi
 [[ -f "$SOURCE_HTML_PATH" ]] || echo '<!doctype html><html><body><h1>원문 상세</h1><p>원문 페이지를 생성하지 못했습니다.</p></body></html>' > "$SOURCE_HTML_PATH"
 
 default_row_if_empty(){ [[ -s "$1" ]] && cat "$1" || printf '<tr><td colspan="%s">검출 없음</td></tr>' "$2"; }
-syn_rows_html=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s.%s</code></td><td><code>%s.%s</code></td><td><span class=\"badge badge-ok\">가능</span></td></tr>\n",$1,$2,$3,$4}' "$OUT_DIR/02_summary_synonyms.tsv")
-rls_rows_html=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s.%s</code></td><td><code>%s</code></td><td>%s</td><td><span class=\"badge badge-ok\">가능</span></td></tr>\n",$1,$2,$3,$6}' "$OUT_DIR/02_summary_policies.tsv")
-profile_rows_html=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s</code></td><td><span class=\"badge badge-ok\">가능</span></td></tr>\n",$2}' "$OUT_DIR/04_policy_edb_profile.tsv")
-rg_rows_html=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s</code></td><td>%s</td><td><span class=\"badge badge-ok\">가능</span></td></tr>\n",$4,$2}' "$OUT_DIR/04_policy_edb_resource_group.tsv")
-dblink_rows_html=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s</code></td><td>%s</td><td><code>%s</code></td><td><span class=\"badge badge-ok\">가능</span></td></tr>\n",$1,$5,$6}' "$OUT_DIR/04_policy_edb_dblink.tsv")
+syn_rows_html=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s.%s</code></td><td><code>%s.%s</code></td><td><span class=\"badge badge-low\">가능(난이도 낮음)</span></td></tr>\n",$1,$2,$3,$4}' "$OUT_DIR/02_summary_synonyms.tsv")
+rls_rows_html=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s.%s</code></td><td><code>%s</code></td><td>%s</td><td><span class=\"badge badge-low\">가능(난이도 낮음)</span></td></tr>\n",$1,$2,$3,$6}' "$OUT_DIR/02_summary_policies.tsv")
+profile_rows_html=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s</code></td><td><span class=\"badge badge-low\">가능(난이도 낮음)</span></td></tr>\n",$2}' "$OUT_DIR/04_policy_edb_profile.tsv")
+rg_rows_html=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s</code></td><td>%s</td><td><span class=\"badge badge-low\">가능(난이도 낮음)</span></td></tr>\n",$4,$2}' "$OUT_DIR/04_policy_edb_resource_group.tsv")
+dblink_rows_html=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s</code></td><td>%s</td><td><code>%s</code></td><td><span class=\"badge badge-low\">가능(난이도 낮음)</span></td></tr>\n",$1,$5,$6}' "$OUT_DIR/04_policy_edb_dblink.tsv")
 
 cat > "$HTML_PATH" <<HTML
 <!doctype html><html lang="ko"><head><meta charset="utf-8"><title>EPAS to PostgreSQL Precheck - ${DBNAME}</title>
-<style>body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}.container{max-width:1300px;margin:0 auto;padding:24px 44px}.card{background:#fff;border:1px solid #ddd;border-radius:10px;padding:16px;margin-bottom:16px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #d1d5db;padding:8px}th{background:#f3f4f6}.group-title td{background:#e0e7ff;font-weight:700}.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700}.badge-crit{color:#991b1b;background:#fee2e2;border:1px solid #fecaca}.badge-ok{color:#065f46;background:#d1fae5;border:1px solid #a7f3d0}code{background:#f3f4f6;padding:2px 4px;border-radius:4px}</style></head><body><div class="container">
+<style>body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}.container{max-width:1300px;margin:0 auto;padding:24px 44px}.card{background:#fff;border:1px solid #ddd;border-radius:10px;padding:16px;margin-bottom:16px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #d1d5db;padding:8px}th{background:#f3f4f6}.group-title td{background:#e0e7ff;font-weight:700}.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700}.badge-bad{color:#991b1b;background:#fee2e2;border:1px solid #fecaca}.badge-high{color:#92400e;background:#fef3c7;border:1px solid #fcd34d}.badge-low{color:#065f46;background:#d1fae5;border:1px solid #a7f3d0}.badge-none{color:#374151;background:#e5e7eb;border:1px solid #d1d5db}code{background:#f3f4f6;padding:2px 4px;border-radius:4px}</style></head><body><div class="container">
 <h1>EPAS to PostgreSQL Precheck</h1>
 <div class="card"><h2>요약</h2><table>
-<tr><th>항목</th><th>검출 건수</th><th>가능</th><th>불가</th><th>설명</th></tr>
+<tr><th>항목</th><th>검출 건수</th><th>가능(난이도 낮음)</th><th>불가</th><th>설명</th></tr>
 <tr class="group-title"><td colspan="5">1. 파라미터</td></tr><tr><td>1-1. 파라미터</td><td>${param_total}</td><td>${param_ok}</td><td>${param_bad}</td><td>핵심 파라미터 + 변경값</td></tr>
 <tr class="group-title"><td colspan="5">2. EDB(Oracle) 특화기능 Summary</td></tr><tr><td>2-1. 특화기능+키워드</td><td>${feature_total}</td><td>${feature_ok}</td><td>${feature_bad}</td><td>패키지/키워드</td></tr><tr><td>2-2. 시노님</td><td>${syn_total}</td><td>${syn_ok}</td><td>${syn_bad}</td><td>시노님</td></tr><tr><td>2-3. 정책(RLS)</td><td>${rls_total}</td><td>${rls_ok}</td><td>${rls_bad}</td><td>RLS 정책</td></tr>
 <tr class="group-title"><td colspan="5">3. 디테일 (user created)</td></tr><tr><td>3-1. 오라클 데이터타입</td><td>${dtype_total}</td><td>${dtype_ok}</td><td>${dtype_bad}</td><td>객체/테이블</td></tr><tr><td>3-2. 표현식</td><td>${expr_total}</td><td>${expr_ok}</td><td>${expr_bad}</td><td>기본값/제약조건/인덱스</td></tr>
