@@ -14,15 +14,21 @@ Options:
   -U, --user USER       (required)
   -W, --password PASS
   -o, --output DIR      Output directory (if omitted, only HTMLs are kept in cwd)
+  -c, --compress TYPE   tar | gz
   --connect-timeout SEC
   --help
 USAGE
 }
 
+if [[ $# -eq 0 ]]; then
+  usage
+  exit 0
+fi
+
 PSQL_BIN="${PSQL_BIN:-psql}"
 HOST="${PGHOST:-localhost}"; PORT="${PGPORT:-5444}"
 DBNAME="${PGDATABASE:-}"; DBUSER="${PGUSER:-}"; DBPASSWORD="${PGPASSWORD:-}"
-OUT_DIR=""; CONNECT_TIMEOUT=5; CLEANUP_TEMP=0
+OUT_DIR=""; CONNECT_TIMEOUT=5; CLEANUP_TEMP=0; COMPRESS=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -33,6 +39,7 @@ while [[ $# -gt 0 ]]; do
     -U|--user) DBUSER="$2"; shift 2 ;;
     -W|--password) DBPASSWORD="$2"; shift 2 ;;
     -o|--output) OUT_DIR="$2"; shift 2 ;;
+    -c|--compress) COMPRESS="$2"; shift 2 ;;
     --connect-timeout) CONNECT_TIMEOUT="$2"; shift 2 ;;
     -s|--schema|--oracle-checks) shift; [[ "$1" != -* ]] && shift || true ;;
     --) shift; break ;;
@@ -48,6 +55,10 @@ if [[ -z "$OUT_DIR" ]]; then
 fi
 
 [[ -n "$DBNAME" && -n "$DBUSER" ]] || { echo "[ERROR] --dbname and --user are required." >&2; exit 1; }
+if [[ -n "$COMPRESS" && "$COMPRESS" != "tar" && "$COMPRESS" != "gz" ]]; then
+  echo "[ERROR] --compress must be one of: tar, gz" >&2
+  exit 1
+fi
 command -v "$PSQL_BIN" >/dev/null 2>&1 || { echo "[ERROR] psql not found" >&2; exit 1; }
 
 export PGHOST="$HOST" PGPORT="$PORT" PGDATABASE="$DBNAME" PGUSER="$DBUSER" PGCONNECT_TIMEOUT="$CONNECT_TIMEOUT"
@@ -308,4 +319,39 @@ else
   echo "       Open HTML: $OUT_DIR/$HTML_BASENAME"
   echo "       Source   : $OUT_DIR/$SOURCE_HTML_BASENAME"
   echo "       Objects  : $OUT_DIR/$SOURCE_DIR_BASENAME/"
+fi
+
+if [[ -n "$COMPRESS" ]]; then
+  if ! command -v tar >/dev/null 2>&1; then
+    echo "[ERROR] compression requested but 'tar' is not installed" >&2
+    exit 1
+  fi
+  if [[ "$COMPRESS" == "gz" ]] && ! command -v gzip >/dev/null 2>&1; then
+    echo "[ERROR] compression requested but 'gzip' is not installed" >&2
+    exit 1
+  fi
+
+  if [[ "$CLEANUP_TEMP" -eq 1 ]]; then
+    items=("$HTML_BASENAME" "$SOURCE_HTML_BASENAME")
+    [[ -d "./$SOURCE_DIR_BASENAME" ]] && items+=("$SOURCE_DIR_BASENAME")
+    archive_base="${DBNAME_SAFE}_report"
+    if [[ "$COMPRESS" == "tar" ]]; then
+      tar -cf "${archive_base}.tar" "${items[@]}"
+      echo "[DONE] Compressed: ./${archive_base}.tar"
+    else
+      tar -czf "${archive_base}.tar.gz" "${items[@]}"
+      echo "[DONE] Compressed: ./${archive_base}.tar.gz"
+    fi
+  else
+    parent_dir=$(dirname "$OUT_DIR")
+    out_name=$(basename "$OUT_DIR")
+    archive_base="$OUT_DIR"
+    if [[ "$COMPRESS" == "tar" ]]; then
+      tar -cf "${archive_base}.tar" -C "$parent_dir" "$out_name"
+      echo "[DONE] Compressed: ${archive_base}.tar"
+    else
+      tar -czf "${archive_base}.tar.gz" -C "$parent_dir" "$out_name"
+      echo "[DONE] Compressed: ${archive_base}.tar.gz"
+    fi
+  fi
 fi
