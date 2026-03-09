@@ -78,12 +78,16 @@ bash generate_epas_migration_report.sh -d <DBNAME> -U <USER> -o ./out -c gz
 
 ## 6) 출력물
 
+요약 카드 제목에는 `요약 (DB NAME : <dbname>)` 형식으로 DB 이름을 함께 표기한다.
+
 기본적으로 `-o <DIR>` 아래 생성:
 
 - `01_parameters.tsv`
 - `02_summary_packages.tsv`
 - `02_summary_synonyms.tsv`
 - `02_summary_policies.tsv`
+- `02_summary_policies_dbms_rls.tsv`
+- `02_summary_redaction.tsv`
 - `03_detail_keywords.tsv`
 - `03_detail_datatypes_objects.tsv`
 - `03_detail_datatypes_tables.tsv`
@@ -97,6 +101,8 @@ bash generate_epas_migration_report.sh -d <DBNAME> -U <USER> -o ./out -c gz
 - `REPORT_INDEX.txt`
 
 ## 7) 판정 기준
+
+구분 컬럼은 반복 문자열(예: `키워드+키워드+키워드`) 대신 집계 표기(예: `키워드(3)`, `패키지(5)+키워드(3)`)로 출력된다.
 
 HTML 판정 배지:
 
@@ -119,7 +125,13 @@ HTML 판정 배지:
 
 `DBMS_CRYPTO`, `DBMS_CRYPTO.HASH`, `DBMS_CRYPTO.ENCRYPT` 같은 형태를 검출 대상으로 포함한다.
 
-## 9) 트러블슈팅
+## 9) RLS / Redaction 보강
+
+- `pg_policies` 기반 RLS 조회에 더해 `sys.all_policies`(DBMS_RLS 계열 메타) 조회를 추가로 수행한다.
+- Redaction은 `edb_redaction_policy`, `edb_redaction_column`을 사용해 정책/컬럼/마스킹 함수 정보를 수집한다.
+- 해당 카탈로그/뷰가 없는 버전에서는 자동으로 빈 TSV를 생성하고 계속 진행한다.
+
+## 10) 트러블슈팅
 
 ### `ERR_FILE_NOT_FOUND` (객체 링크 클릭 시)
 
@@ -141,7 +153,7 @@ HTML 판정 배지:
 - 원문 인덱스/객체 HTML이 생성되지 않을 수 있음
 - 요약 HTML/TSV는 계속 생성됨
 
-## 10) 보안 주의사항
+## 11) 보안 주의사항
 
 - `-W`로 비밀번호를 직접 전달하면 히스토리에 남을 수 있다.
 - 가능하면 `PGPASSWORD` 환경변수 또는 `.pgpass` 사용을 권장한다.

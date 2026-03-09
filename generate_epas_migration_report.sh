@@ -106,6 +106,8 @@ run_tsv "$OUT_DIR/01_parameters.tsv" "$(read_sql parameters)"
 run_tsv "$OUT_DIR/02_summary_packages.tsv" "$(read_sql summary_packages)"
 run_tsv "$OUT_DIR/02_summary_synonyms.tsv" "$(read_sql summary_synonyms)" || true
 run_tsv "$OUT_DIR/02_summary_policies.tsv" "$(read_sql summary_policies)"
+if table_exists sys.all_policies; then run_tsv "$OUT_DIR/02_summary_policies_dbms_rls.tsv" "$(read_sql summary_policies_dbms_rls)"; else : > "$OUT_DIR/02_summary_policies_dbms_rls.tsv"; fi
+if table_exists public.edb_redaction_policy && table_exists public.edb_redaction_column; then run_tsv "$OUT_DIR/02_summary_redaction.tsv" "$(read_sql summary_redaction)"; elif table_exists pg_catalog.edb_redaction_policy && table_exists pg_catalog.edb_redaction_column; then run_tsv "$OUT_DIR/02_summary_redaction.tsv" "$(read_sql summary_redaction)"; else : > "$OUT_DIR/02_summary_redaction.tsv"; fi
 run_tsv "$OUT_DIR/03_detail_keywords.tsv" "$(read_sql detail_keywords)"
 run_tsv "$OUT_DIR/03_detail_datatypes_objects.tsv" "$(read_sql detail_datatypes_objects)"
 run_tsv "$OUT_DIR/03_detail_datatypes_tables.tsv" "$(read_sql detail_datatypes_tables)"
@@ -125,7 +127,29 @@ awk -F $'	' 'NR>1{  op="가능(난이도 낮음)";  if($1 ~ /^(edb_audit|edb_aud
 
 awk -F $'	' 'NR>1{print $1"	"$2"	"$3"	"$4"	PACKAGE"}' "$OUT_DIR/02_summary_packages.tsv" > "$OUT_DIR/.f.tsv"
 awk -F $'	' 'NR>1{print $1"	"$2"	"$3"	"$4"	KEYWORD"}' "$OUT_DIR/03_detail_keywords.tsv" >> "$OUT_DIR/.f.tsv"
-awk -F $'	' '{  t=$1;s=$2;o=$3;token=tolower($4);k=t SUBSEP s SUBSEP o;  if(token=="") token="(검출 키워드 없음)";  if(!((k SUBSEP token) in seen)){seen[k SUBSEP token]=1; toks[k]=(toks[k]?toks[k]", ":"")token};  lv=0;  if(token ~ /^(rownum|rowid|dual|minus|sys_connect_by_path|connect_by_root|connect_by_isleaf|level|pragma|sqlcode|sqlerrm|raise_application_error)$/) lv=2;  else if(token ~ /^(dbms_crypto(\.[a-z0-9_]+)?|dbms_[a-z0-9_]+|utl_[a-z0-9_]+|owa_[a-z0-9_]+|htp\.[a-z0-9_]+|htf\.[a-z0-9_]+|sysdate|systimestamp|nvl|nvl2|decode|add_months|months_between|last_day|next_day|instr|greatest|least|clob|bfile|raw|listagg|wm_concat|substrb|instrb|lengthb)$/) lv=1;  if(lv > level[k]) level[k]=lv;  role[k]=($5=="PACKAGE"?(role[k]?role[k]"+":"")"패키지":(role[k]?role[k]"+":"")"키워드")} END{  for(k in toks){    split(k,a,SUBSEP);    ord=(a[1]=="F"?1:(a[1]=="P"?2:3));    tn=(a[1]=="F"?"FUNCTION":(a[1]=="P"?"PROCEDURE":"VIEW"));    op=(level[k]==2?"불가":(level[k]==1?"가능(난이도 높음)":"가능(난이도 낮음)"));    print ord"	"a[2]"	"tn"	"role[k]"	"a[2]"."a[3]"	"toks[k]"	"op"	"a[2]"."a[3]  }}' "$OUT_DIR/.f.tsv" | sort -t $'	' -k1,1n -k2,2 -k5,5 | awk -F $'	' '{  id=$8; gsub(/[^[:alnum:]_.-]/,"_",id);  gsub("&","&amp;",$6);gsub("<","&lt;",$6);gsub(">","&gt;",$6);  b=($7=="불가"?"badge-bad":($7=="가능(난이도 높음)"?"badge-high":"badge-low"));  printf "<tr><td><code>%s</code></td><td>%s</td><td><a href=\"%s/src-%s.html\"><code>%s</code></a></td><td><code>%s</code></td><td><span class=\"badge %s\">%s</span></td></tr>\n",$3,$4,ENVIRON["SOURCE_DIR_BASENAME"],id,$5,$6,b,$7}' > "$FEATURE_ROWS"
+awk -F $'	' '{
+  t=$1; s=$2; o=$3; token=tolower($4); k=t SUBSEP s SUBSEP o
+  if(token=="") token="(검출 키워드 없음)"
+  if(!((k SUBSEP token) in seen)){seen[k SUBSEP token]=1; toks[k]=(toks[k]?toks[k]", ":"")token}
+  cat=($5=="PACKAGE"?"패키지":"키워드")
+  if(!((k SUBSEP cat SUBSEP token) in seen_cat)){seen_cat[k SUBSEP cat SUBSEP token]=1; cat_cnt[k SUBSEP cat]++}
+  lv=0
+  if(token ~ /^(rownum|rowid|dual|minus|sys_connect_by_path|connect_by_root|connect_by_isleaf|level|pragma|sqlcode|sqlerrm|raise_application_error)$/) lv=2
+  else if(token ~ /^(dbms_crypto(\.[a-z0-9_]+)?|dbms_[a-z0-9_]+|utl_[a-z0-9_]+|owa_[a-z0-9_]+|htp\.[a-z0-9_]+|htf\.[a-z0-9_]+|sysdate|systimestamp|nvl|nvl2|decode|add_months|months_between|last_day|next_day|instr|greatest|least|clob|bfile|raw|listagg|wm_concat|substrb|instrb|lengthb)$/) lv=1
+  if(lv > level[k]) level[k]=lv
+} END{
+  for(k in toks){
+    split(k,a,SUBSEP)
+    ord=(a[1]=="F"?1:(a[1]=="P"?2:3))
+    tn=(a[1]=="F"?"FUNCTION":(a[1]=="P"?"PROCEDURE":"VIEW"))
+    op=(level[k]==2?"불가":(level[k]==1?"가능(난이도 높음)":"가능(난이도 낮음)"))
+    pkg=cat_cnt[k SUBSEP "패키지"]+0
+    kw=cat_cnt[k SUBSEP "키워드"]+0
+    role=(pkg>0?"패키지(" pkg ")":"")
+    if(kw>0) role=(role?role"+":"")"키워드(" kw ")"
+    print ord"	"a[2]"	"tn"	"role"	"a[2]"."a[3]"	"toks[k]"	"op"	"a[2]"."a[3]
+  }
+}' "$OUT_DIR/.f.tsv" | sort -t $'	' -k1,1n -k2,2 -k5,5 | awk -F $'	'  '{  id=$8; gsub(/[^[:alnum:]_.-]/,"_",id);  gsub("&","&amp;",$6);gsub("<","&lt;",$6);gsub(">","&gt;",$6);  b=($7=="불가"?"badge-bad":($7=="가능(난이도 높음)"?"badge-high":"badge-low"));  printf "<tr><td><code>%s</code></td><td>%s</td><td><a href=\"%s/src-%s.html\"><code>%s</code></a></td><td><code>%s</code></td><td><span class=\"badge %s\">%s</span></td></tr>\n",$3,$4,ENVIRON["SOURCE_DIR_BASENAME"],id,$5,$6,b,$7}' > "$FEATURE_ROWS"
 
 awk -F $'	' 'NR>1{print $1"	"$2"	"$3"	"$4}' "$OUT_DIR/03_detail_datatypes_objects.tsv" > "$OUT_DIR/.d.tsv"
 awk -F $'\t' 'NR>1{print "T\t"$1"\t"$1"."$2"."$3"\t"$4}' "$OUT_DIR/03_detail_datatypes_tables.tsv" >> "$OUT_DIR/.d.tsv"
@@ -139,7 +163,10 @@ set -- $(calc_counts "$FEATURE_ROWS"); feature_total="$1"; feature_ok="$2"; feat
 set -- $(calc_counts "$EXPR_ROWS"); expr_total="$1"; expr_ok="$2"; expr_bad="$3"
 dtype_total=$(count_rows "$DTYPE_ROWS"); dtype_ok=$dtype_total; dtype_bad=0
 syn_total=$(row_count_tsv "$OUT_DIR/02_summary_synonyms.tsv"); syn_ok=$syn_total; syn_bad=0
-rls_total=$(row_count_tsv "$OUT_DIR/02_summary_policies.tsv"); rls_ok=$rls_total; rls_bad=0
+rls_pg_total=$(row_count_tsv "$OUT_DIR/02_summary_policies.tsv")
+rls_dbms_total=$(row_count_tsv "$OUT_DIR/02_summary_policies_dbms_rls.tsv")
+rls_total=$((rls_pg_total + rls_dbms_total)); rls_ok=$rls_total; rls_bad=0
+redaction_total=$(row_count_tsv "$OUT_DIR/02_summary_redaction.tsv"); redaction_ok=$redaction_total; redaction_bad=0
 profile_total=$(row_count_tsv "$OUT_DIR/04_policy_edb_profile.tsv"); profile_ok=$profile_total; profile_bad=0
 rg_total=$(row_count_tsv "$OUT_DIR/04_policy_edb_resource_group.tsv"); rg_ok=$rg_total; rg_bad=0
 dblink_total=$(row_count_tsv "$OUT_DIR/04_policy_edb_dblink.tsv"); dblink_ok=$dblink_total; dblink_bad=0
@@ -277,7 +304,10 @@ fi
 
 default_row_if_empty(){ [[ -s "$1" ]] && cat "$1" || printf '<tr><td colspan="%s">검출 없음</td></tr>' "$2"; }
 syn_rows_html=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s.%s</code></td><td><code>%s.%s</code></td><td><span class=\"badge badge-low\">가능(난이도 낮음)</span></td></tr>\n",$1,$2,$3,$4}' "$OUT_DIR/02_summary_synonyms.tsv")
-rls_rows_html=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s.%s</code></td><td><code>%s</code></td><td>%s</td><td><span class=\"badge badge-low\">가능(난이도 낮음)</span></td></tr>\n",$1,$2,$3,$6}' "$OUT_DIR/02_summary_policies.tsv")
+rls_pg_rows=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s.%s</code></td><td><code>%s</code></td><td>%s</td><td><span class=\"badge badge-low\">가능(난이도 낮음)</span></td></tr>\n",$1,$2,$3,$6}' "$OUT_DIR/02_summary_policies.tsv")
+rls_dbms_rows=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s.%s</code></td><td><code>%s</code></td><td>%s.%s</td><td><span class=\"badge badge-low\">가능(난이도 낮음)</span></td></tr>\n",$2,$3,$5,$7,$8}' "$OUT_DIR/02_summary_policies_dbms_rls.tsv")
+rls_rows_html="${rls_pg_rows}${rls_dbms_rows}"
+redaction_rows_html=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s.%s</code></td><td><code>%s</code></td><td><code>%s</code></td><td><span class=\"badge badge-high\">가능(난이도 높음)</span></td></tr>\n",$1,$2,$3,$4}' "$OUT_DIR/02_summary_redaction.tsv")
 profile_rows_html=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s</code></td><td><span class=\"badge badge-low\">가능(난이도 낮음)</span></td></tr>\n",$2}' "$OUT_DIR/04_policy_edb_profile.tsv")
 rg_rows_html=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s</code></td><td>%s</td><td><span class=\"badge badge-low\">가능(난이도 낮음)</span></td></tr>\n",$4,$2}' "$OUT_DIR/04_policy_edb_resource_group.tsv")
 dblink_rows_html=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s</code></td><td>%s</td><td><code>%s</code></td><td><span class=\"badge badge-low\">가능(난이도 낮음)</span></td></tr>\n",$1,$5,$6}' "$OUT_DIR/04_policy_edb_dblink.tsv")
@@ -286,10 +316,10 @@ cat > "$HTML_PATH" <<HTML
 <!doctype html><html lang="ko"><head><meta charset="utf-8"><title>EPAS to PostgreSQL Precheck - ${DBNAME}</title>
 <style>body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}.container{max-width:1300px;margin:0 auto;padding:24px 44px}.card{background:#fff;border:1px solid #ddd;border-radius:10px;padding:16px;margin-bottom:16px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #d1d5db;padding:8px}th{background:#f3f4f6}.group-title td{background:#e0e7ff;font-weight:700}.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700}.badge-bad{color:#991b1b;background:#fee2e2;border:1px solid #fecaca}.badge-high{color:#92400e;background:#fef3c7;border:1px solid #fcd34d}.badge-low{color:#065f46;background:#d1fae5;border:1px solid #a7f3d0}.badge-none{color:#374151;background:#e5e7eb;border:1px solid #d1d5db}code{background:#f3f4f6;padding:2px 4px;border-radius:4px}</style></head><body><div class="container">
 <h1>EPAS to PostgreSQL Precheck</h1>
-<div class="card"><h2>요약</h2><table>
+<div class="card"><h2>요약 (DB NAME : ${DBNAME})</h2><table>
 <tr><th>항목</th><th>검출 건수</th><th>가능</th><th>불가</th><th>설명</th></tr>
 <tr class="group-title"><td colspan="5">1. 파라미터</td></tr><tr><td>1-1. 파라미터</td><td>${param_total}</td><td>${param_ok}</td><td>${param_bad}</td><td>핵심 파라미터 + 변경값</td></tr>
-<tr class="group-title"><td colspan="5">2. EDB(Oracle) 특화기능 Summary</td></tr><tr><td>2-1. 특화기능+키워드</td><td>${feature_total}</td><td>${feature_ok}</td><td>${feature_bad}</td><td>패키지/키워드</td></tr><tr><td>2-2. 시노님</td><td>${syn_total}</td><td>${syn_ok}</td><td>${syn_bad}</td><td>시노님</td></tr><tr><td>2-3. 정책(RLS)</td><td>${rls_total}</td><td>${rls_ok}</td><td>${rls_bad}</td><td>RLS 정책</td></tr>
+<tr class="group-title"><td colspan="5">2. EDB(Oracle) 특화기능 Summary</td></tr><tr><td>2-1. 특화기능+키워드</td><td>${feature_total}</td><td>${feature_ok}</td><td>${feature_bad}</td><td>패키지/키워드</td></tr><tr><td>2-2. 시노님</td><td>${syn_total}</td><td>${syn_ok}</td><td>${syn_bad}</td><td>시노님</td></tr><tr><td>2-3. 정책(RLS)</td><td>${rls_total}</td><td>${rls_ok}</td><td>${rls_bad}</td><td>pg_policies + sys.all_policies</td></tr><tr><td>2-4. Redaction</td><td>${redaction_total}</td><td>${redaction_ok}</td><td>${redaction_bad}</td><td>edb_redaction_*</td></tr>
 <tr class="group-title"><td colspan="5">3. 디테일 (user created)</td></tr><tr><td>3-1. 오라클 데이터타입</td><td>${dtype_total}</td><td>${dtype_ok}</td><td>${dtype_bad}</td><td>객체/테이블</td></tr><tr><td>3-2. 표현식</td><td>${expr_total}</td><td>${expr_ok}</td><td>${expr_bad}</td><td>기본값/제약조건/인덱스</td></tr>
 <tr class="group-title"><td colspan="5">4. 폴리시 디테일 (user created)</td></tr><tr><td>4-1. 프로파일</td><td>${profile_total}</td><td>${profile_ok}</td><td>${profile_bad}</td><td>non-default</td></tr><tr><td>4-2. 리소스 그룹</td><td>${rg_total}</td><td>${rg_ok}</td><td>${rg_bad}</td><td>resource group</td></tr><tr><td>4-3. DBLINK</td><td>${dblink_total}</td><td>${dblink_ok}</td><td>${dblink_bad}</td><td>dblink</td></tr>
 </table></div>
@@ -298,6 +328,7 @@ cat > "$HTML_PATH" <<HTML
 <h3>2-1. 특화기능+키워드 (총 ${feature_total}건)</h3><table><tr><th>타입</th><th>구분</th><th>객체</th><th>검출 내용</th><th>판정</th></tr>$(default_row_if_empty "$FEATURE_ROWS" 5)</table>
 <h3>2-2. 시노님 (총 ${syn_total}건)</h3><table><tr><th>시노님</th><th>대상 객체</th><th>판정</th></tr>$( [ -n "$syn_rows_html" ] && echo "$syn_rows_html" || echo '<tr><td colspan="3">검출 없음</td></tr>' )</table>
 <h3>2-3. 정책(RLS) (총 ${rls_total}건)</h3><table><tr><th>대상 테이블</th><th>정책명</th><th>명령</th><th>판정</th></tr>$( [ -n "$rls_rows_html" ] && echo "$rls_rows_html" || echo '<tr><td colspan="4">검출 없음</td></tr>' )</table>
+<h3>2-4. Redaction (총 ${redaction_total}건)</h3><table><tr><th>대상 테이블</th><th>정책명</th><th>컬럼</th><th>판정</th></tr>$( [ -n "$redaction_rows_html" ] && echo "$redaction_rows_html" || echo '<tr><td colspan="4">검출 없음</td></tr>' )</table>
 <h3>3-1. 오라클 데이터타입 (총 ${dtype_total}건)</h3><table><tr><th>타입</th><th>객체</th><th>데이터타입</th></tr>$(default_row_if_empty "$DTYPE_ROWS" 3)</table>
 <h3>3-2. 표현식 (총 ${expr_total}건)</h3><table><tr><th>객체</th><th>타입</th><th>검출 키워드</th><th>판정</th></tr>$(default_row_if_empty "$EXPR_ROWS" 4)</table>
 <h3>4-1. 프로파일 (총 ${profile_total}건)</h3><table><tr><th>프로파일</th><th>판정</th></tr>$( [ -n "$profile_rows_html" ] && echo "$profile_rows_html" || echo '<tr><td colspan="2">검출 없음</td></tr>' )</table>
@@ -316,6 +347,7 @@ Connection hints : host=${HOST:-N/A}, port=${PORT:-N/A}, db=${DBNAME:-N/A}, user
 HTML report      : ${HTML_BASENAME}
 Source HTML      : ${SOURCE_HTML_BASENAME}
 Source directory : ${SOURCE_DIR_BASENAME}/
+Compatibility   : OS[RHEL 7/8/9, Ubuntu 20/22/24], EPAS[9.6/10/14/17]
 TXT
 
 echo "[DONE] Report generated at: $OUT_DIR"

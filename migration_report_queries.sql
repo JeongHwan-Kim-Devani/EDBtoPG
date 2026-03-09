@@ -130,6 +130,26 @@ FROM pg_policies
 WHERE schemaname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
 ORDER BY schemaname, tablename, policyname;
 
+
+--@@ summary_policies_dbms_rls
+SELECT object_owner, schema_name, object_name, policy_group, policy_name, pf_owner, package, function
+FROM sys.all_policies
+ORDER BY schema_name, object_name, policy_name;
+
+--@@ summary_redaction
+SELECT
+    n.nspname AS schema_name,
+    c.relname AS table_name,
+    p.rdname AS policy_name,
+    a.attname AS column_name,
+    pg_get_expr(rc.rdfuncexpr, rc.rdrelid) AS mask_function
+FROM edb_redaction_policy p
+JOIN edb_redaction_column rc ON p.oid = rc.rdpolicyid
+JOIN pg_class c ON p.rdrelid = c.oid
+JOIN pg_namespace n ON c.relnamespace = n.oid
+JOIN pg_attribute a ON rc.rdrelid = a.attrelid AND rc.rdattnum = a.attnum
+ORDER BY schema_name, table_name, policy_name;
+
 --@@ detail_keywords
 SELECT object_type, schema_name, object_name, detected_keyword
 FROM (
