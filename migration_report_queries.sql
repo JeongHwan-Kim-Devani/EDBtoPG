@@ -100,7 +100,7 @@ FROM (
         m[1] AS feature
     FROM pg_proc p
     JOIN pg_namespace n ON p.pronamespace = n.oid,
-    LATERAL regexp_matches(lower(p.prosrc), '(\m(?:dbms_[a-z0-9_]+|utl_[a-z0-9_]+|owa_[a-z0-9_]+|htp\.[a-z0-9_]+|htf\.[a-z0-9_]+)\M)', 'g') AS m
+    LATERAL regexp_matches(lower(p.prosrc), '(\m(?:dbms_crypto(?:\.[a-z0-9_]+)?|dbms_[a-z0-9_]+|utl_[a-z0-9_]+|owa_[a-z0-9_]+|htp\.[a-z0-9_]+|htf\.[a-z0-9_]+)\M)', 'g') AS m
     WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
       AND n.nspname NOT LIKE 'dbms_%'
       AND n.nspname NOT LIKE 'utl_%'
@@ -111,7 +111,7 @@ FROM (
         v.viewname AS object_name,
         m[1] AS feature
     FROM pg_views v,
-    LATERAL regexp_matches(lower(v.definition), '(\m(?:dbms_[a-z0-9_]+|utl_[a-z0-9_]+|owa_[a-z0-9_]+|htp\.[a-z0-9_]+|htf\.[a-z0-9_]+)\M)', 'g') AS m
+    LATERAL regexp_matches(lower(v.definition), '(\m(?:dbms_crypto(?:\.[a-z0-9_]+)?|dbms_[a-z0-9_]+|utl_[a-z0-9_]+|owa_[a-z0-9_]+|htp\.[a-z0-9_]+|htf\.[a-z0-9_]+)\M)', 'g') AS m
     WHERE v.schemaname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
       AND v.schemaname NOT LIKE 'dbms_%'
       AND v.schemaname NOT LIKE 'utl_%'
@@ -137,13 +137,13 @@ FROM (
            m[1] AS detected_keyword
     FROM pg_proc p
     JOIN pg_namespace n ON p.pronamespace = n.oid,
-    LATERAL regexp_matches(lower(p.prosrc), '(\m(?:clob|bfile|raw|greatest|least|sysdate|systimestamp|rownum|rowid|level|nvl|nvl2|decode|add_months|months_between|last_day|next_day|instr|listagg|wm_concat|dual|minus|sys_connect_by_path|connect_by_root|connect_by_isleaf|pragma|sqlcode|sqlerrm|raise_application_error|numtodsinterval|numtoyminterval|sys_extract_utc|tz_offset|dbtimezone|sessiontimezone|lnnvl|nanvl|ratio_to_report|substrb|instrb|lengthb)\M)', 'g') AS m
+    LATERAL regexp_matches(lower(p.prosrc), '(\m(?:dbms_crypto(?:\.[a-z0-9_]+)?|clob|bfile|raw|greatest|least|sysdate|systimestamp|rownum|rowid|level|nvl|nvl2|decode|add_months|months_between|last_day|next_day|instr|listagg|wm_concat|dual|minus|sys_connect_by_path|connect_by_root|connect_by_isleaf|pragma|sqlcode|sqlerrm|raise_application_error|numtodsinterval|numtoyminterval|sys_extract_utc|tz_offset|dbtimezone|sessiontimezone|lnnvl|nanvl|ratio_to_report|substrb|instrb|lengthb)\M)', 'g') AS m
     WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
     UNION ALL
     SELECT 'V' AS object_type, v.schemaname AS schema_name, v.viewname AS object_name,
            m[1] AS detected_keyword
     FROM pg_views v,
-    LATERAL regexp_matches(lower(v.definition), '(\m(?:clob|bfile|raw|greatest|least|sysdate|systimestamp|rownum|rowid|level|nvl|nvl2|decode|add_months|months_between|last_day|next_day|instr|listagg|wm_concat|dual|minus|sys_connect_by_path|connect_by_root|connect_by_isleaf|pragma|sqlcode|sqlerrm|raise_application_error|numtodsinterval|numtoyminterval|sys_extract_utc|tz_offset|dbtimezone|sessiontimezone|lnnvl|nanvl|ratio_to_report|substrb|instrb|lengthb)\M)', 'g') AS m
+    LATERAL regexp_matches(lower(v.definition), '(\m(?:dbms_crypto(?:\.[a-z0-9_]+)?|clob|bfile|raw|greatest|least|sysdate|systimestamp|rownum|rowid|level|nvl|nvl2|decode|add_months|months_between|last_day|next_day|instr|listagg|wm_concat|dual|minus|sys_connect_by_path|connect_by_root|connect_by_isleaf|pragma|sqlcode|sqlerrm|raise_application_error|numtodsinterval|numtoyminterval|sys_extract_utc|tz_offset|dbtimezone|sessiontimezone|lnnvl|nanvl|ratio_to_report|substrb|instrb|lengthb)\M)', 'g') AS m
     WHERE v.schemaname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
 ) z
 ORDER BY schema_name, CASE object_type WHEN 'P' THEN 1 WHEN 'F' THEN 2 WHEN 'V' THEN 3 ELSE 9 END, object_name;
