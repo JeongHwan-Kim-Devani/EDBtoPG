@@ -17,6 +17,14 @@ EPAS 환경에서 PostgreSQL 이관 전에 확인해야 할 Oracle/EDB 특화 �
 - Bash
 - `psql`
 - `python3` (원문 HTML 생성용, 없으면 요약 HTML만 생성)
+
+### OS 호환 기준
+
+- Ubuntu 20.04+
+- Rocky Linux 8.x
+- RHEL 6+
+
+`sh script.sh ...` 형태로 실행하더라도 내부에서 Bash 비-POSIX 모드로 재실행하도록 처리되어, 오래된 배포판의 `/bin/sh` 차이로 인한 구문 오류를 피하도록 구성되어 있다.
 - 압축 옵션 사용 시:
   - `tar` (`-c tar`, `-c gz` 공통)
   - `gzip` (`-c gz`일 때 추가 필요)
@@ -122,6 +130,11 @@ HTML 판정 배지:
 
 - `-c tar`/`-c gz` 사용 시 `tar` 설치 확인
 - `-c gz` 사용 시 `gzip` 설치 확인
+
+### `syntax error near unexpected token "<"`
+
+- `sh`가 POSIX 모드로 스크립트를 실행하면 process substitution(`<<`/`< <(...)`) 구문에서 오류가 발생할 수 있다.
+- 현재 스크립트는 Bash 모드 재실행 + 비 process-substitution 방식으로 수정되어 Rocky/RHEL 계열에서도 동일하게 동작하도록 했다.
 
 ### Python 미설치
 

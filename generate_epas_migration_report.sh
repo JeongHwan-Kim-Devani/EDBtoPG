@@ -2,6 +2,9 @@
 if [ -z "${BASH_VERSION:-}" ]; then
   exec bash "$0" "$@"
 fi
+if shopt -oq posix 2>/dev/null; then
+  exec bash "$0" "$@"
+fi
 set -euo pipefail
 
 usage(){ cat <<'USAGE'
@@ -87,6 +90,16 @@ table_exists(){ [[ "$(run_scalar "SELECT to_regclass('$1') IS NOT NULL;")" == "t
 row_count_tsv(){ [[ -s "$1" ]] && awk 'END{print (NR>0?NR-1:0)}' "$1" || echo 0; }
 count_rows(){ [[ -s "$1" ]] && wc -l < "$1" | xargs || echo 0; }
 count_bad(){ [[ -s "$1" ]] && awk '/불가/{c++} END{print c+0}' "$1" || echo 0; }
+safe_remove_dir(){
+  local d="$1"
+  if [[ -z "$d" || "$d" == "/" || "$d" == "." ]]; then
+    echo "[ERROR] refusing to delete unsafe path: $d" >&2
+    return 1
+  fi
+  [[ -d "$d" ]] || return 0
+  find "$d" -mindepth 1 -delete
+  rmdir "$d"
+}
 
 # data exports
 run_tsv "$OUT_DIR/01_parameters.tsv" "$(read_sql parameters)"
@@ -121,9 +134,9 @@ awk -F $'\t' '{  ord=($1=="P"?1:($1=="F"?2:($1=="V"?3:4)));  tn=($1=="P"?"PROCED
 awk -F $'	' 'NR>1{  obj=($1=="INDEX EXPRESSION"?$2"."$4:$2"."$3"."$4);  k=obj SUBSEP $1; token=tolower($5); if(token=="") token="(검출 키워드 없음)";  if(!((k SUBSEP token) in seen)){seen[k SUBSEP token]=1; kws[k]=(kws[k]?kws[k]", ":"")token};  lv=0;  if(token ~ /^(rownum|rowid|dual|minus|sys_connect_by_path|connect_by_root|connect_by_isleaf|level|pragma|sqlcode|sqlerrm|raise_application_error)$/) lv=2;  else if(token ~ /^(dbms_crypto(\.[a-z0-9_]+)?|dbms_[a-z0-9_]+|utl_[a-z0-9_]+|owa_[a-z0-9_]+|htp\.[a-z0-9_]+|htf\.[a-z0-9_]+|sysdate|systimestamp|nvl|nvl2|decode|add_months|months_between|last_day|next_day|instr|greatest|least)$/) lv=1;  if(lv > level[k]) level[k]=lv} END{  for(k in kws){split(k,a,SUBSEP); op=(level[k]==2?"불가":(level[k]==1?"가능(난이도 높음)":"가능(난이도 낮음)")); print a[1]"	"a[2]"	"kws[k]"	"op}}' "$OUT_DIR/03_detail_expr_keywords.tsv" | sort -t $'	' -k1,1 -k2,2 | awk -F $'	' '{  id=$1; gsub(/[^[:alnum:]_.-]/,"_",id);  gsub("&","&amp;",$3);gsub("<","&lt;",$3);gsub(">","&gt;",$3);  b=($4=="불가"?"badge-bad":($4=="가능(난이도 높음)"?"badge-high":"badge-low"));  printf "<tr><td><a href=\"%s/src-%s.html\"><code>%s</code></a></td><td><code>%s</code></td><td><code>%s</code></td><td><span class=\"badge %s\">%s</span></td></tr>\n",ENVIRON["SOURCE_DIR_BASENAME"],id,$1,$2,$3,b,$4}' > "$EXPR_ROWS"
 
 calc_counts(){ local f="$1" t b; t=$(count_rows "$f"); b=$(count_bad "$f"); echo "$t $((t-b)) $b"; }
-read -r param_total param_ok param_bad < <(calc_counts "$PARAM_ROWS")
-read -r feature_total feature_ok feature_bad < <(calc_counts "$FEATURE_ROWS")
-read -r expr_total expr_ok expr_bad < <(calc_counts "$EXPR_ROWS")
+set -- $(calc_counts "$PARAM_ROWS"); param_total="$1"; param_ok="$2"; param_bad="$3"
+set -- $(calc_counts "$FEATURE_ROWS"); feature_total="$1"; feature_ok="$2"; feature_bad="$3"
+set -- $(calc_counts "$EXPR_ROWS"); expr_total="$1"; expr_ok="$2"; expr_bad="$3"
 dtype_total=$(count_rows "$DTYPE_ROWS"); dtype_ok=$dtype_total; dtype_bad=0
 syn_total=$(row_count_tsv "$OUT_DIR/02_summary_synonyms.tsv"); syn_ok=$syn_total; syn_bad=0
 rls_total=$(row_count_tsv "$OUT_DIR/02_summary_policies.tsv"); rls_ok=$rls_total; rls_bad=0
@@ -325,11 +338,11 @@ if [[ -n "$COMPRESS" ]]; then
   archive_base="$OUT_DIR"
   if [[ "$COMPRESS" == "tar" ]]; then
     tar -cf "${archive_base}.tar" -C "$parent_dir" "$out_name"
-    rm -rf "$OUT_DIR"
+    safe_remove_dir "$OUT_DIR"
     echo "[DONE] Compressed: ${archive_base}.tar"
   else
     tar -czf "${archive_base}.tar.gz" -C "$parent_dir" "$out_name"
-    rm -rf "$OUT_DIR"
+    safe_remove_dir "$OUT_DIR"
     echo "[DONE] Compressed: ${archive_base}.tar.gz"
   fi
 fi
