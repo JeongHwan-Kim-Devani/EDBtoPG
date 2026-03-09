@@ -6,14 +6,14 @@ set -euo pipefail
 
 usage(){ cat <<'USAGE'
 EPAS -> PostgreSQL pre-diagnostic helper
-Usage: ./generate_epas_migration_report.sh [options] [OUT_DIR]
+Usage: ./generate_epas_migration_report.sh [options]
 Options:
   -h, --host HOST
   -p, --port PORT
   -d, --dbname DBNAME   (required)
   -U, --user USER       (required)
   -W, --password PASS
-  -o, --output DIR      Output directory (if omitted, only HTMLs are kept in cwd)
+  -o, --output DIR      Output directory (required)
   -c, --compress TYPE   tar | gz
   --connect-timeout SEC
   --help
@@ -48,13 +48,13 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+[[ -n "$DBNAME" && -n "$DBUSER" ]] || { echo "[ERROR] --dbname and --user are required." >&2; exit 1; }
 if [[ -z "$OUT_DIR" ]]; then
-  if [[ $# -gt 0 ]]; then OUT_DIR="$1"; shift
-  else OUT_DIR="$(mktemp -d migration_report_tmp_XXXXXX)"; CLEANUP_TEMP=1
-  fi
+  echo "[ERROR] --output (-o) is required." >&2
+  usage
+  exit 1
 fi
 
-[[ -n "$DBNAME" && -n "$DBUSER" ]] || { echo "[ERROR] --dbname and --user are required." >&2; exit 1; }
 if [[ -n "$COMPRESS" && "$COMPRESS" != "tar" && "$COMPRESS" != "gz" ]]; then
   echo "[ERROR] --compress must be one of: tar, gz" >&2
   exit 1
@@ -305,21 +305,10 @@ Source HTML      : ${SOURCE_HTML_BASENAME}
 Source directory : ${SOURCE_DIR_BASENAME}/
 TXT
 
-if [[ "$CLEANUP_TEMP" -eq 1 ]]; then
-  cp "$HTML_PATH" "./$HTML_BASENAME"
-  cp "$SOURCE_HTML_PATH" "./$SOURCE_HTML_BASENAME"
-  if [[ -d "$SOURCE_DIR_PATH" ]]; then
-    rm -rf "./$SOURCE_DIR_BASENAME"
-    cp -R "$SOURCE_DIR_PATH" "./$SOURCE_DIR_BASENAME"
-  fi
-  rm -rf "$OUT_DIR"
-  echo "[DONE] Report generated: ./$HTML_BASENAME, ./$SOURCE_HTML_BASENAME, ./$SOURCE_DIR_BASENAME/ (temporary TSV files removed)"
-else
-  echo "[DONE] Report generated at: $OUT_DIR"
-  echo "       Open HTML: $OUT_DIR/$HTML_BASENAME"
-  echo "       Source   : $OUT_DIR/$SOURCE_HTML_BASENAME"
-  echo "       Objects  : $OUT_DIR/$SOURCE_DIR_BASENAME/"
-fi
+echo "[DONE] Report generated at: $OUT_DIR"
+echo "       Open HTML: $OUT_DIR/$HTML_BASENAME"
+echo "       Source   : $OUT_DIR/$SOURCE_HTML_BASENAME"
+echo "       Objects  : $OUT_DIR/$SOURCE_DIR_BASENAME/"
 
 if [[ -n "$COMPRESS" ]]; then
   if ! command -v tar >/dev/null 2>&1; then
@@ -331,27 +320,16 @@ if [[ -n "$COMPRESS" ]]; then
     exit 1
   fi
 
-  if [[ "$CLEANUP_TEMP" -eq 1 ]]; then
-    items=("$HTML_BASENAME" "$SOURCE_HTML_BASENAME")
-    [[ -d "./$SOURCE_DIR_BASENAME" ]] && items+=("$SOURCE_DIR_BASENAME")
-    archive_base="${DBNAME_SAFE}_report"
-    if [[ "$COMPRESS" == "tar" ]]; then
-      tar -cf "${archive_base}.tar" "${items[@]}"
-      echo "[DONE] Compressed: ./${archive_base}.tar"
-    else
-      tar -czf "${archive_base}.tar.gz" "${items[@]}"
-      echo "[DONE] Compressed: ./${archive_base}.tar.gz"
-    fi
+  parent_dir=$(dirname "$OUT_DIR")
+  out_name=$(basename "$OUT_DIR")
+  archive_base="$OUT_DIR"
+  if [[ "$COMPRESS" == "tar" ]]; then
+    tar -cf "${archive_base}.tar" -C "$parent_dir" "$out_name"
+    rm -rf "$OUT_DIR"
+    echo "[DONE] Compressed: ${archive_base}.tar"
   else
-    parent_dir=$(dirname "$OUT_DIR")
-    out_name=$(basename "$OUT_DIR")
-    archive_base="$OUT_DIR"
-    if [[ "$COMPRESS" == "tar" ]]; then
-      tar -cf "${archive_base}.tar" -C "$parent_dir" "$out_name"
-      echo "[DONE] Compressed: ${archive_base}.tar"
-    else
-      tar -czf "${archive_base}.tar.gz" -C "$parent_dir" "$out_name"
-      echo "[DONE] Compressed: ${archive_base}.tar.gz"
-    fi
+    tar -czf "${archive_base}.tar.gz" -C "$parent_dir" "$out_name"
+    rm -rf "$OUT_DIR"
+    echo "[DONE] Compressed: ${archive_base}.tar.gz"
   fi
 fi

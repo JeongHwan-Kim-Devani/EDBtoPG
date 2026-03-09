@@ -29,13 +29,7 @@ EPAS 환경에서 PostgreSQL 이관 전에 확인해야 할 Oracle/EDB 특화 �
 
 ## 4) 실행 방법
 
-### 기본
-
-```bash
-bash generate_epas_migration_report.sh -d <DBNAME> -U <USER>
-```
-
-### 출력 디렉터리 지정
+### 기본 실행 (`-o` 필수)
 
 ```bash
 bash generate_epas_migration_report.sh -d <DBNAME> -U <USER> -o ./out
@@ -57,6 +51,8 @@ bash generate_epas_migration_report.sh -d <DBNAME> -U <USER> -o ./out -c tar
 bash generate_epas_migration_report.sh -d <DBNAME> -U <USER> -o ./out -c gz
 ```
 
+압축 옵션(`-c`)을 사용하면 압축 파일만 남기고 `-o` 폴더는 자동 삭제된다.
+
 ## 5) 옵션
 
 - `-h, --host` : DB host
@@ -64,16 +60,17 @@ bash generate_epas_migration_report.sh -d <DBNAME> -U <USER> -o ./out -c gz
 - `-d, --dbname` : DB 이름 (필수)
 - `-U, --user` : 사용자 (필수)
 - `-W, --password` : 비밀번호
-- `-o, --output` : 출력 디렉터리
+- `-o, --output` : 출력 디렉터리 (필수)
 - `-c, --compress` : `tar` 또는 `gz`
 - `--connect-timeout` : 접속 타임아웃(초)
 - `--help` : 도움말 출력
 
 > 인자를 하나도 주지 않고 실행하면 도움말만 출력하고 종료한다.
+> 또한 `-o` 옵션이 없으면 스크립트는 에러로 종료한다.
 
 ## 6) 출력물
 
-`-o <DIR>` 사용 시 `<DIR>` 아래 생성:
+기본적으로 `-o <DIR>` 아래 생성:
 
 - `01_parameters.tsv`
 - `02_summary_packages.tsv`
