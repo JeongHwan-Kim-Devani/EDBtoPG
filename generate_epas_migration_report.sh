@@ -93,6 +93,7 @@ run_tsv "$OUT_DIR/02_summary_packages_raw.tsv" "$(read_sql summary_packages_raw)
 run_tsv "$OUT_DIR/03_detail_keywords_raw.tsv" "$(read_sql detail_keywords_raw)"
 run_tsv "$OUT_DIR/03_detail_expr_raw.tsv" "$(read_sql detail_expr_raw)"
 run_tsv "$OUT_DIR/03_detail_table_columns_raw.tsv" "$(read_sql detail_table_columns_raw)"
+run_tsv "$OUT_DIR/03_detail_table_objects_raw.tsv" "$(read_sql detail_table_objects_raw)"
 
 PARAM_ROWS="$OUT_DIR/.param_rows.html"; FEATURE_ROWS="$OUT_DIR/.feature_rows.html"; DTYPE_ROWS="$OUT_DIR/.dtype_rows.html"; EXPR_ROWS="$OUT_DIR/.expr_rows.html"
 
@@ -103,7 +104,7 @@ awk -F $'	' 'NR>1{print $1"	"$2"	"$3"	"$4"	KEYWORD"}' "$OUT_DIR/03_detail_keywor
 awk -F $'	' '{  t=$1;s=$2;o=$3;token=tolower($4);k=t SUBSEP s SUBSEP o;  if(token=="") token="(검출 키워드 없음)";  if(!((k SUBSEP token) in seen)){seen[k SUBSEP token]=1; toks[k]=(toks[k]?toks[k]", ":"")token};  lv=0;  if(token ~ /^(rownum|rowid|dual|minus|sys_connect_by_path|connect_by_root|connect_by_isleaf|level|pragma|sqlcode|sqlerrm|raise_application_error)$/) lv=2;  else if(token ~ /^(sysdate|systimestamp|nvl|nvl2|decode|add_months|months_between|last_day|next_day|instr|greatest|least|clob|bfile|raw|listagg|wm_concat|substrb|instrb|lengthb)$/) lv=1;  if(lv > level[k]) level[k]=lv;  role[k]=($5=="PACKAGE"?(role[k]?role[k]"+":"")"패키지":(role[k]?role[k]"+":"")"키워드")} END{  for(k in toks){    split(k,a,SUBSEP);    ord=(a[1]=="F"?1:(a[1]=="P"?2:3));    tn=(a[1]=="F"?"FUNCTION":(a[1]=="P"?"PROCEDURE":"VIEW"));    op=(level[k]==2?"불가":(level[k]==1?"가능(난이도 높음)":"가능(난이도 낮음)"));    print ord"	"a[2]"	"tn"	"role[k]"	"a[2]"."a[3]"	"toks[k]"	"op"	"a[2]"."a[3]  }}' "$OUT_DIR/.f.tsv" | sort -t $'	' -k1,1n -k2,2 -k5,5 | awk -F $'	' '{  id=$8; gsub(/[^[:alnum:]_.-]/,"_",id);  gsub("&","&amp;",$6);gsub("<","&lt;",$6);gsub(">","&gt;",$6);  b=($7=="불가"?"badge-bad":($7=="가능(난이도 높음)"?"badge-high":"badge-low"));  printf "<tr><td><code>%s</code></td><td>%s</td><td><a href=\"%s/src-%s.html\"><code>%s</code></a></td><td><code>%s</code></td><td><span class=\"badge %s\">%s</span></td></tr>\n",$3,$4,ENVIRON["SOURCE_DIR_BASENAME"],id,$5,$6,b,$7}' > "$FEATURE_ROWS"
 
 awk -F $'	' 'NR>1{print $1"	"$2"	"$3"	"$4}' "$OUT_DIR/03_detail_datatypes_objects.tsv" > "$OUT_DIR/.d.tsv"
-awk -F $'	' 'NR>1{print "T	"$1"	"$2"."$3"."$4"	"$4}' "$OUT_DIR/03_detail_datatypes_tables.tsv" >> "$OUT_DIR/.d.tsv"
+awk -F $'\t' 'NR>1{print "T\t"$1"\t"$1"."$2"."$3"\t"$4}' "$OUT_DIR/03_detail_datatypes_tables.tsv" >> "$OUT_DIR/.d.tsv"
 awk -F $'\t' '{  ord=($1=="P"?1:($1=="F"?2:($1=="V"?3:4)));  tn=($1=="P"?"PROCEDURE":($1=="F"?"FUNCTION":($1=="V"?"VIEW":"TABLE COLUMN")));  obj=($1=="T"?$3:$2"."$3);  print ord"\t"$2"\t"tn"\t"obj"\t"$4}' "$OUT_DIR/.d.tsv" | sort -t $'\t' -k1,1n -k2,2 -k4,4 | awk -F $'\t' '{  obj=$4; id=obj; gsub(/[^[:alnum:]_.-]/,"_",id);  printf "<tr><td><code>%s</code></td><td><a href=\"%s/src-%s.html\"><code>%s</code></a></td><td><code>%s</code></td></tr>\n",$3,ENVIRON["SOURCE_DIR_BASENAME"],id,obj,$5}' > "$DTYPE_ROWS"
 
 awk -F $'	' 'NR>1{  obj=($1=="INDEX EXPRESSION"?$2"."$4:$2"."$3"."$4);  k=obj SUBSEP $1; token=tolower($5); if(token=="") token="(검출 키워드 없음)";  if(!((k SUBSEP token) in seen)){seen[k SUBSEP token]=1; kws[k]=(kws[k]?kws[k]", ":"")token};  lv=0;  if(token ~ /^(rownum|rowid|dual|minus|sys_connect_by_path|connect_by_root|connect_by_isleaf|level|pragma|sqlcode|sqlerrm|raise_application_error)$/) lv=2;  else if(token ~ /^(sysdate|systimestamp|nvl|nvl2|decode|add_months|months_between|last_day|next_day|instr|greatest|least)$/) lv=1;  if(lv > level[k]) level[k]=lv} END{  for(k in kws){split(k,a,SUBSEP); op=(level[k]==2?"불가":(level[k]==1?"가능(난이도 높음)":"가능(난이도 낮음)")); print a[1]"	"a[2]"	"kws[k]"	"op}}' "$OUT_DIR/03_detail_expr_keywords.tsv" | sort -t $'	' -k1,1 -k2,2 | awk -F $'	' '{  id=$1; gsub(/[^[:alnum:]_.-]/,"_",id);  gsub("&","&amp;",$3);gsub("<","&lt;",$3);gsub(">","&gt;",$3);  b=($4=="불가"?"badge-bad":($4=="가능(난이도 높음)"?"badge-high":"badge-low"));  printf "<tr><td><a href=\"%s/src-%s.html\"><code>%s</code></a></td><td><code>%s</code></td><td><code>%s</code></td><td><span class=\"badge %s\">%s</span></td></tr>\n",ENVIRON["SOURCE_DIR_BASENAME"],id,$1,$2,$3,b,$4}' > "$EXPR_ROWS"
@@ -195,6 +196,11 @@ for s,t,c,ctype,nullok,default in iter_fields(out/'03_detail_table_columns_raw.t
     line += f" DEFAULT {default}"
   table_lines.setdefault(key,[]).append(line)
 
+table_raw={}
+for s,t,src in iter_fields(out/'03_detail_table_objects_raw.tsv', 3):
+  if src:
+    table_raw[f'{s}.{t}']=restore_text(src)
+
 for obj in list(kw.keys()):
   parts=obj.split('.')
   if len(parts)==3:
@@ -203,7 +209,8 @@ for obj in list(kw.keys()):
       extra=''
       if obj in raw and raw[obj][0]=='DEFAULT VALUE':
         extra='\n\n[Detected Expression]\n'+raw[obj][1]
-      raw[obj]=('TABLE COLUMN', 'TABLE '+table_key+'\n'+'\n'.join(table_lines[table_key])+extra)
+      base=table_raw.get(table_key, 'TABLE '+table_key+'\nColumns:\n'+'\n'.join(table_lines[table_key]))
+      raw[obj]=('TABLE COLUMN', base+extra)
 
 objects=[]
 for obj in sorted(set(kw) | set(raw)):

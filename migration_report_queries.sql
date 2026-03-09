@@ -323,3 +323,75 @@ FROM information_schema.columns
 WHERE table_schema NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
 ORDER BY table_schema, table_name, ordinal_position;
 
+
+--@@ detail_table_objects_raw
+WITH tbl AS (
+  SELECT c.oid, n.nspname AS schema_name, c.relname AS table_name
+  FROM pg_class c
+  JOIN pg_namespace n ON n.oid = c.relnamespace
+  WHERE c.relkind IN ('r','p')
+    AND n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
+), cols AS (
+  SELECT t.oid,
+         string_agg(
+           format('  %s | %s | %s | %s',
+             a.attname,
+             pg_catalog.format_type(a.atttypid, a.atttypmod),
+             CASE WHEN a.attnotnull THEN 'not null' ELSE '' END,
+             COALESCE((SELECT pg_catalog.pg_get_expr(d.adbin, d.adrelid, true)
+                       FROM pg_catalog.pg_attrdef d
+                       WHERE d.adrelid = a.attrelid AND d.adnum = a.attnum), '')
+           ), E'\n' ORDER BY a.attnum
+         ) AS val
+  FROM tbl t
+  JOIN pg_attribute a ON a.attrelid = t.oid
+  WHERE a.attnum > 0 AND NOT a.attisdropped
+  GROUP BY t.oid
+), idx AS (
+  SELECT t.oid,
+         string_agg(
+           format('  %s', pg_catalog.pg_get_indexdef(i.indexrelid, 0, true)), E'\n' ORDER BY c2.relname
+         ) AS val
+  FROM tbl t
+  JOIN pg_index i ON i.indrelid = t.oid
+  JOIN pg_class c2 ON c2.oid = i.indexrelid
+  GROUP BY t.oid
+), fk AS (
+  SELECT t.oid,
+         string_agg(
+           format('  %s %s', con.conname, pg_catalog.pg_get_constraintdef(con.oid, true)), E'\n' ORDER BY con.conname
+         ) AS val
+  FROM tbl t
+  JOIN pg_constraint con ON con.conrelid = t.oid
+  WHERE con.contype = 'f'
+  GROUP BY t.oid
+), pol AS (
+  SELECT t.oid,
+         string_agg(
+           format('  %s (%s)', pol.polname,
+             CASE pol.polcmd WHEN 'r' THEN 'SELECT' WHEN 'a' THEN 'INSERT' WHEN 'w' THEN 'UPDATE' WHEN 'd' THEN 'DELETE' ELSE pol.polcmd::text END
+           ), E'\n' ORDER BY pol.polname
+         ) AS val
+  FROM tbl t
+  JOIN pg_policy pol ON pol.polrelid = t.oid
+  GROUP BY t.oid
+)
+SELECT t.schema_name, t.table_name,
+       regexp_replace(
+         format('Table "%s.%s"\n\nColumns:\n%s\n\nIndexes:\n%s\n\nForeign-key constraints:\n%s\n\nPolicies:\n%s',
+           t.schema_name,
+           t.table_name,
+           COALESCE(cols.val, '  (none)'),
+           COALESCE(idx.val, '  (none)'),
+           COALESCE(fk.val, '  (none)'),
+           COALESCE(pol.val, '  (none)')
+         ),
+         E'[\r\n]+', E'\\n', 'g'
+       ) AS source_text
+FROM tbl t
+LEFT JOIN cols ON cols.oid = t.oid
+LEFT JOIN idx ON idx.oid = t.oid
+LEFT JOIN fk ON fk.oid = t.oid
+LEFT JOIN pol ON pol.oid = t.oid
+ORDER BY t.schema_name, t.table_name;
+
