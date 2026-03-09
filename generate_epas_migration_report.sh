@@ -299,6 +299,75 @@ else:
 parts.append('</table></div></div></body></html>')
 target.write_text('\n'.join(parts),encoding='utf-8')
 PY
+else
+  mkdir -p "$SOURCE_DIR_PATH"
+  RAW_MERGED="$OUT_DIR/.raw_merged.tsv"
+  RAW_AGG="$OUT_DIR/.raw_agg.tsv"
+  KW_MERGED="$OUT_DIR/.kw_merged.tsv"
+  KW_AGG="$OUT_DIR/.kw_agg.tsv"
+  IDX_ROWS="$OUT_DIR/.source_index_rows.html"
+
+  : > "$RAW_MERGED"
+  : > "$KW_MERGED"
+
+  awk -F $'	' 'NR>1{print $2"."$3"	"$1"	"$4}' "$OUT_DIR/02_summary_packages_raw.tsv" >> "$RAW_MERGED"
+  awk -F $'	' 'NR>1{print $2"."$3"	"$1"	"$4}' "$OUT_DIR/03_detail_keywords_raw.tsv" >> "$RAW_MERGED"
+  awk -F $'	' 'NR>1{obj=($1=="INDEX EXPRESSION"?$2"."$4:$2"."$3"."$4); print obj"	"$1"	"$5}' "$OUT_DIR/03_detail_expr_raw.tsv" >> "$RAW_MERGED"
+
+  awk -F $'	' 'NR>1{print $2"."$3"	"$4}' "$OUT_DIR/02_summary_packages.tsv" >> "$KW_MERGED"
+  awk -F $'	' 'NR>1{print $2"."$3"	"$4}' "$OUT_DIR/03_detail_keywords.tsv" >> "$KW_MERGED"
+  awk -F $'	' 'NR>1{obj=($1=="INDEX EXPRESSION"?$2"."$4:$2"."$3"."$4); print obj"	"$5}' "$OUT_DIR/03_detail_expr_keywords.tsv" >> "$KW_MERGED"
+  awk -F $'	' 'NR>1{print $1"."$2"."$3"	"$4}' "$OUT_DIR/03_detail_datatypes_tables.tsv" >> "$KW_MERGED"
+
+  awk -F $'	' '!seen[$1]++{print $1"	"$2"	"$3}' "$RAW_MERGED" > "$RAW_AGG"
+  awk -F $'	' '{k=$1; t=tolower($2); if(t=="") t="(검출 키워드 없음)"; if(!seen[k SUBSEP t]++){a[k]=(a[k]?a[k]", ":"")t}} END{for(k in a) print k"	"a[k]}' "$KW_MERGED" > "$KW_AGG"
+
+  : > "$IDX_ROWS"
+  SOURCE_TOTAL=0
+  while IFS= read -r obj; do
+    [ -n "$obj" ] || continue
+    SOURCE_TOTAL=$((SOURCE_TOTAL+1))
+    sid=$(printf '%s' "$obj" | tr -c '[:alnum:]_.-' '_')
+    page="$SOURCE_DIR_PATH/src-$sid.html"
+
+    typ=$(awk -F $'	' -v o="$obj" '$1==o{print $2; exit}' "$RAW_AGG")
+    [ -n "$typ" ] || typ="UNKNOWN"
+    src=$(awk -F $'	' -v o="$obj" '$1==o{print $3; exit}' "$RAW_AGG")
+    [ -n "$src" ] || src='(원문을 찾지 못했습니다.)'
+    kws=$(awk -F $'	' -v o="$obj" '$1==o{print $2; exit}' "$KW_AGG")
+    [ -n "$kws" ] || kws='키워드 없음'
+
+    esc_obj=$(printf '%s' "$obj" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g')
+    esc_typ=$(printf '%s' "$typ" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g')
+    esc_kws=$(printf '%s' "$kws" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g')
+    esc_src=$(printf '%s' "$src" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g')
+    esc_src=$(printf '%s' "$esc_src" | awk '{gsub(/\\n/,"\n"); print}')
+
+    cat > "$page" <<EOF
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${esc_obj} 원문</title>
+<style>body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}.container{max-width:1300px;margin:0 auto;padding:22px 30px}.card{background:#fff;border:1px solid #ddd;border-radius:10px;padding:14px;margin-bottom:14px}pre{background:#111827;color:#e5e7eb;padding:12px;border-radius:8px;overflow:auto;white-space:pre-wrap}a{color:#1d4ed8}code{background:#f3f4f6;padding:2px 4px;border-radius:4px}</style></head><body><div class="container">
+<h1><code>${esc_obj}</code></h1>
+<p><a href="../${SOURCE_HTML_BASENAME}">Back to source index</a> &nbsp;|&nbsp; <a href="../${HTML_BASENAME}">Back to precheck</a></p>
+<div class="card"><h3>객체 정보</h3><p><b>타입:</b> ${esc_typ}</p><p><b>검출 키워드:</b> ${esc_kws}</p></div>
+<div class="card"><h3>원문 전체</h3><pre>${esc_src}</pre></div>
+</div></body></html>
+EOF
+
+    printf '<tr><td><a href="%s/src-%s.html"><code>%s</code></a></td><td>%s</td><td>%s</td></tr>
+' "$SOURCE_DIR_BASENAME" "$sid" "$esc_obj" "$esc_typ" "$esc_kws" >> "$IDX_ROWS"
+  done < <((cut -f1 "$RAW_AGG"; cut -f1 "$KW_AGG") | sort -u)
+
+  cat > "$SOURCE_HTML_PATH" <<EOF
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>원문 인덱스</title>
+<style>body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}.container{max-width:1300px;margin:0 auto;padding:24px 36px}.card{background:#fff;border:1px solid #ddd;border-radius:10px;padding:16px;margin-bottom:14px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #d1d5db;padding:8px}th{background:#f3f4f6}code{background:#f3f4f6;padding:2px 4px;border-radius:4px}a{color:#1d4ed8}</style></head><body><div class="container">
+<h1>원문 인덱스 (총 ${SOURCE_TOTAL}건)</h1>
+<div class="card"><p><a href="${HTML_BASENAME}">Back to precheck</a></p><p>객체명을 클릭하면 전체 원문 페이지로 이동합니다.</p>
+<table><tr><th>객체</th><th>타입</th><th>검출 키워드</th></tr>
+$( [ -s "$IDX_ROWS" ] && cat "$IDX_ROWS" || echo '<tr><td colspan="3">원문 없음</td></tr>' )
+</table></div></div></body></html>
+EOF
+
+  rm -f "$RAW_MERGED" "$RAW_AGG" "$KW_MERGED" "$KW_AGG" "$IDX_ROWS"
 fi
 [[ -f "$SOURCE_HTML_PATH" ]] || echo '<!doctype html><html><body><h1>원문 상세</h1><p>원문 페이지를 생성하지 못했습니다.</p></body></html>' > "$SOURCE_HTML_PATH"
 

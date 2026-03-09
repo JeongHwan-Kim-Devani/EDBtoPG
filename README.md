@@ -16,7 +16,7 @@ EPAS 환경에서 PostgreSQL 이관 전에 확인해야 할 Oracle/EDB 특화 �
 
 - Bash
 - `psql`
-- `python3` (원문 HTML 생성용, 없으면 요약 HTML만 생성)
+- `python3` (선택: 설치 시 고급 하이라이트 원문 페이지 생성)
 
 ### OS 호환 기준
 
@@ -25,6 +25,7 @@ EPAS 환경에서 PostgreSQL 이관 전에 확인해야 할 Oracle/EDB 특화 �
 - RHEL 6+
 
 `sh script.sh ...` 형태로 실행하더라도 내부에서 Bash 비-POSIX 모드로 재실행하도록 처리되어, 오래된 배포판의 `/bin/sh` 차이로 인한 구문 오류를 피하도록 구성되어 있다.
+Python 미설치 시에도 셸 기반 fallback으로 원문 인덱스/객체 페이지를 생성한다(고급 하이라이트는 Python 경로에서 제공).
 - 압축 옵션 사용 시:
   - `tar` (`-c tar`, `-c gz` 공통)
   - `gzip` (`-c gz`일 때 추가 필요)
@@ -150,8 +151,8 @@ HTML 판정 배지:
 
 ### Python 미설치
 
-- 원문 인덱스/객체 HTML이 생성되지 않을 수 있음
-- 요약 HTML/TSV는 계속 생성됨
+- 셸 fallback으로 원문 인덱스/객체 HTML은 계속 생성됨
+- Python 설치 시 키워드 하이라이트 품질/가독성이 더 좋아짐
 
 ## 11) 보안 주의사항
 
