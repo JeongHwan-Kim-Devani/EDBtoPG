@@ -305,6 +305,7 @@ else
   RAW_AGG="$OUT_DIR/.raw_agg.tsv"
   KW_MERGED="$OUT_DIR/.kw_merged.tsv"
   KW_AGG="$OUT_DIR/.kw_agg.tsv"
+  TABLE_RAW_AGG="$OUT_DIR/.table_raw_agg.tsv"
   IDX_ROWS="$OUT_DIR/.source_index_rows.html"
 
   : > "$RAW_MERGED"
@@ -321,6 +322,7 @@ else
 
   awk -F $'	' '!seen[$1]++{print $1"	"$2"	"$3}' "$RAW_MERGED" > "$RAW_AGG"
   awk -F $'	' '{k=$1; t=tolower($2); if(t=="") t="(검출 키워드 없음)"; if(!seen[k SUBSEP t]++){a[k]=(a[k]?a[k]", ":"")t}} END{for(k in a) print k"	"a[k]}' "$KW_MERGED" > "$KW_AGG"
+  awk -F $'	' 'NR>1{print $1"."$2"	"$3}' "$OUT_DIR/03_detail_table_objects_raw.tsv" > "$TABLE_RAW_AGG"
 
   : > "$IDX_ROWS"
   SOURCE_TOTAL=0
@@ -336,6 +338,20 @@ else
     [ -n "$src" ] || src='(원문을 찾지 못했습니다.)'
     kws=$(awk -F $'	' -v o="$obj" '$1==o{print $2; exit}' "$KW_AGG")
     [ -n "$kws" ] || kws='키워드 없음'
+
+    # TABLE COLUMN / DEFAULT VALUE fallback enrichment using table-level raw source
+    table_key=$(printf '%s' "$obj" | awk -F'.' 'NF>=3{print $1"."$2}')
+    if [[ -n "$table_key" ]]; then
+      table_src=$(awk -F $'	' -v k="$table_key" '$1==k{print $2; exit}' "$TABLE_RAW_AGG")
+      if [[ -n "$table_src" ]]; then
+        if [[ "$typ" == "UNKNOWN" ]]; then
+          typ="TABLE COLUMN"
+          src="$table_src"
+        elif [[ "$typ" == "DEFAULT VALUE" || "$typ" == "CHECK CONSTRAINT" || "$typ" == "INDEX EXPRESSION" ]]; then
+          src="$table_src\n\n[Detected Expression]\n$src"
+        fi
+      fi
+    fi
 
     esc_obj=$(printf '%s' "$obj" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g')
     esc_typ=$(printf '%s' "$typ" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g')
@@ -367,7 +383,7 @@ $( [ -s "$IDX_ROWS" ] && cat "$IDX_ROWS" || echo '<tr><td colspan="3">원문 없
 </table></div></div></body></html>
 EOF
 
-  rm -f "$RAW_MERGED" "$RAW_AGG" "$KW_MERGED" "$KW_AGG" "$IDX_ROWS"
+  rm -f "$RAW_MERGED" "$RAW_AGG" "$KW_MERGED" "$KW_AGG" "$TABLE_RAW_AGG" "$IDX_ROWS"
 fi
 [[ -f "$SOURCE_HTML_PATH" ]] || echo '<!doctype html><html><body><h1>원문 상세</h1><p>원문 페이지를 생성하지 못했습니다.</p></body></html>' > "$SOURCE_HTML_PATH"
 
