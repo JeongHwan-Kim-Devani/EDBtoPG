@@ -306,6 +306,8 @@ else
   KW_MERGED="$OUT_DIR/.kw_merged.tsv"
   KW_AGG="$OUT_DIR/.kw_agg.tsv"
   TABLE_RAW_AGG="$OUT_DIR/.table_raw_agg.tsv"
+  COLUMN_LIST_AGG="$OUT_DIR/.column_list_agg.tsv"
+  IDX_TABLE_MAP="$OUT_DIR/.idx_table_map.tsv"
   IDX_ROWS="$OUT_DIR/.source_index_rows.html"
 
   : > "$RAW_MERGED"
@@ -322,7 +324,9 @@ else
 
   awk -F $'	' '!seen[$1]++{print $1"	"$2"	"$3}' "$RAW_MERGED" > "$RAW_AGG"
   awk -F $'	' '{k=$1; t=tolower($2); if(t=="") t="(검출 키워드 없음)"; if(!seen[k SUBSEP t]++){a[k]=(a[k]?a[k]", ":"")t}} END{for(k in a) print k"	"a[k]}' "$KW_MERGED" > "$KW_AGG"
-  awk -F $'	' 'NR>1{print $1"."$2"	"$3}' "$OUT_DIR/03_detail_table_objects_raw.tsv" > "$TABLE_RAW_AGG"
+  awk -F $'\t' 'NR>1{print $1"."$2"\t"$3}' "$OUT_DIR/03_detail_table_objects_raw.tsv" > "$TABLE_RAW_AGG"
+  awk -F $'\t' 'NR>1{k=$1"."$2; line="- "$3" "$4" "(($5 ~ /^(NO|no)$/)?"NOT NULL":"NULL"); if($6!="") line=line" DEFAULT "$6; a[k]=(a[k]?a[k]"\n":"")line} END{for(k in a) print k"\t""TABLE/VIEW "k"\nColumns:\n"a[k]}' "$OUT_DIR/03_detail_table_columns_raw.tsv" > "$COLUMN_LIST_AGG"
+  awk -F $'\t' 'NR>1 && $1=="INDEX EXPRESSION"{print $2"."$4"\t"$2"."$3}' "$OUT_DIR/03_detail_expr_raw.tsv" > "$IDX_TABLE_MAP"
 
   : > "$IDX_ROWS"
   SOURCE_TOTAL=0
@@ -339,17 +343,31 @@ else
     kws=$(awk -F $'	' -v o="$obj" '$1==o{print $2; exit}' "$KW_AGG")
     [ -n "$kws" ] || kws='키워드 없음'
 
-    # TABLE COLUMN / DEFAULT VALUE fallback enrichment using table-level raw source
+    # TABLE/VIEW COLUMN + EXPRESSION fallback enrichment
     table_key=$(printf '%s' "$obj" | awk -F'.' 'NF>=3{print $1"."$2}')
+    table_src=""
     if [[ -n "$table_key" ]]; then
       table_src=$(awk -F $'	' -v k="$table_key" '$1==k{print $2; exit}' "$TABLE_RAW_AGG")
-      if [[ -n "$table_src" ]]; then
-        if [[ "$typ" == "UNKNOWN" ]]; then
-          typ="TABLE COLUMN"
-          src="$table_src"
-        elif [[ "$typ" == "DEFAULT VALUE" || "$typ" == "CHECK CONSTRAINT" || "$typ" == "INDEX EXPRESSION" ]]; then
-          src="$table_src\n\n[Detected Expression]\n$src"
-        fi
+      [[ -n "$table_src" ]] || table_src=$(awk -F $'	' -v k="$table_key" '$1==k{print $2; exit}' "$COLUMN_LIST_AGG")
+    fi
+
+    if [[ "$typ" == "INDEX EXPRESSION" ]]; then
+      idx_table=$(awk -F $'	' -v k="$obj" '$1==k{print $2; exit}' "$IDX_TABLE_MAP")
+      if [[ -n "$idx_table" ]]; then
+        table_src=$(awk -F $'	' -v k="$idx_table" '$1==k{print $2; exit}' "$TABLE_RAW_AGG")
+        [[ -n "$table_src" ]] || table_src=$(awk -F $'	' -v k="$idx_table" '$1==k{print $2; exit}' "$COLUMN_LIST_AGG")
+      fi
+    fi
+
+    if [[ -n "$table_src" ]]; then
+      if [[ "$typ" == "UNKNOWN" ]]; then
+        typ="TABLE COLUMN"
+        src="$table_src"
+      elif [[ "$typ" == "DEFAULT VALUE" || "$typ" == "CHECK CONSTRAINT" || "$typ" == "INDEX EXPRESSION" ]]; then
+        src="$table_src
+
+[Detected Expression]
+$src"
       fi
     fi
 
@@ -383,7 +401,7 @@ $( [ -s "$IDX_ROWS" ] && cat "$IDX_ROWS" || echo '<tr><td colspan="3">원문 없
 </table></div></div></body></html>
 EOF
 
-  rm -f "$RAW_MERGED" "$RAW_AGG" "$KW_MERGED" "$KW_AGG" "$TABLE_RAW_AGG" "$IDX_ROWS"
+  rm -f "$RAW_MERGED" "$RAW_AGG" "$KW_MERGED" "$KW_AGG" "$TABLE_RAW_AGG" "$COLUMN_LIST_AGG" "$IDX_TABLE_MAP" "$IDX_ROWS"
 fi
 [[ -f "$SOURCE_HTML_PATH" ]] || echo '<!doctype html><html><body><h1>원문 상세</h1><p>원문 페이지를 생성하지 못했습니다.</p></body></html>' > "$SOURCE_HTML_PATH"
 
