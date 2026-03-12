@@ -93,7 +93,7 @@ bash generate_epas_migration_report.sh -d <DBNAME> -U <USER> -o ./out -c gz
 - `03_detail_datatypes_objects.tsv`
 - `03_detail_datatypes_tables.tsv`
 - `03_detail_expr_keywords.tsv`
-- `04_policy_edb_profile.tsv`
+- `04_policy_edb_profile.tsv` (프로파일 상세 + 적용 유저)
 - `04_policy_edb_resource_group.tsv`
 - `04_policy_edb_dblink.tsv`
 - `<DBNAME>.html` (요약/상세 HTML)

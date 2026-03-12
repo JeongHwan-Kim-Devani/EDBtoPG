@@ -229,7 +229,21 @@ FROM (
 ORDER BY schema_name, table_name, target_name, object_type;
 
 --@@ policy_edb_profile
-SELECT * FROM pg_catalog.edb_profile WHERE prfname <> 'default' ORDER BY prfname;
+SELECT
+  p.prfname AS profile_name,
+  to_jsonb(p)::text AS profile_detail,
+  COALESCE((
+    SELECT string_agg(r.rolname, ', ' ORDER BY r.rolname)
+    FROM pg_roles r
+    WHERE EXISTS (
+      SELECT 1
+      FROM unnest(COALESCE(r.rolconfig, ARRAY[]::text[])) cfg
+      WHERE cfg = 'edb_profile=' || p.prfname
+    )
+  ), '') AS applied_users
+FROM pg_catalog.edb_profile p
+WHERE p.prfname <> 'default'
+ORDER BY p.prfname;
 
 --@@ policy_edb_resource_group
 SELECT
