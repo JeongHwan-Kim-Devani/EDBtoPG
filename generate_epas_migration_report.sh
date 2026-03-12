@@ -153,7 +153,7 @@ awk -F $'	' '{
 
 awk -F $'	' 'NR>1{print $1"	"$2"	"$3"	"$4}' "$OUT_DIR/03_detail_datatypes_objects.tsv" > "$OUT_DIR/.d.tsv"
 awk -F $'\t' 'NR>1{print "T\t"$1"\t"$1"."$2"."$3"\t"$4}' "$OUT_DIR/03_detail_datatypes_tables.tsv" >> "$OUT_DIR/.d.tsv"
-awk -F $'\t' '{  ord=($1=="P"?1:($1=="F"?2:($1=="V"?3:4)));  tn=($1=="P"?"PROCEDURE":($1=="F"?"FUNCTION":($1=="V"?"VIEW":"TABLE COLUMN")));  obj=($1=="T"?$3:$2"."$3);  print ord"\t"$2"\t"tn"\t"obj"\t"$4}' "$OUT_DIR/.d.tsv" | sort -t $'\t' -k1,1n -k2,2 -k4,4 | awk -F $'\t' '{  obj=$4; id=obj; gsub(/[^[:alnum:]_.-]/,"_",id);  printf "<tr><td><code>%s</code></td><td><a href=\"%s/src-%s.html\"><code>%s</code></a></td><td><code>%s</code></td></tr>\n",$3,ENVIRON["SOURCE_DIR_BASENAME"],id,obj,$5}' > "$DTYPE_ROWS"
+awk -F $'\t' '!seen[$0]++{  ord=($1=="P"?1:($1=="F"?2:($1=="V"?3:4)));  tn=($1=="P"?"PROCEDURE":($1=="F"?"FUNCTION":($1=="V"?"VIEW":"TABLE COLUMN")));  obj=($1=="T"?$3:$2"."$3);  print ord"\t"$2"\t"tn"\t"obj"\t"$4}' "$OUT_DIR/.d.tsv" | sort -t $'\t' -k1,1n -k2,2 -k4,4 | awk -F $'\t' '{  obj=$4; id=obj; gsub(/[^[:alnum:]_.-]/,"_",id);  printf "<tr><td><code>%s</code></td><td><a href=\"%s/src-%s.html\"><code>%s</code></a></td><td><code>%s</code></td></tr>\n",$3,ENVIRON["SOURCE_DIR_BASENAME"],id,obj,$5}' > "$DTYPE_ROWS"
 
 awk -F $'	' 'NR>1{  obj=($1=="INDEX EXPRESSION"?$2"."$4:$2"."$3"."$4);  k=obj SUBSEP $1; token=tolower($5); if(token=="") token="(검출 키워드 없음)";  if(!((k SUBSEP token) in seen)){seen[k SUBSEP token]=1; kws[k]=(kws[k]?kws[k]", ":"")token};  lv=0;  if(token ~ /^(rownum|rowid|dual|minus|sys_connect_by_path|connect_by_root|connect_by_isleaf|level|pragma|sqlcode|sqlerrm|raise_application_error)$/) lv=2;  else if(token ~ /^(dbms_crypto(\.[a-z0-9_]+)?|dbms_[a-z0-9_]+|utl_[a-z0-9_]+|owa_[a-z0-9_]+|htp\.[a-z0-9_]+|htf\.[a-z0-9_]+|sysdate|systimestamp|nvl|nvl2|decode|add_months|months_between|last_day|next_day|instr|greatest|least)$/) lv=1;  if(lv > level[k]) level[k]=lv} END{  for(k in kws){split(k,a,SUBSEP); op=(level[k]==2?"불가":(level[k]==1?"가능(난이도 높음)":"가능(난이도 낮음)")); print a[1]"	"a[2]"	"kws[k]"	"op}}' "$OUT_DIR/03_detail_expr_keywords.tsv" | sort -t $'	' -k1,1 -k2,2 | awk -F $'	' '{  id=$1; gsub(/[^[:alnum:]_.-]/,"_",id);  gsub("&","&amp;",$3);gsub("<","&lt;",$3);gsub(">","&gt;",$3);  b=($4=="불가"?"badge-bad":($4=="가능(난이도 높음)"?"badge-high":"badge-low"));  printf "<tr><td><a href=\"%s/src-%s.html\"><code>%s</code></a></td><td><code>%s</code></td><td><code>%s</code></td><td><span class=\"badge %s\">%s</span></td></tr>\n",ENVIRON["SOURCE_DIR_BASENAME"],id,$1,$2,$3,b,$4}' > "$EXPR_ROWS"
 
@@ -376,10 +376,19 @@ $src"
     esc_kws=$(printf '%s' "$kws" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g')
     esc_src=$(printf '%s' "$src" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g')
     esc_src=$(printf '%s' "$esc_src" | awk '{gsub(/\\n/,"\n"); print}')
+    if [[ -n "$kws" && "$kws" != "키워드 없음" ]]; then
+      IFS=',' read -r -a _kw_arr <<< "$kws"
+      for _kw in "${_kw_arr[@]}"; do
+        _kw=$(printf '%s' "$_kw" | sed -e 's/^ *//' -e 's/ *$//')
+        [[ -n "$_kw" && "$_kw" != "(검출 키워드 없음)" ]] || continue
+        _kw_esc=$(printf '%s' "$_kw" | sed -e 's/[.[\*^$()+?{|]/\\&/g')
+        esc_src=$(printf '%s' "$esc_src" | sed -e "s/${_kw_esc}/<span class=\"kw\">${_kw}<\/span>/g")
+      done
+    fi
 
     cat > "$page" <<EOF
 <!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${esc_obj} 원문</title>
-<style>body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}.container{max-width:1300px;margin:0 auto;padding:22px 30px}.card{background:#fff;border:1px solid #ddd;border-radius:10px;padding:14px;margin-bottom:14px}pre{background:#111827;color:#e5e7eb;padding:12px;border-radius:8px;overflow:auto;white-space:pre-wrap}a{color:#1d4ed8}code{background:#f3f4f6;padding:2px 4px;border-radius:4px}</style></head><body><div class="container">
+<style>body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}.container{max-width:1300px;margin:0 auto;padding:22px 30px}.card{background:#fff;border:1px solid #ddd;border-radius:10px;padding:14px;margin-bottom:14px}pre{background:#111827;color:#e5e7eb;padding:12px;border-radius:8px;overflow:auto;white-space:pre-wrap}.kw{color:#f59e0b;font-weight:700}a{color:#1d4ed8}code{background:#f3f4f6;padding:2px 4px;border-radius:4px}</style></head><body><div class="container">
 <h1><code>${esc_obj}</code></h1>
 <p><a href="../${SOURCE_HTML_BASENAME}">Back to source index</a> &nbsp;|&nbsp; <a href="../${HTML_BASENAME}">Back to precheck</a></p>
 <div class="card"><h3>객체 정보</h3><p><b>타입:</b> ${esc_typ}</p><p><b>검출 키워드:</b> ${esc_kws}</p></div>
