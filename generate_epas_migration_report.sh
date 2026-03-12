@@ -205,7 +205,7 @@ def slug(name):
 def full_type(t):
   m={
     'F':'FUNCTION','P':'PROCEDURE','V':'VIEW','T':'TABLE COLUMN',
-    'DEFAULT VALUE':'DEFAULT VALUE','CHECK CONSTRAINT':'CHECK CONSTRAINT','INDEX EXPRESSION':'INDEX EXPRESSION','UNKNOWN':'UNKNOWN','TABLE':'TABLE'
+    'DEFAULT VALUE':'DEFAULT VALUE','CHECK CONSTRAINT':'CHECK CONSTRAINT','INDEX EXPRESSION':'INDEX EXPRESSION','UNKNOWN':'UNKNOWN','TABLE':'TABLE','PROFILE':'PROFILE','RESOURCE GROUP':'RESOURCE GROUP','DBLINK':'DBLINK'
   }
   return m.get(t, t)
 
@@ -242,6 +242,9 @@ for ot,s,t,tr,e in iter_fields(out/'03_detail_expr_raw.tsv', 5):
   obj = f'{s}.{tr}' if ot=='INDEX EXPRESSION' else f'{s}.{t}.{tr}'
   if e:
     raw[obj]=(full_type(ot),restore_text(e))
+for prf, detail, users in iter_fields(out/'04_policy_edb_profile.tsv', 3):
+  obj=f'policy.profile.{prf}'
+  raw[obj]=('PROFILE', f'Profile: {prf}\nApplied users: {users if users else "(미적용)"}\n\n{restore_text(detail)}')
 
 table_lines={}
 for s,t,c,ctype,nullok,default in iter_fields(out/'03_detail_table_columns_raw.tsv', 6):
@@ -333,6 +336,8 @@ else
   awk -F $'	' 'NR>1{print $2"."$3"	"$1"	"$4}' "$OUT_DIR/03_detail_keywords_raw.tsv" >> "$RAW_MERGED"
   awk -F $'	' 'NR>1{obj=($1=="INDEX EXPRESSION"?$2"."$4:$2"."$3"."$4); print obj"	"$1"	"$5}' "$OUT_DIR/03_detail_expr_raw.tsv" >> "$RAW_MERGED"
 
+  awk -F $'	' 'NR>1{print "policy.profile."$1"	PROFILE	""Profile: "$1"\nApplied users: "($3==""?"(미적용)":$3)"\n\n"$2}' "$OUT_DIR/04_policy_edb_profile.tsv" >> "$RAW_MERGED"
+
   awk -F $'	' 'NR>1{print $2"."$3"	"$4}' "$OUT_DIR/02_summary_packages.tsv" >> "$KW_MERGED"
   awk -F $'	' 'NR>1{print $2"."$3"	"$4}' "$OUT_DIR/03_detail_keywords.tsv" >> "$KW_MERGED"
   awk -F $'	' 'NR>1{obj=($1=="INDEX EXPRESSION"?$2"."$4:$2"."$3"."$4); print obj"	"$5}' "$OUT_DIR/03_detail_expr_keywords.tsv" >> "$KW_MERGED"
@@ -393,6 +398,12 @@ $src"
       fi
     fi
 
+    case "$typ" in
+      F) typ="FUNCTION" ;;
+      P) typ="PROCEDURE" ;;
+      V) typ="VIEW" ;;
+      T) typ="TABLE COLUMN" ;;
+    esac
     esc_obj=$(printf '%s' "$obj" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g')
     esc_typ=$(printf '%s' "$typ" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g')
     esc_kws=$(printf '%s' "$kws" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g')
@@ -442,7 +453,7 @@ rls_pg_rows=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s.%s</code></td><td><cod
 rls_dbms_rows=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s.%s</code></td><td><code>%s</code></td><td>%s.%s</td><td><span class=\"badge badge-low\">가능(난이도 낮음)</span></td></tr>\n",$2,$3,$5,$7,$8}' "$OUT_DIR/02_summary_policies_dbms_rls.tsv")
 rls_rows_html="${rls_pg_rows}${rls_dbms_rows}"
 redaction_rows_html=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s.%s</code></td><td><code>%s</code></td><td><code>%s</code></td><td><span class=\"badge badge-high\">가능(난이도 높음)</span></td></tr>\n",$1,$2,$3,$4}' "$OUT_DIR/02_summary_redaction.tsv")
-profile_rows_html=$(awk -F $'\t' 'NR>1{users=($3==""?"(미적용)":$3); printf "<tr><td><code>%s</code></td><td><code>%s</code></td><td><code>%s</code></td><td><span class=\"badge badge-low\">가능(난이도 낮음)</span></td></tr>\n",$1,$2,users}' "$OUT_DIR/04_policy_edb_profile.tsv")
+profile_rows_html=$(awk -F $'\t' 'NR>1{users=($3==""?"(미적용)":$3); obj="policy.profile."$1; id=obj; gsub(/[^[:alnum:]_.-]/,"_",id); printf "<tr><td><a href=\"%s/src-%s.html\"><code>%s</code></a></td><td><a href=\"%s/src-%s.html\">원문 보기</a></td><td><code>%s</code></td><td><span class=\"badge badge-low\">가능(난이도 낮음)</span></td></tr>\n",ENVIRON["SOURCE_DIR_BASENAME"],id,$1,ENVIRON["SOURCE_DIR_BASENAME"],id,users}' "$OUT_DIR/04_policy_edb_profile.tsv")
 rg_rows_html=$(awk -F $'\t' 'NR>1{users=($4==""?"(미적용)":$4); printf "<tr><td><code>%s</code></td><td>%s</td><td>%s</td><td><code>%s</code></td><td><span class=\"badge badge-low\">가능(난이도 낮음)</span></td></tr>\n",$1,$2,$3,users}' "$OUT_DIR/04_policy_edb_resource_group.tsv")
 dblink_rows_html=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s</code></td><td>%s</td><td><code>%s</code></td><td><span class=\"badge badge-low\">가능(난이도 낮음)</span></td></tr>\n",$1,$5,$6}' "$OUT_DIR/04_policy_edb_dblink.tsv")
 

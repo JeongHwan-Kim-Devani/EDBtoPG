@@ -238,7 +238,7 @@ SELECT
     WHERE EXISTS (
       SELECT 1
       FROM unnest(COALESCE(r.rolconfig, ARRAY[]::text[])) cfg
-      WHERE cfg = 'edb_profile=' || p.prfname
+      WHERE lower(cfg) = lower('edb_profile=' || p.prfname)
     )
   ), '') AS applied_users
 FROM pg_catalog.edb_profile p
@@ -248,15 +248,27 @@ ORDER BY p.prfname;
 --@@ policy_edb_resource_group
 SELECT
   rg.rgrpname AS resource_group_name,
-  COALESCE(to_jsonb(rg)->>'cpurate', '') AS cpurate,
-  COALESCE(to_jsonb(rg)->>'dirtyratelimit', '') AS dirtyratelimit,
+  COALESCE(
+    to_jsonb(rg)->>'cpurate',
+    to_jsonb(rg)->>'rgrpcpurate',
+    to_jsonb(rg)->>'cpu_rate',
+    to_jsonb(rg)->>'rgrp_cpu_rate',
+    ''
+  ) AS cpurate,
+  COALESCE(
+    to_jsonb(rg)->>'dirtyratelimit',
+    to_jsonb(rg)->>'rgrpdirtyratelimit',
+    to_jsonb(rg)->>'dirty_rate_limit',
+    to_jsonb(rg)->>'rgrp_dirty_rate_limit',
+    ''
+  ) AS dirtyratelimit,
   COALESCE((
     SELECT string_agg(r.rolname, ', ' ORDER BY r.rolname)
     FROM pg_roles r
     WHERE EXISTS (
       SELECT 1
       FROM unnest(COALESCE(r.rolconfig, ARRAY[]::text[])) cfg
-      WHERE cfg = 'edb_resource_group=' || rg.rgrpname
+      WHERE lower(cfg) = lower('edb_resource_group=' || rg.rgrpname)
     )
   ), '') AS applied_users
 FROM pg_catalog.edb_resource_group rg
