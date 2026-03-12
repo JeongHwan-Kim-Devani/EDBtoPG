@@ -90,15 +90,39 @@ table_exists(){ [[ "$(run_scalar "SELECT to_regclass('$1') IS NOT NULL;")" == "t
 row_count_tsv(){ [[ -s "$1" ]] && awk 'END{print (NR>0?NR-1:0)}' "$1" || echo 0; }
 count_rows(){ [[ -s "$1" ]] && wc -l < "$1" | xargs || echo 0; }
 count_bad(){ [[ -s "$1" ]] && awk '/불가/{c++} END{print c+0}' "$1" || echo 0; }
+purge_files(){
+  local f
+  for f in "$@"; do
+    [[ -e "$f" ]] || continue
+    if command -v perl >/dev/null 2>&1; then
+      perl -e 'unlink @ARGV' "$f" >/dev/null 2>&1 || : > "$f"
+    else
+      : > "$f"
+    fi
+  done
+}
+
 safe_remove_dir(){
   local d="$1"
   if [[ -z "$d" || "$d" == "/" || "$d" == "." ]]; then
-    echo "[ERROR] refusing to delete unsafe path: $d" >&2
+    echo "[ERROR] refusing to clean unsafe path: $d" >&2
     return 1
   fi
   [[ -d "$d" ]] || return 0
-  find "$d" -mindepth 1 -delete
-  rmdir "$d"
+  if command -v perl >/dev/null 2>&1; then
+    perl -MFile::Find -e '
+      my $root = shift;
+      finddepth(sub {
+        return if $File::Find::name eq $root;
+        if (-f $_ || -l $_) { unlink $_; return; }
+        if (-d $_) { rmdir $_; return; }
+      }, $root);
+      rmdir $root;
+    ' "$d" || return 1
+  else
+    echo "[WARN] perl is not available; output directory cleanup is skipped: $d" >&2
+    return 1
+  fi
 }
 
 # data exports
@@ -443,7 +467,7 @@ $( [ -s "$IDX_ROWS" ] && cat "$IDX_ROWS" || echo '<tr><td colspan="3">원문 없
 </table></div></div></body></html>
 EOF
 
-  rm -f "$RAW_MERGED" "$RAW_AGG" "$KW_MERGED" "$KW_AGG" "$TABLE_RAW_AGG" "$COLUMN_LIST_AGG" "$IDX_TABLE_MAP" "$IDX_ROWS"
+  purge_files "$RAW_MERGED" "$RAW_AGG" "$KW_MERGED" "$KW_AGG" "$TABLE_RAW_AGG" "$COLUMN_LIST_AGG" "$IDX_TABLE_MAP" "$IDX_ROWS"
 fi
 [[ -f "$SOURCE_HTML_PATH" ]] || echo '<!doctype html><html><body><h1>원문 상세</h1><p>원문 페이지를 생성하지 못했습니다.</p></body></html>' > "$SOURCE_HTML_PATH"
 
@@ -483,7 +507,7 @@ cat > "$HTML_PATH" <<HTML
 HTML
 
 # remove helper artifacts from output dir
-rm -f "$OUT_DIR"/.f.tsv "$OUT_DIR"/.d.tsv "$OUT_DIR"/.param_rows.html "$OUT_DIR"/.feature_rows.html "$OUT_DIR"/.dtype_rows.html "$OUT_DIR"/.expr_rows.html
+purge_files "$OUT_DIR"/.f.tsv "$OUT_DIR"/.d.tsv "$OUT_DIR"/.param_rows.html "$OUT_DIR"/.feature_rows.html "$OUT_DIR"/.dtype_rows.html "$OUT_DIR"/.expr_rows.html
 
 cat > "$OUT_DIR/REPORT_INDEX.txt" <<TXT
 [EPAS to PostgreSQL Precheck]
