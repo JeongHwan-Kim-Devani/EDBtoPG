@@ -242,25 +242,37 @@ for ot,s,t,tr,e in iter_fields(out/'03_detail_expr_raw.tsv', 5):
 table_lines={}
 for s,t,c,ctype,nullok,default in iter_fields(out/'03_detail_table_columns_raw.tsv', 6):
   key=f'{s}.{t}'
-  line=f"- {c} {ctype} {'NOT NULL' if (nullok or '').upper()=='NO' else 'NULL'}"
-  if default:
-    line += f" DEFAULT {default}"
-  table_lines.setdefault(key,[]).append(line)
+  row=f"{c} | {ctype} | {'not null' if (nullok or '').upper()=='NO' else ''} | {default or ''}"
+  table_lines.setdefault(key,[]).append(row)
 
 table_raw={}
 for s,t,src in iter_fields(out/'03_detail_table_objects_raw.tsv', 3):
   if src:
     table_raw[f'{s}.{t}']=restore_text(src)
 
+def column_block(table_key):
+  rows=table_lines.get(table_key,[])
+  if not rows:
+    return ''
+  head='Column | Type | Nullable | Default\n' + '-'*80
+  return f'Object "{table_key}"\n{head}\n' + '\n'.join(rows)
+
 for obj in list(kw.keys()):
   parts=obj.split('.')
   if len(parts)==3:
     table_key=f'{parts[0]}.{parts[1]}'
-    if table_key in table_lines and (obj not in raw or raw[obj][0]=='DEFAULT VALUE'):
+    if table_key in table_lines and (obj not in raw or raw[obj][0] in ('DEFAULT VALUE','UNKNOWN')):
       extra=''
-      if obj in raw and raw[obj][0]=='DEFAULT VALUE':
+      if obj in raw and raw[obj][0] in ('DEFAULT VALUE','CHECK CONSTRAINT','INDEX EXPRESSION'):
         extra='\n\n[Detected Expression]\n'+raw[obj][1]
-      base=table_raw.get(table_key, 'TABLE '+table_key+'\nColumns:\n'+'\n'.join(table_lines[table_key]))
+      parent=raw.get(table_key, ('',''))[1]
+      coltxt=column_block(table_key)
+      if table_key in table_raw:
+        base=table_raw[table_key]
+      elif parent:
+        base=coltxt + ('\n\nDefinition:\n'+parent if coltxt else parent)
+      else:
+        base=coltxt or ('OBJECT '+table_key)
       raw[obj]=('TABLE COLUMN', base+extra)
 
 objects=[]
@@ -325,7 +337,7 @@ else
   awk -F $'	' '!seen[$1]++{print $1"	"$2"	"$3}' "$RAW_MERGED" > "$RAW_AGG"
   awk -F $'	' '{k=$1; t=tolower($2); if(t=="") t="(검출 키워드 없음)"; if(!seen[k SUBSEP t]++){a[k]=(a[k]?a[k]", ":"")t}} END{for(k in a) print k"	"a[k]}' "$KW_MERGED" > "$KW_AGG"
   awk -F $'\t' 'NR>1{print $1"."$2"\t"$3}' "$OUT_DIR/03_detail_table_objects_raw.tsv" > "$TABLE_RAW_AGG"
-  awk -F $'\t' 'NR>1{k=$1"."$2; line="- "$3" "$4" "(($5 ~ /^(NO|no)$/)?"NOT NULL":"NULL"); if($6!="") line=line" DEFAULT "$6; a[k]=(a[k]?a[k]"\n":"")line} END{for(k in a) print k"\t""TABLE/VIEW "k"\nColumns:\n"a[k]}' "$OUT_DIR/03_detail_table_columns_raw.tsv" > "$COLUMN_LIST_AGG"
+  awk -F $'	' 'NR>1{k=$1"."$2; line=$3" | "$4" | "(($5 ~ /^(NO|no)$/)?"not null":"")" | "$6; a[k]=(a[k]?a[k]"\n":"")line} END{for(k in a) print k"\t""Object \""k"\"\nColumn | Type | Nullable | Default\n--------------------------------------------------------------------------------\n"a[k]}' "$OUT_DIR/03_detail_table_columns_raw.tsv" > "$COLUMN_LIST_AGG"
   awk -F $'\t' 'NR>1 && $1=="INDEX EXPRESSION"{print $2"."$4"\t"$2"."$3}' "$OUT_DIR/03_detail_expr_raw.tsv" > "$IDX_TABLE_MAP"
 
   : > "$IDX_ROWS"
@@ -348,7 +360,13 @@ else
     table_src=""
     if [[ -n "$table_key" ]]; then
       table_src=$(awk -F $'	' -v k="$table_key" '$1==k{print $2; exit}' "$TABLE_RAW_AGG")
-      [[ -n "$table_src" ]] || table_src=$(awk -F $'	' -v k="$table_key" '$1==k{print $2; exit}' "$COLUMN_LIST_AGG")
+      col_src=$(awk -F $'	' -v k="$table_key" '$1==k{print $2; exit}' "$COLUMN_LIST_AGG")
+      parent_src=$(awk -F $'	' -v k="$table_key" '$1==k{print $3; exit}' "$RAW_AGG")
+      if [[ -z "$table_src" && -n "$col_src" && -n "$parent_src" ]]; then
+        table_src="$col_src\n\nDefinition:\n$parent_src"
+      elif [[ -z "$table_src" && -n "$col_src" ]]; then
+        table_src="$col_src"
+      fi
     fi
 
     if [[ "$typ" == "INDEX EXPRESSION" ]]; then
