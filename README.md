@@ -96,14 +96,14 @@ bash generate_epas_migration_report.sh -d <DBNAME> -U <USER> -o ./out -c gz
 - `04_policy_edb_profile.tsv`
 - `04_policy_edb_resource_group.tsv`
 - `04_policy_edb_dblink.tsv`
-- `<DBNAME>.html` (요약/상세 HTML)
+- `<DBNAME>.html` (요약/상세 HTML, 정책 디테일 4-4 포함)
 - `<DBNAME>_source.html` (원문 인덱스)
 - `<DBNAME>_sources/` (객체별 원문 페이지)
 - `REPORT_INDEX.txt`
 
 ## 7) 판정 기준
 
-구분 컬럼은 반복 문자열(예: `키워드+키워드+키워드`) 대신 집계 표기(예: `키워드(3)`, `패키지(5)+키워드(3)`)로 출력된다.
+구분 컬럼은 반복 문자열(예: `키워드+키워드+키워드`) 대신 집계 표기(예: `키워드(3)`, `패키지(5)+키워드(3)`)로 출력된다. 동일 키워드를 여러 번 사용한 경우에도 고유 키워드 기준으로 1건만 카운트한다(예: `raw` 4회 사용 -> `raw(1)`).
 
 HTML 판정 배지:
 
@@ -118,6 +118,8 @@ HTML 판정 배지:
 - **가능(난이도 낮음)**: 그 외 탐지 키워드
 
 ## 8) DBMS_CRYPTO 탐지
+
+- 키워드 하이라이트는 대소문자를 구분하지 않고(case-insensitive) 적용되며, 표기/카운트는 소문자 기준으로 통합된다.
 
 다음 영역에서 `DBMS_CRYPTO` 사용을 탐지한다.
 
