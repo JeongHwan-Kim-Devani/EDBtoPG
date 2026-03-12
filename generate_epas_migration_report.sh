@@ -174,7 +174,6 @@ redaction_total=$(row_count_tsv "$OUT_DIR/02_summary_redaction.tsv"); redaction_
 profile_total=$(row_count_tsv "$OUT_DIR/04_policy_edb_profile.tsv"); profile_ok=$profile_total; profile_bad=0
 rg_total=$(row_count_tsv "$OUT_DIR/04_policy_edb_resource_group.tsv"); rg_ok=$rg_total; rg_bad=0
 dblink_total=$(row_count_tsv "$OUT_DIR/04_policy_edb_dblink.tsv"); dblink_ok=$dblink_total; dblink_bad=0
-policy_detail_total=$((rls_pg_total + rls_dbms_total + redaction_total)); policy_detail_ok=$policy_detail_total; policy_detail_bad=0
 
 # source html best-effort
 if command -v python3 >/dev/null 2>&1 || command -v python >/dev/null 2>&1; then
@@ -269,7 +268,7 @@ for obj in list(kw.keys()):
     if table_key in table_lines and (obj not in raw or raw[obj][0] in ('DEFAULT VALUE','UNKNOWN')):
       extra=''
       if obj in raw and raw[obj][0] in ('DEFAULT VALUE','CHECK CONSTRAINT','INDEX EXPRESSION'):
-        extra='\n\n[Detected Expression]\n'+raw[obj][1]
+        extra='\n\n[Detected Expression Target: '+obj+']\n'+raw[obj][1]
       parent=raw.get(table_key, ('',''))[1]
       coltxt=column_block(table_key)
       if table_key in table_raw:
@@ -389,7 +388,7 @@ else
       elif [[ "$typ" == "DEFAULT VALUE" || "$typ" == "CHECK CONSTRAINT" || "$typ" == "INDEX EXPRESSION" ]]; then
         src="$table_src
 
-[Detected Expression]
+[Detected Expression Target: ${obj}]
 $src"
       fi
     fi
@@ -443,13 +442,9 @@ rls_pg_rows=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s.%s</code></td><td><cod
 rls_dbms_rows=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s.%s</code></td><td><code>%s</code></td><td>%s.%s</td><td><span class=\"badge badge-low\">가능(난이도 낮음)</span></td></tr>\n",$2,$3,$5,$7,$8}' "$OUT_DIR/02_summary_policies_dbms_rls.tsv")
 rls_rows_html="${rls_pg_rows}${rls_dbms_rows}"
 redaction_rows_html=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s.%s</code></td><td><code>%s</code></td><td><code>%s</code></td><td><span class=\"badge badge-high\">가능(난이도 높음)</span></td></tr>\n",$1,$2,$3,$4}' "$OUT_DIR/02_summary_redaction.tsv")
-profile_rows_html=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s</code></td><td><span class=\"badge badge-low\">가능(난이도 낮음)</span></td></tr>\n",$2}' "$OUT_DIR/04_policy_edb_profile.tsv")
-rg_rows_html=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s</code></td><td>%s</td><td><span class=\"badge badge-low\">가능(난이도 낮음)</span></td></tr>\n",$4,$2}' "$OUT_DIR/04_policy_edb_resource_group.tsv")
+profile_rows_html=$(awk -F $'\t' 'NR==1{next} NR>1{detail=""; for(i=1;i<=NF;i++){if(i>1) detail=detail" | "; detail=detail $i}; printf "<tr><td><code>%s</code></td><td><code>%s</code></td><td><span class=\"badge badge-low\">가능(난이도 낮음)</span></td></tr>\n",$2,detail}' "$OUT_DIR/04_policy_edb_profile.tsv")
+rg_rows_html=$(awk -F $'\t' 'NR>1{users=($4==""?"(미적용)":$4); printf "<tr><td><code>%s</code></td><td>%s</td><td>%s</td><td><code>%s</code></td><td><span class=\"badge badge-low\">가능(난이도 낮음)</span></td></tr>\n",$1,$2,$3,users}' "$OUT_DIR/04_policy_edb_resource_group.tsv")
 dblink_rows_html=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s</code></td><td>%s</td><td><code>%s</code></td><td><span class=\"badge badge-low\">가능(난이도 낮음)</span></td></tr>\n",$1,$5,$6}' "$OUT_DIR/04_policy_edb_dblink.tsv")
-policy_pg_detail_rows_html=$(awk -F $'\t' 'NR>1{printf "<tr><td>PG RLS</td><td><code>%s.%s</code></td><td><code>%s</code></td><td><code>%s</code></td><td><code>%s</code></td><td><span class=\"badge badge-low\">가능(난이도 낮음)</span></td></tr>\n",$1,$2,$3,$6,$7}' "$OUT_DIR/02_summary_policies.tsv")
-policy_dbms_detail_rows_html=$(awk -F $'\t' 'NR>1{printf "<tr><td>DBMS_RLS</td><td><code>%s.%s</code></td><td><code>%s</code></td><td><code>%s</code></td><td><code>%s.%s</code></td><td><span class=\"badge badge-high\">가능(난이도 높음)</span></td></tr>\n",$2,$3,$5,$4,$7,$8}' "$OUT_DIR/02_summary_policies_dbms_rls.tsv")
-policy_redaction_detail_rows_html=$(awk -F $'\t' 'NR>1{printf "<tr><td>REDACTION</td><td><code>%s.%s</code></td><td><code>%s</code></td><td><code>-</code></td><td><code>%s</code></td><td><span class=\"badge badge-high\">가능(난이도 높음)</span></td></tr>\n",$1,$2,$3,$5}' "$OUT_DIR/02_summary_redaction.tsv")
-policy_detail_rows_html="${policy_pg_detail_rows_html}${policy_dbms_detail_rows_html}${policy_redaction_detail_rows_html}"
 
 cat > "$HTML_PATH" <<HTML
 <!doctype html><html lang="ko"><head><meta charset="utf-8"><title>EPAS to PostgreSQL Precheck - ${DBNAME}</title>
@@ -458,22 +453,21 @@ cat > "$HTML_PATH" <<HTML
 <div class="card"><h2>요약 (DB NAME : ${DBNAME})</h2><table>
 <tr><th>항목</th><th>검출 건수</th><th>가능</th><th>불가</th><th>설명</th></tr>
 <tr class="group-title"><td colspan="5">1. 파라미터</td></tr><tr><td>1-1. 파라미터</td><td>${param_total}</td><td>${param_ok}</td><td>${param_bad}</td><td>핵심 파라미터 + 변경값</td></tr>
-<tr class="group-title"><td colspan="5">2. EDB(Oracle) 특화기능 Summary</td></tr><tr><td>2-1. 특화기능+키워드</td><td>${feature_total}</td><td>${feature_ok}</td><td>${feature_bad}</td><td>패키지/키워드</td></tr><tr><td>2-2. 시노님</td><td>${syn_total}</td><td>${syn_ok}</td><td>${syn_bad}</td><td>시노님</td></tr><tr><td>2-3. 정책(RLS)</td><td>${rls_total}</td><td>${rls_ok}</td><td>${rls_bad}</td><td>pg_policies + sys.all_policies</td></tr><tr><td>2-4. Redaction</td><td>${redaction_total}</td><td>${redaction_ok}</td><td>${redaction_bad}</td><td>edb_redaction_*</td></tr>
-<tr class="group-title"><td colspan="5">3. 디테일 (user created)</td></tr><tr><td>3-1. 오라클 데이터타입</td><td>${dtype_total}</td><td>${dtype_ok}</td><td>${dtype_bad}</td><td>객체/테이블</td></tr><tr><td>3-2. 표현식</td><td>${expr_total}</td><td>${expr_ok}</td><td>${expr_bad}</td><td>기본값/제약조건/인덱스</td></tr>
-<tr class="group-title"><td colspan="5">4. 폴리시 디테일 (user created)</td></tr><tr><td>4-1. 프로파일</td><td>${profile_total}</td><td>${profile_ok}</td><td>${profile_bad}</td><td>non-default</td></tr><tr><td>4-2. 리소스 그룹</td><td>${rg_total}</td><td>${rg_ok}</td><td>${rg_bad}</td><td>resource group</td></tr><tr><td>4-3. DBLINK</td><td>${dblink_total}</td><td>${dblink_ok}</td><td>${dblink_bad}</td><td>dblink</td></tr><tr><td>4-4. 정책 디테일</td><td>${policy_detail_total}</td><td>${policy_detail_ok}</td><td>${policy_detail_bad}</td><td>RLS + DBMS_RLS + Redaction</td></tr>
+<tr class="group-title"><td colspan="5">2. EDB / Oracle Compatibility</td></tr><tr><td>2-1. 오라클 호환 오브젝트</td><td>${feature_total}</td><td>${feature_ok}</td><td>${feature_bad}</td><td>패키지/키워드</td></tr><tr><td>2-2. 오라클 데이터타입</td><td>${dtype_total}</td><td>${dtype_ok}</td><td>${dtype_bad}</td><td>객체/테이블</td></tr><tr><td>2-3. 표현식</td><td>${expr_total}</td><td>${expr_ok}</td><td>${expr_bad}</td><td>기본값/제약조건/인덱스</td></tr><tr><td>2-4. 시노님</td><td>${syn_total}</td><td>${syn_ok}</td><td>${syn_bad}</td><td>시노님</td></tr>
+<tr class="group-title"><td colspan="5">3. 정책 및 폴리시</td></tr><tr><td>3-1. 정책(RLS)</td><td>${rls_total}</td><td>${rls_ok}</td><td>${rls_bad}</td><td>pg_policies + sys.all_policies</td></tr><tr><td>3-2. Redaction</td><td>${redaction_total}</td><td>${redaction_ok}</td><td>${redaction_bad}</td><td>edb_redaction_*</td></tr><tr><td>3-3. 프로파일</td><td>${profile_total}</td><td>${profile_ok}</td><td>${profile_bad}</td><td>non-default</td></tr><tr><td>3-4. 리소스 그룹</td><td>${rg_total}</td><td>${rg_ok}</td><td>${rg_bad}</td><td>resource group</td></tr>
+<tr class="group-title"><td colspan="5">4. DBLINK</td></tr><tr><td>4-1. DBLINK</td><td>${dblink_total}</td><td>${dblink_ok}</td><td>${dblink_bad}</td><td>dblink</td></tr>
 </table></div>
 <div class="card"><h2>검출 상세(표)</h2><p>객체 클릭 시 원문: <a href="${SOURCE_HTML_BASENAME}">${SOURCE_HTML_BASENAME}</a></p>
 <h3>1-1. 파라미터 (총 ${param_total}건)</h3><table><tr><th>파라미터</th><th>기본값</th><th>현재값</th><th>설명</th><th>판정</th></tr>$(default_row_if_empty "$PARAM_ROWS" 5)</table>
-<h3>2-1. 특화기능+키워드 (총 ${feature_total}건)</h3><table><tr><th>타입</th><th>구분</th><th>객체</th><th>검출 내용</th><th>판정</th></tr>$(default_row_if_empty "$FEATURE_ROWS" 5)</table>
-<h3>2-2. 시노님 (총 ${syn_total}건)</h3><table><tr><th>시노님</th><th>대상 객체</th><th>판정</th></tr>$( [ -n "$syn_rows_html" ] && echo "$syn_rows_html" || echo '<tr><td colspan="3">검출 없음</td></tr>' )</table>
-<h3>2-3. 정책(RLS) (총 ${rls_total}건)</h3><table><tr><th>대상 테이블</th><th>정책명</th><th>명령</th><th>판정</th></tr>$( [ -n "$rls_rows_html" ] && echo "$rls_rows_html" || echo '<tr><td colspan="4">검출 없음</td></tr>' )</table>
-<h3>2-4. Redaction (총 ${redaction_total}건)</h3><table><tr><th>대상 테이블</th><th>정책명</th><th>컬럼</th><th>판정</th></tr>$( [ -n "$redaction_rows_html" ] && echo "$redaction_rows_html" || echo '<tr><td colspan="4">검출 없음</td></tr>' )</table>
-<h3>3-1. 오라클 데이터타입 (총 ${dtype_total}건)</h3><table><tr><th>타입</th><th>객체</th><th>데이터타입</th></tr>$(default_row_if_empty "$DTYPE_ROWS" 3)</table>
-<h3>3-2. 표현식 (총 ${expr_total}건)</h3><table><tr><th>객체</th><th>타입</th><th>검출 키워드</th><th>판정</th></tr>$(default_row_if_empty "$EXPR_ROWS" 4)</table>
-<h3>4-1. 프로파일 (총 ${profile_total}건)</h3><table><tr><th>프로파일</th><th>판정</th></tr>$( [ -n "$profile_rows_html" ] && echo "$profile_rows_html" || echo '<tr><td colspan="2">검출 없음</td></tr>' )</table>
-<h3>4-2. 리소스 그룹 (총 ${rg_total}건)</h3><table><tr><th>리소스 그룹</th><th>CPU limit</th><th>판정</th></tr>$( [ -n "$rg_rows_html" ] && echo "$rg_rows_html" || echo '<tr><td colspan="3">검출 없음</td></tr>' )</table>
-<h3>4-3. DBLINK (총 ${dblink_total}건)</h3><table><tr><th>DBLINK</th><th>USER</th><th>연결정보</th><th>판정</th></tr>$( [ -n "$dblink_rows_html" ] && echo "$dblink_rows_html" || echo '<tr><td colspan="4">검출 없음</td></tr>' )</table>
-<h3>4-4. 정책 디테일 (총 ${policy_detail_total}건)</h3><table><tr><th>유형</th><th>대상</th><th>정책명</th><th>명령/그룹</th><th>함수/마스킹</th><th>판정</th></tr>$( [ -n "$policy_detail_rows_html" ] && echo "$policy_detail_rows_html" || echo '<tr><td colspan="6">검출 없음</td></tr>' )</table>
+<h3>2-1. 오라클 호환 오브젝트 (총 ${feature_total}건)</h3><table><tr><th>타입</th><th>구분</th><th>객체</th><th>검출 내용</th><th>판정</th></tr>$(default_row_if_empty "$FEATURE_ROWS" 5)</table>
+<h3>2-2. 오라클 데이터타입 (총 ${dtype_total}건)</h3><table><tr><th>타입</th><th>객체</th><th>데이터타입</th></tr>$(default_row_if_empty "$DTYPE_ROWS" 3)</table>
+<h3>2-3. 표현식 (총 ${expr_total}건)</h3><table><tr><th>객체</th><th>타입</th><th>검출 키워드</th><th>판정</th></tr>$(default_row_if_empty "$EXPR_ROWS" 4)</table>
+<h3>2-4. 시노님 (총 ${syn_total}건)</h3><table><tr><th>시노님</th><th>대상 객체</th><th>판정</th></tr>$( [ -n "$syn_rows_html" ] && echo "$syn_rows_html" || echo '<tr><td colspan="3">검출 없음</td></tr>' )</table>
+<h3>3-1. 정책(RLS) (총 ${rls_total}건) - Row Level Security 정책 점검</h3><table><tr><th>대상 테이블</th><th>정책명</th><th>명령</th><th>판정</th></tr>$( [ -n "$rls_rows_html" ] && echo "$rls_rows_html" || echo '<tr><td colspan="4">검출 없음</td></tr>' )</table>
+<h3>3-2. Redaction (총 ${redaction_total}건) - 데이터 마스킹 정책 점검</h3><table><tr><th>대상 테이블</th><th>정책명</th><th>컬럼</th><th>판정</th></tr>$( [ -n "$redaction_rows_html" ] && echo "$redaction_rows_html" || echo '<tr><td colspan="4">검출 없음</td></tr>' )</table>
+<h3>3-3. 프로파일 (총 ${profile_total}건)</h3><table><tr><th>프로파일</th><th>상세</th><th>판정</th></tr>$( [ -n "$profile_rows_html" ] && echo "$profile_rows_html" || echo '<tr><td colspan="3">검출 없음</td></tr>' )</table>
+<h3>3-4. 리소스 그룹 (총 ${rg_total}건)</h3><table><tr><th>리소스 그룹</th><th>CPU rate</th><th>dirtyratelimit</th><th>적용 유저</th><th>판정</th></tr>$( [ -n "$rg_rows_html" ] && echo "$rg_rows_html" || echo '<tr><td colspan="5">검출 없음</td></tr>' )</table>
+<h3>4-1. DBLINK (총 ${dblink_total}건)</h3><table><tr><th>DBLINK</th><th>USER</th><th>연결정보</th><th>판정</th></tr>$( [ -n "$dblink_rows_html" ] && echo "$dblink_rows_html" || echo '<tr><td colspan="4">검출 없음</td></tr>' )</table>
 </div></div></body></html>
 HTML
 

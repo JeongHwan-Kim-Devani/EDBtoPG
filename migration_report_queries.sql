@@ -232,7 +232,21 @@ ORDER BY schema_name, table_name, target_name, object_type;
 SELECT * FROM pg_catalog.edb_profile WHERE prfname <> 'default' ORDER BY prfname;
 
 --@@ policy_edb_resource_group
-SELECT * FROM pg_catalog.edb_resource_group ORDER BY rgrpname;
+SELECT
+  rg.rgrpname AS resource_group_name,
+  COALESCE(to_jsonb(rg)->>'cpurate', '') AS cpurate,
+  COALESCE(to_jsonb(rg)->>'dirtyratelimit', '') AS dirtyratelimit,
+  COALESCE((
+    SELECT string_agg(r.rolname, ', ' ORDER BY r.rolname)
+    FROM pg_roles r
+    WHERE EXISTS (
+      SELECT 1
+      FROM unnest(COALESCE(r.rolconfig, ARRAY[]::text[])) cfg
+      WHERE cfg = 'edb_resource_group=' || rg.rgrpname
+    )
+  ), '') AS applied_users
+FROM pg_catalog.edb_resource_group rg
+ORDER BY rg.rgrpname;
 
 --@@ policy_edb_dblink
 SELECT lnkname, lnkowner, lnktype, lnkispublic, lnkuser, lnkconnstr, oid
@@ -320,7 +334,14 @@ JOIN pg_namespace n ON c.relnamespace = n.oid
 WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
 UNION ALL
 SELECT 'CHECK CONSTRAINT' AS object_type, n.nspname AS schema_name, c.relname AS table_name, con.conname AS target_name,
-       regexp_replace(pg_get_expr(con.conbin, con.conrelid), E'[\r\n]+', E'\\n', 'g') AS expression
+       regexp_replace(
+         '[Detected Columns] ' || COALESCE((
+           SELECT string_agg(a.attname, ', ' ORDER BY a.attnum)
+           FROM unnest(con.conkey) AS ck(attnum)
+           JOIN pg_attribute a ON a.attrelid = con.conrelid AND a.attnum = ck.attnum
+         ), '(expression-based/unknown)') || E'\n' || pg_get_expr(con.conbin, con.conrelid),
+         E'[\r\n]+', E'\\n', 'g'
+       ) AS expression
 FROM pg_constraint con
 JOIN pg_class c ON con.conrelid = c.oid
 JOIN pg_namespace n ON c.relnamespace = n.oid

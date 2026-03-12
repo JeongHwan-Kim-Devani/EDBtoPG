@@ -96,7 +96,7 @@ bash generate_epas_migration_report.sh -d <DBNAME> -U <USER> -o ./out -c gz
 - `04_policy_edb_profile.tsv`
 - `04_policy_edb_resource_group.tsv`
 - `04_policy_edb_dblink.tsv`
-- `<DBNAME>.html` (요약/상세 HTML, 정책 디테일 4-4 포함)
+- `<DBNAME>.html` (요약/상세 HTML)
 - `<DBNAME>_source.html` (원문 인덱스)
 - `<DBNAME>_sources/` (객체별 원문 페이지)
 - `REPORT_INDEX.txt`
