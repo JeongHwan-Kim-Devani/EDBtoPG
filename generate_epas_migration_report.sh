@@ -203,7 +203,7 @@ dblink_total=$(row_count_tsv "$OUT_DIR/04_policy_edb_dblink.tsv"); dblink_ok=$db
 if command -v python3 >/dev/null 2>&1 || command -v python >/dev/null 2>&1; then
   PYBIN=$(command -v python3 || command -v python)
   "$PYBIN" - <<'PY' "$OUT_DIR" "$SOURCE_HTML_PATH" "$SOURCE_DIR_PATH" "$HTML_BASENAME"
-import csv,html,re,sys
+import csv,html,re,sys,hashlib
 from pathlib import Path
 out=Path(sys.argv[1]); target=Path(sys.argv[2]); src_dir=Path(sys.argv[3]); precheck_name=sys.argv[4]
 src_dir.mkdir(parents=True, exist_ok=True)
@@ -224,7 +224,11 @@ def iter_fields(path, size):
     yield row
 
 def slug(name):
-  return re.sub(r'[^A-Za-z0-9_.-]', '_', name)
+  base=re.sub(r'[^A-Za-z0-9_.-]', '_', name)
+  if len(base) <= 120:
+    return base
+  h=hashlib.sha1(name.encode('utf-8')).hexdigest()[:12]
+  return base[:100] + '_' + h
 
 def full_type(t):
   m={
@@ -292,7 +296,7 @@ for obj in list(kw.keys()):
   parts=obj.split('.')
   if len(parts)==3:
     table_key=f'{parts[0]}.{parts[1]}'
-    if table_key in table_lines and (obj not in raw or raw[obj][0] in ('DEFAULT VALUE','UNKNOWN')):
+    if table_key in table_lines and (obj not in raw or raw[obj][0] in ('DEFAULT VALUE','CHECK CONSTRAINT','INDEX EXPRESSION','UNKNOWN')):
       extra=''
       if obj in raw and raw[obj][0] in ('DEFAULT VALUE','CHECK CONSTRAINT','INDEX EXPRESSION'):
         extra='\n\n[Detected Expression Target: '+obj+']\n'+raw[obj][1]
@@ -379,6 +383,14 @@ else
     [ -n "$obj" ] || continue
     SOURCE_TOTAL=$((SOURCE_TOTAL+1))
     sid=$(printf '%s' "$obj" | tr -c '[:alnum:]_.-' '_')
+    if [[ ${#sid} -gt 120 ]]; then
+      if command -v sha1sum >/dev/null 2>&1; then
+        sid_hash=$(printf '%s' "$obj" | sha1sum | awk '{print substr($1,1,12)}')
+      else
+        sid_hash=$(printf '%s' "$obj" | cksum | awk '{print $1}')
+      fi
+      sid="${sid:0:100}_${sid_hash}"
+    fi
     page="$SOURCE_DIR_PATH/src-$sid.html"
 
     typ=$(awk -F $'	' -v o="$obj" '$1==o{print $2; exit}' "$RAW_AGG")

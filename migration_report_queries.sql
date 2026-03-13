@@ -238,7 +238,7 @@ SELECT
     WHERE EXISTS (
       SELECT 1
       FROM unnest(COALESCE(r.rolconfig, ARRAY[]::text[])) cfg
-      WHERE lower(cfg) = lower('edb_profile=' || p.prfname)
+      WHERE regexp_replace(lower(cfg), '["''\s]', '', 'g') = 'edb_profile=' || lower(p.prfname)
     )
   ), '') AS applied_users
 FROM pg_catalog.edb_profile p
@@ -251,8 +251,11 @@ SELECT
   COALESCE(
     to_jsonb(rg)->>'cpurate',
     to_jsonb(rg)->>'rgrpcpurate',
+    to_jsonb(rg)->>'cpulimit',
+    to_jsonb(rg)->>'rgrpcpulimit',
     to_jsonb(rg)->>'cpu_rate',
     to_jsonb(rg)->>'rgrp_cpu_rate',
+    (SELECT j.value FROM jsonb_each_text(to_jsonb(rg)) j WHERE lower(j.key) LIKE '%cpu%' AND lower(j.key) NOT LIKE '%dirty%' LIMIT 1),
     ''
   ) AS cpurate,
   COALESCE(
@@ -260,6 +263,7 @@ SELECT
     to_jsonb(rg)->>'rgrpdirtyratelimit',
     to_jsonb(rg)->>'dirty_rate_limit',
     to_jsonb(rg)->>'rgrp_dirty_rate_limit',
+    (SELECT j.value FROM jsonb_each_text(to_jsonb(rg)) j WHERE lower(j.key) LIKE '%dirty%' LIMIT 1),
     ''
   ) AS dirtyratelimit,
   COALESCE((
@@ -268,7 +272,7 @@ SELECT
     WHERE EXISTS (
       SELECT 1
       FROM unnest(COALESCE(r.rolconfig, ARRAY[]::text[])) cfg
-      WHERE lower(cfg) = lower('edb_resource_group=' || rg.rgrpname)
+      WHERE regexp_replace(lower(cfg), '["''\s]', '', 'g') = 'edb_resource_group=' || lower(rg.rgrpname)
     )
   ), '') AS applied_users
 FROM pg_catalog.edb_resource_group rg
