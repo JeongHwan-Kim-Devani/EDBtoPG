@@ -200,9 +200,10 @@ rg_total=$(row_count_tsv "$OUT_DIR/04_policy_edb_resource_group.tsv"); rg_ok=$rg
 dblink_total=$(row_count_tsv "$OUT_DIR/04_policy_edb_dblink.tsv"); dblink_ok=$dblink_total; dblink_bad=0
 
 # source html best-effort
+PY_RENDERED=0
 if command -v python3 >/dev/null 2>&1 || command -v python >/dev/null 2>&1; then
   PYBIN=$(command -v python3 || command -v python)
-  "$PYBIN" - <<'PY' "$OUT_DIR" "$SOURCE_HTML_PATH" "$SOURCE_DIR_PATH" "$HTML_BASENAME"
+  if "$PYBIN" - <<'PY' "$OUT_DIR" "$SOURCE_HTML_PATH" "$SOURCE_DIR_PATH" "$HTML_BASENAME"
 import csv,html,re,sys,hashlib
 from pathlib import Path
 out=Path(sys.argv[1]); target=Path(sys.argv[2]); src_dir=Path(sys.argv[3]); precheck_name=sys.argv[4]
@@ -346,7 +347,13 @@ else:
 parts.append('</table></div></div></body></html>')
 target.write_text('\n'.join(parts),encoding='utf-8')
 PY
-else
+  then
+    PY_RENDERED=1
+  else
+    echo "[WARN] Python renderer failed; falling back to shell renderer." >&2
+  fi
+fi
+if [[ "$PY_RENDERED" -eq 0 ]]; then
   mkdir -p "$SOURCE_DIR_PATH"
   RAW_MERGED="$OUT_DIR/.raw_merged.tsv"
   RAW_AGG="$OUT_DIR/.raw_agg.tsv"
