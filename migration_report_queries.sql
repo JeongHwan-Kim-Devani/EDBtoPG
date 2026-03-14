@@ -229,23 +229,49 @@ FROM (
 ORDER BY schema_name, table_name, target_name, object_type;
 
 --@@ policy_edb_profile
+WITH prof AS (
+  SELECT p.prfname AS profile_name, to_jsonb(p) AS j
+  FROM pg_catalog.edb_profile p
+  WHERE p.prfname <> 'default'
+), prof_with_users AS (
+  SELECT
+    pf.profile_name,
+    pf.j,
+    COALESCE((
+      SELECT string_agg(r.rolname, ', ' ORDER BY r.rolname)
+      FROM pg_roles r
+      WHERE lower(COALESCE(to_jsonb(r)->>'rolprofile','')) = lower(pf.profile_name)
+         OR lower(COALESCE(to_jsonb(r)->>'edb_profile','')) = lower(pf.profile_name)
+         OR EXISTS (
+           SELECT 1
+           FROM unnest(COALESCE(r.rolconfig, ARRAY[]::text[])) cfg
+           WHERE regexp_replace(lower(cfg), '["''\s]', '', 'g') = 'edb_profile=' || lower(pf.profile_name)
+         )
+    ), '') AS applied_users
+  FROM prof pf
+)
 SELECT
-  p.prfname AS profile_name,
-  to_jsonb(p)::text AS profile_detail,
-  COALESCE((
-    SELECT string_agg(r.rolname, ', ' ORDER BY r.rolname)
-    FROM pg_roles r
-    WHERE lower(COALESCE(to_jsonb(r)->>'rolprofile','')) = lower(p.prfname)
-       OR lower(COALESCE(to_jsonb(r)->>'edb_profile','')) = lower(p.prfname)
-       OR EXISTS (
-         SELECT 1
-         FROM unnest(COALESCE(r.rolconfig, ARRAY[]::text[])) cfg
-         WHERE regexp_replace(lower(cfg), '["''\s]', '', 'g') = 'edb_profile=' || lower(p.prfname)
-       )
-  ), '') AS applied_users
-FROM pg_catalog.edb_profile p
-WHERE p.prfname <> 'default'
-ORDER BY p.prfname;
+  profile_name,
+  regexp_replace(
+    'Profile: ' || profile_name || E'
+' ||
+    'Applied users: ' || CASE WHEN applied_users = '' THEN '(미적용)' ELSE applied_users END || E'
+
+' ||
+    'Attributes:' || E'
+' ||
+    COALESCE((
+      SELECT string_agg('  - ' || e.key || ': ' || e.value, E'
+' ORDER BY e.key)
+      FROM jsonb_each_text(j) AS e(key, value)
+      WHERE e.key NOT IN ('prfname')
+    ), '  (none)'),
+    E'[
+]+', E'\n', 'g'
+  ) AS profile_detail,
+  applied_users
+FROM prof_with_users
+ORDER BY profile_name;
 
 --@@ policy_edb_resource_group
 SELECT
