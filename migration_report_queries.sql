@@ -235,11 +235,13 @@ SELECT
   COALESCE((
     SELECT string_agg(r.rolname, ', ' ORDER BY r.rolname)
     FROM pg_roles r
-    WHERE EXISTS (
-      SELECT 1
-      FROM unnest(COALESCE(r.rolconfig, ARRAY[]::text[])) cfg
-      WHERE regexp_replace(lower(cfg), '["''\s]', '', 'g') = 'edb_profile=' || lower(p.prfname)
-    )
+    WHERE lower(COALESCE(to_jsonb(r)->>'rolprofile','')) = lower(p.prfname)
+       OR lower(COALESCE(to_jsonb(r)->>'edb_profile','')) = lower(p.prfname)
+       OR EXISTS (
+         SELECT 1
+         FROM unnest(COALESCE(r.rolconfig, ARRAY[]::text[])) cfg
+         WHERE regexp_replace(lower(cfg), '["''\s]', '', 'g') = 'edb_profile=' || lower(p.prfname)
+       )
   ), '') AS applied_users
 FROM pg_catalog.edb_profile p
 WHERE p.prfname <> 'default'

@@ -286,6 +286,11 @@ for s,t,src in iter_fields(out/'03_detail_table_objects_raw.tsv', 3):
   if src:
     table_raw[f'{s}.{t}']=restore_text(src)
 
+idx_to_table={}
+for ot,s,t,tr,e in iter_fields(out/'03_detail_expr_raw.tsv', 5):
+  if ot=='INDEX EXPRESSION':
+    idx_to_table[f'{s}.{tr}']=f'{s}.{t}'
+
 def column_block(table_key):
   rows=table_lines.get(table_key,[])
   if not rows:
@@ -310,6 +315,11 @@ for obj in list(kw.keys()):
       else:
         base=coltxt or ('OBJECT '+table_key)
       raw[obj]=('TABLE COLUMN', base+extra)
+  elif len(parts)==2 and obj in idx_to_table and obj in raw and raw[obj][0]=='INDEX EXPRESSION':
+    table_key=idx_to_table[obj]
+    coltxt=column_block(table_key)
+    base=table_raw.get(table_key, coltxt if coltxt else ('OBJECT '+table_key))
+    raw[obj]=('INDEX EXPRESSION', base+'\n\n[Detected Expression Target: '+obj+']\n'+raw[obj][1])
 
 objects=[]
 for obj in sorted(set(kw) | set(raw)):
