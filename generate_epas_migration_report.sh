@@ -136,8 +136,8 @@ run_tsv "$OUT_DIR/03_detail_keywords.tsv" "$(read_sql detail_keywords)"
 run_tsv "$OUT_DIR/03_detail_datatypes_objects.tsv" "$(read_sql detail_datatypes_objects)"
 run_tsv "$OUT_DIR/03_detail_datatypes_tables.tsv" "$(read_sql detail_datatypes_tables)"
 run_tsv "$OUT_DIR/03_detail_expr_keywords.tsv" "$(read_sql detail_expr_keywords)"
-if table_exists sys.dba_profiles; then
-  run_tsv "$OUT_DIR/04_policy_edb_profile.tsv" "$(read_sql policy_edb_profile_dba)"
+if run_tsv "$OUT_DIR/04_policy_edb_profile.tsv" "$(read_sql policy_edb_profile_dba)" 2>/dev/null; then
+  :
 elif table_exists pg_catalog.edb_profile; then
   run_tsv "$OUT_DIR/04_policy_edb_profile.tsv" "$(read_sql policy_edb_profile)"
 else

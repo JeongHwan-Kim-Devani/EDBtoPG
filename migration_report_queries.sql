@@ -230,43 +230,63 @@ ORDER BY schema_name, table_name, target_name, object_type;
 
 --@@ policy_edb_profile
 WITH prof AS (
-  SELECT p.prfname AS profile_name, to_jsonb(p) AS j
+  SELECT p.*
   FROM pg_catalog.edb_profile p
   WHERE p.prfname <> 'default'
 ), prof_with_users AS (
   SELECT
-    pf.profile_name,
-    pf.j,
+    pf.*,
     COALESCE((
       SELECT string_agg(r.rolname, ', ' ORDER BY r.rolname)
       FROM pg_roles r
-      WHERE lower(COALESCE(to_jsonb(r)->>'rolprofile','')) = lower(pf.profile_name)
-         OR lower(COALESCE(to_jsonb(r)->>'edb_profile','')) = lower(pf.profile_name)
+      WHERE lower(COALESCE(to_jsonb(r)->>'rolprofile','')) = lower(pf.prfname)
+         OR lower(COALESCE(to_jsonb(r)->>'edb_profile','')) = lower(pf.prfname)
          OR EXISTS (
            SELECT 1
            FROM unnest(COALESCE(r.rolconfig, ARRAY[]::text[])) cfg
-           WHERE regexp_replace(lower(cfg), '["''\s]', '', 'g') = 'edb_profile=' || lower(pf.profile_name)
+           WHERE regexp_replace(lower(cfg), '["''\s]', '', 'g') = 'edb_profile=' || lower(pf.prfname)
          )
     ), '') AS applied_users
   FROM prof pf
+), profile_rows AS (
+  SELECT
+    p.prfname AS profile_name,
+    p.applied_users,
+    x.resource_name,
+    x.resource_type,
+    x.limit_value
+  FROM prof_with_users p
+  CROSS JOIN LATERAL (
+    VALUES
+      ('FAILED_LOGIN_ATTEMPTS', 'PASSWORD', COALESCE(p.prffailedloginattempts::text, 'DEFAULT')),
+      ('PASSWORD_ALLOW_HASHED', 'PASSWORD', CASE WHEN p.prfpasswordallowhashed = -1 THEN 'DEFAULT' ELSE p.prfpasswordallowhashed::text END),
+      ('PASSWORD_GRACE_TIME', 'PASSWORD', CASE WHEN p.prfpasswordgracetime = -1 THEN 'DEFAULT' WHEN p.prfpasswordgracetime = -2 THEN 'UNLIMITED' ELSE p.prfpasswordgracetime::text END),
+      ('PASSWORD_LIFE_TIME', 'PASSWORD', CASE WHEN p.prfpasswordlifetime = -1 THEN 'DEFAULT' WHEN p.prfpasswordlifetime = -2 THEN 'UNLIMITED' ELSE p.prfpasswordlifetime::text END),
+      ('PASSWORD_LOCK_TIME', 'PASSWORD', CASE WHEN p.prfpasswordlocktime = -1 THEN 'DEFAULT' WHEN p.prfpasswordlocktime = -2 THEN 'UNLIMITED' ELSE p.prfpasswordlocktime::text END),
+      ('PASSWORD_REUSE_MAX', 'PASSWORD', CASE WHEN p.prfpasswordreusemax = -1 THEN 'DEFAULT' WHEN p.prfpasswordreusemax = -2 THEN 'UNLIMITED' ELSE p.prfpasswordreusemax::text END),
+      ('PASSWORD_REUSE_TIME', 'PASSWORD', CASE WHEN p.prfpasswordreusetime = -1 THEN 'DEFAULT' WHEN p.prfpasswordreusetime = -2 THEN 'UNLIMITED' ELSE p.prfpasswordreusetime::text END),
+      ('PASSWORD_VERIFY_FUNCTION', 'PASSWORD', COALESCE(NULLIF(p.prfpasswordverifyfunc::regprocedure::text, ''), p.prfpasswordverifyfunc::text, 'DEFAULT'))
+  ) AS x(resource_name, resource_type, limit_value)
 )
 SELECT
   profile_name,
   regexp_replace(
-    'Profile: ' || profile_name || E'\n' ||
-    'Applied users: ' || CASE WHEN applied_users = '' THEN '(미적용)' ELSE applied_users END || E'\n\n' ||
-    'Attributes:' || E'\n' ||
-    COALESCE((
-      SELECT string_agg('  - ' || e.key || ': ' || e.value, E'\n' ORDER BY e.key)
-      FROM jsonb_each_text(j) AS e(key, value)
-      WHERE e.key NOT IN ('prfname')
-    ), '  (none)'),
+    'PROFILE: ' || profile_name || E'\n' ||
+    'APPLIED USERS: ' || CASE WHEN applied_users = '' THEN '(미적용)' ELSE applied_users END || E'\n\n' ||
+    'RESOURCE_NAME                 | TYPE       | LIMIT' || E'\n' ||
+    '---------------------------------------------------------------' || E'\n' ||
+    string_agg(
+      rpad(resource_name, 28, ' ') || ' | ' ||
+      rpad(resource_type, 10, ' ') || ' | ' ||
+      COALESCE(limit_value, 'DEFAULT'),
+      E'\n' ORDER BY resource_name
+    ),
     E'[\r\n]+', E'\\n', 'g'
   ) AS profile_detail,
   applied_users
-FROM prof_with_users
+FROM profile_rows
+GROUP BY profile_name, applied_users
 ORDER BY profile_name;
-
 --@@ policy_edb_profile_dba
 WITH prof_users AS (
   SELECT
