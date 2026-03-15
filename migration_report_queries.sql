@@ -253,21 +253,15 @@ WITH prof AS (
 SELECT
   profile_name,
   regexp_replace(
-    'Profile: ' || profile_name || E'
-' ||
-    'Applied users: ' || CASE WHEN applied_users = '' THEN '(미적용)' ELSE applied_users END || E'
-
-' ||
-    'Attributes:' || E'
-' ||
+    'Profile: ' || profile_name || E'\n' ||
+    'Applied users: ' || CASE WHEN applied_users = '' THEN '(미적용)' ELSE applied_users END || E'\n\n' ||
+    'Attributes:' || E'\n' ||
     COALESCE((
-      SELECT string_agg('  - ' || e.key || ': ' || e.value, E'
-' ORDER BY e.key)
+      SELECT string_agg('  - ' || e.key || ': ' || e.value, E'\n' ORDER BY e.key)
       FROM jsonb_each_text(j) AS e(key, value)
       WHERE e.key NOT IN ('prfname')
     ), '  (none)'),
-    E'[
-]+', E'\n', 'g'
+    E'[\r\n]+', E'\\n', 'g'
   ) AS profile_detail,
   applied_users
 FROM prof_with_users
