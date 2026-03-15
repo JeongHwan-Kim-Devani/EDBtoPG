@@ -136,7 +136,13 @@ run_tsv "$OUT_DIR/03_detail_keywords.tsv" "$(read_sql detail_keywords)"
 run_tsv "$OUT_DIR/03_detail_datatypes_objects.tsv" "$(read_sql detail_datatypes_objects)"
 run_tsv "$OUT_DIR/03_detail_datatypes_tables.tsv" "$(read_sql detail_datatypes_tables)"
 run_tsv "$OUT_DIR/03_detail_expr_keywords.tsv" "$(read_sql detail_expr_keywords)"
-if table_exists pg_catalog.edb_profile; then run_tsv "$OUT_DIR/04_policy_edb_profile.tsv" "$(read_sql policy_edb_profile)"; else : > "$OUT_DIR/04_policy_edb_profile.tsv"; fi
+if table_exists sys.dba_profiles; then
+  run_tsv "$OUT_DIR/04_policy_edb_profile.tsv" "$(read_sql policy_edb_profile_dba)"
+elif table_exists pg_catalog.edb_profile; then
+  run_tsv "$OUT_DIR/04_policy_edb_profile.tsv" "$(read_sql policy_edb_profile)"
+else
+  : > "$OUT_DIR/04_policy_edb_profile.tsv"
+fi
 if table_exists pg_catalog.edb_resource_group; then run_tsv "$OUT_DIR/04_policy_edb_resource_group.tsv" "$(read_sql policy_edb_resource_group)"; else : > "$OUT_DIR/04_policy_edb_resource_group.tsv"; fi
 if table_exists pg_catalog.edb_dblink; then run_tsv "$OUT_DIR/04_policy_edb_dblink.tsv" "$(read_sql policy_edb_dblink)"; else : > "$OUT_DIR/04_policy_edb_dblink.tsv"; fi
 run_tsv "$OUT_DIR/02_summary_packages_raw.tsv" "$(read_sql summary_packages_raw)"
@@ -506,7 +512,7 @@ rls_pg_rows=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s.%s</code></td><td><cod
 rls_dbms_rows=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s.%s</code></td><td><code>%s</code></td><td>%s.%s</td><td><span class=\"badge badge-low\">가능(난이도 낮음)</span></td></tr>\n",$2,$3,$5,$7,$8}' "$OUT_DIR/02_summary_policies_dbms_rls.tsv")
 rls_rows_html="${rls_pg_rows}${rls_dbms_rows}"
 redaction_rows_html=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s.%s</code></td><td><code>%s</code></td><td><code>%s</code></td><td><span class=\"badge badge-high\">가능(난이도 높음)</span></td></tr>\n",$1,$2,$3,$4}' "$OUT_DIR/02_summary_redaction.tsv")
-profile_rows_html=$(awk -F $'\t' 'NR>1{users=($3==""?"(미적용)":$3); obj="policy.profile."$1; id=obj; gsub(/[^[:alnum:]_.-]/,"_",id); printf "<tr><td><a href=\"%s/src-%s.html\"><code>%s</code></a></td><td><a href=\"%s/src-%s.html\">원문 보기</a></td><td><code>%s</code></td><td><span class=\"badge badge-low\">가능(난이도 낮음)</span></td></tr>\n",ENVIRON["SOURCE_DIR_BASENAME"],id,$1,ENVIRON["SOURCE_DIR_BASENAME"],id,users}' "$OUT_DIR/04_policy_edb_profile.tsv")
+profile_rows_html=$(awk -F $'\t' 'NR>1{users=($3==""?"(미적용)":$3); obj="policy.profile."$1; id=obj; gsub(/[^[:alnum:]_.-]/,"_",id); printf "<tr><td><a href=\"%s/src-%s.html\"><code>%s</code></a></td><td><code>%s</code></td><td><span class=\"badge badge-low\">가능(난이도 낮음)</span></td></tr>\n",ENVIRON["SOURCE_DIR_BASENAME"],id,$1,users}' "$OUT_DIR/04_policy_edb_profile.tsv")
 rg_rows_html=$(awk -F $'\t' 'NR>1{users=($4==""?"(미적용)":$4); printf "<tr><td><code>%s</code></td><td>%s</td><td>%s</td><td><code>%s</code></td><td><span class=\"badge badge-low\">가능(난이도 낮음)</span></td></tr>\n",$1,$2,$3,users}' "$OUT_DIR/04_policy_edb_resource_group.tsv")
 dblink_rows_html=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s</code></td><td>%s</td><td><code>%s</code></td><td><span class=\"badge badge-low\">가능(난이도 낮음)</span></td></tr>\n",$1,$5,$6}' "$OUT_DIR/04_policy_edb_dblink.tsv")
 
@@ -529,7 +535,7 @@ cat > "$HTML_PATH" <<HTML
 <h3>2-4. 시노님 (총 ${syn_total}건)</h3><table><tr><th>시노님</th><th>대상 객체</th><th>판정</th></tr>$( [ -n "$syn_rows_html" ] && echo "$syn_rows_html" || echo '<tr><td colspan="3">검출 없음</td></tr>' )</table>
 <h3>3-1. 정책(RLS) (총 ${rls_total}건) - Row Level Security 정책 점검</h3><table><tr><th>대상 테이블</th><th>정책명</th><th>명령</th><th>판정</th></tr>$( [ -n "$rls_rows_html" ] && echo "$rls_rows_html" || echo '<tr><td colspan="4">검출 없음</td></tr>' )</table>
 <h3>3-2. Redaction (총 ${redaction_total}건) - 데이터 마스킹 정책 점검</h3><table><tr><th>대상 테이블</th><th>정책명</th><th>컬럼</th><th>판정</th></tr>$( [ -n "$redaction_rows_html" ] && echo "$redaction_rows_html" || echo '<tr><td colspan="4">검출 없음</td></tr>' )</table>
-<h3>3-3. 프로파일 (총 ${profile_total}건)</h3><table><tr><th>프로파일</th><th>상세</th><th>적용 유저</th><th>판정</th></tr>$( [ -n "$profile_rows_html" ] && echo "$profile_rows_html" || echo '<tr><td colspan="4">검출 없음</td></tr>' )</table>
+<h3>3-3. 프로파일 (총 ${profile_total}건)</h3><table><tr><th>프로파일</th><th>적용 유저</th><th>판정</th></tr>$( [ -n "$profile_rows_html" ] && echo "$profile_rows_html" || echo '<tr><td colspan="3">검출 없음</td></tr>' )</table>
 <h3>3-4. 리소스 그룹 (총 ${rg_total}건)</h3><table><tr><th>리소스 그룹</th><th>CPU rate</th><th>dirtyratelimit</th><th>적용 유저</th><th>판정</th></tr>$( [ -n "$rg_rows_html" ] && echo "$rg_rows_html" || echo '<tr><td colspan="5">검출 없음</td></tr>' )</table>
 <h3>4-1. DBLINK (총 ${dblink_total}건)</h3><table><tr><th>DBLINK</th><th>USER</th><th>연결정보</th><th>판정</th></tr>$( [ -n "$dblink_rows_html" ] && echo "$dblink_rows_html" || echo '<tr><td colspan="4">검출 없음</td></tr>' )</table>
 </div></div></body></html>

@@ -267,6 +267,54 @@ SELECT
 FROM prof_with_users
 ORDER BY profile_name;
 
+--@@ policy_edb_profile_dba
+WITH prof_users AS (
+  SELECT
+    p.profile AS profile_name,
+    COALESCE((
+      SELECT string_agg(r.rolname, ', ' ORDER BY r.rolname)
+      FROM pg_roles r
+      WHERE lower(COALESCE(to_jsonb(r)->>'rolprofile','')) = lower(p.profile)
+         OR lower(COALESCE(to_jsonb(r)->>'edb_profile','')) = lower(p.profile)
+         OR EXISTS (
+           SELECT 1
+           FROM unnest(COALESCE(r.rolconfig, ARRAY[]::text[])) cfg
+           WHERE regexp_replace(lower(cfg), '["''\s]', '', 'g') = 'edb_profile=' || lower(p.profile)
+         )
+    ), '') AS applied_users
+  FROM (
+    SELECT DISTINCT profile
+    FROM sys.dba_profiles
+    WHERE upper(profile) <> 'DEFAULT'
+  ) p
+), prof_detail AS (
+  SELECT
+    p.profile AS profile_name,
+    string_agg(
+      rpad(COALESCE(p.resource_name, '-'), 28, ' ') || ' | ' ||
+      rpad(COALESCE(p.resource_type, '-'), 10, ' ') || ' | ' ||
+      COALESCE(p.limit::text, '-'),
+      E'\n' ORDER BY p.resource_type, p.resource_name
+    ) AS body_lines
+  FROM sys.dba_profiles p
+  WHERE upper(p.profile) <> 'DEFAULT'
+  GROUP BY p.profile
+)
+SELECT
+  d.profile_name,
+  regexp_replace(
+    'PROFILE: ' || d.profile_name || E'\n' ||
+    'APPLIED USERS: ' || CASE WHEN u.applied_users = '' THEN '(미적용)' ELSE u.applied_users END || E'\n\n' ||
+    'RESOURCE_NAME                 | TYPE       | LIMIT' || E'\n' ||
+    '---------------------------------------------------------------' || E'\n' ||
+    COALESCE(d.body_lines, '(none)'),
+    E'[\r\n]+', E'\\n', 'g'
+  ) AS profile_detail,
+  u.applied_users
+FROM prof_detail d
+LEFT JOIN prof_users u ON u.profile_name = d.profile_name
+ORDER BY d.profile_name;
+
 --@@ policy_edb_resource_group
 SELECT
   rg.rgrpname AS resource_group_name,
@@ -487,4 +535,3 @@ LEFT JOIN idx ON idx.oid = t.oid
 LEFT JOIN fk ON fk.oid = t.oid
 LEFT JOIN pol ON pol.oid = t.oid
 ORDER BY t.schema_name, t.table_name;
-
