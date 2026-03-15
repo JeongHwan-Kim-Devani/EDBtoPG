@@ -254,7 +254,8 @@ WITH prof AS (
     p.applied_users,
     x.resource_name,
     x.resource_type,
-    x.limit_value
+    x.limit_value,
+    'YES'::text AS common_value
   FROM prof_with_users p
   CROSS JOIN LATERAL (
     VALUES
@@ -271,16 +272,17 @@ WITH prof AS (
 SELECT
   profile_name,
   regexp_replace(
-    'PROFILE: ' || profile_name || E'\n' ||
-    'APPLIED USERS: ' || CASE WHEN applied_users = '' THEN '(미적용)' ELSE applied_users END || E'\n\n' ||
-    'RESOURCE_NAME                 | TYPE       | LIMIT' || E'\n' ||
-    '---------------------------------------------------------------' || E'\n' ||
+    'PROFILE           | RESOURCE_NAME               | RESOURCE_TYPE | LIMIT                    | COMMON' || E'\n' ||
+    '--------------------------------------------------------------------------------------------------------' || E'\n' ||
     string_agg(
-      rpad(resource_name, 28, ' ') || ' | ' ||
-      rpad(resource_type, 10, ' ') || ' | ' ||
-      COALESCE(limit_value, 'DEFAULT'),
+      rpad(profile_name, 17, ' ') || ' | ' ||
+      rpad(resource_name, 27, ' ') || ' | ' ||
+      rpad(resource_type, 13, ' ') || ' | ' ||
+      rpad(COALESCE(limit_value, 'DEFAULT'), 24, ' ') || ' | ' ||
+      COALESCE(common_value, '-'),
       E'\n' ORDER BY resource_name
-    ),
+    ) || E'\n\n' ||
+    'APPLIED USERS: ' || CASE WHEN applied_users = '' THEN '(미적용)' ELSE applied_users END,
     E'[\r\n]+', E'\\n', 'g'
   ) AS profile_detail,
   applied_users
@@ -323,11 +325,10 @@ WITH prof_users AS (
 SELECT
   d.profile_name,
   regexp_replace(
-    'PROFILE: ' || d.profile_name || E'\n' ||
-    'APPLIED USERS: ' || CASE WHEN u.applied_users = '' THEN '(미적용)' ELSE u.applied_users END || E'\n\n' ||
-    'RESOURCE_NAME                 | TYPE       | LIMIT' || E'\n' ||
-    '---------------------------------------------------------------' || E'\n' ||
-    COALESCE(d.body_lines, '(none)'),
+    'PROFILE           | RESOURCE_NAME               | RESOURCE_TYPE | LIMIT                    | COMMON' || E'\n' ||
+    '--------------------------------------------------------------------------------------------------------' || E'\n' ||
+    COALESCE(d.body_lines, '(none)') || E'\n\n' ||
+    'APPLIED USERS: ' || CASE WHEN u.applied_users = '' THEN '(미적용)' ELSE u.applied_users END,
     E'[\r\n]+', E'\\n', 'g'
   ) AS profile_detail,
   u.applied_users

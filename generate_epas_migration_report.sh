@@ -279,7 +279,7 @@ for ot,s,t,tr,e in iter_fields(out/'03_detail_expr_raw.tsv', 5):
     raw[obj]=(full_type(ot),restore_text(e))
 for prf, detail, users in iter_fields(out/'04_policy_edb_profile.tsv', 3):
   obj=f'policy.profile.{prf}'
-  raw[obj]=('PROFILE', f'Profile: {prf}\nApplied users: {users if users else "(미적용)"}\n\n{restore_text(detail)}')
+  raw[obj]=('PROFILE', restore_text(detail) if detail else f'PROFILE: {prf}\nAPPLIED USERS: {users if users else "(미적용)"}')
 
 table_lines={}
 for s,t,c,ctype,nullok,default in iter_fields(out/'03_detail_table_columns_raw.tsv', 6):
@@ -387,7 +387,7 @@ if [[ "$PY_RENDERED" -eq 0 ]]; then
   awk -F $'	' 'NR>1{print $2"."$3"	"$1"	"$4}' "$OUT_DIR/03_detail_keywords_raw.tsv" >> "$RAW_MERGED"
   awk -F $'	' 'NR>1{obj=($1=="INDEX EXPRESSION"?$2"."$4:$2"."$3"."$4); print obj"	"$1"	"$5}' "$OUT_DIR/03_detail_expr_raw.tsv" >> "$RAW_MERGED"
 
-  awk -F $'	' 'NR>1{print "policy.profile."$1"	PROFILE	""Profile: "$1"\nApplied users: "($3==""?"(미적용)":$3)"\n\n"$2}' "$OUT_DIR/04_policy_edb_profile.tsv" >> "$RAW_MERGED"
+  awk -F $'	' 'NR>1{detail=($2==""?"PROFILE: "$1"\nAPPLIED USERS: "($3==""?"(미적용)":$3):$2); print "policy.profile."$1"	PROFILE	""detail}' "$OUT_DIR/04_policy_edb_profile.tsv" >> "$RAW_MERGED"
 
   awk -F $'	' 'NR>1{print $2"."$3"	"$4}' "$OUT_DIR/02_summary_packages.tsv" >> "$KW_MERGED"
   awk -F $'	' 'NR>1{print $2"."$3"	"$4}' "$OUT_DIR/03_detail_keywords.tsv" >> "$KW_MERGED"
