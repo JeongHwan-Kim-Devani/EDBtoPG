@@ -313,9 +313,11 @@ WITH prof_users AS (
   SELECT
     p.profile AS profile_name,
     string_agg(
-      rpad(COALESCE(p.resource_name, '-'), 28, ' ') || ' | ' ||
-      rpad(COALESCE(p.resource_type, '-'), 10, ' ') || ' | ' ||
-      COALESCE(p.limit::text, '-'),
+      rpad(COALESCE(p.profile::text, '-'), 17, ' ') || ' | ' ||
+      rpad(COALESCE(p.resource_name::text, '-'), 27, ' ') || ' | ' ||
+      rpad(COALESCE(p.resource_type::text, '-'), 13, ' ') || ' | ' ||
+      rpad(COALESCE(p.limit::text, '-'), 24, ' ') || ' | ' ||
+      COALESCE(p.common::text, '-'),
       E'\n' ORDER BY p.resource_type, p.resource_name
     ) AS body_lines
   FROM sys.dba_profiles p
