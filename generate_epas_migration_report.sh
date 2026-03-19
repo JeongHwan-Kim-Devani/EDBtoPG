@@ -186,7 +186,7 @@ awk -F $'	' '{
 }' "$OUT_DIR/.f.tsv" | sort -t $'	' -k1,1n -k2,2 -k5,5 | awk -F $'	'  '{  id=$8; gsub(/[^[:alnum:]_.-]/,"_",id);  gsub("&","&amp;",$6);gsub("<","&lt;",$6);gsub(">","&gt;",$6);  b=($7=="불가"?"badge-bad":($7=="가능(난이도 높음)"?"badge-high":"badge-low"));  printf "<tr><td><code>%s</code></td><td>%s</td><td><a href=\"%s/src-%s.html\"><code>%s</code></a></td><td><code>%s</code></td><td><span class=\"badge %s\">%s</span></td></tr>\n",$3,$4,ENVIRON["SOURCE_DIR_BASENAME"],id,$5,$6,b,$7}' > "$FEATURE_ROWS"
 
 awk -F $'	' 'NR>1{print $1"	"$2"	"$3"	"$4}' "$OUT_DIR/03_detail_datatypes_objects.tsv" > "$OUT_DIR/.d.tsv"
-awk -F $'\t' 'NR>1{print "T\t"$1"\t"$1"."$2"."$3"\t"$4}' "$OUT_DIR/03_detail_datatypes_tables.tsv" >> "$OUT_DIR/.d.tsv"
+awk -F $'\t' 'NR>1{key=$1"."$2; dt=tolower($4); if(!seen[key SUBSEP dt]++){dtypes[key]=(dtypes[key]?dtypes[key]", ":"")dt}; sch[key]=$1; touched[key]=1} END{for(k in touched){print "T\t"sch[k]"\t"k"\t"dtypes[k]}}' "$OUT_DIR/03_detail_datatypes_tables.tsv" >> "$OUT_DIR/.d.tsv"
 awk -F $'\t' '!seen[$0]++{  ord=($1=="P"?1:($1=="F"?2:($1=="V"?3:4)));  tn=($1=="P"?"PROCEDURE":($1=="F"?"FUNCTION":($1=="V"?"VIEW":"TABLE COLUMN")));  obj=($1=="T"?$3:$2"."$3);  print ord"\t"$2"\t"tn"\t"obj"\t"$4}' "$OUT_DIR/.d.tsv" | sort -t $'\t' -k1,1n -k2,2 -k4,4 | awk -F $'\t' '{  obj=$4; id=obj; gsub(/[^[:alnum:]_.-]/,"_",id);  printf "<tr><td><code>%s</code></td><td><a href=\"%s/src-%s.html\"><code>%s</code></a></td><td><code>%s</code></td></tr>\n",$3,ENVIRON["SOURCE_DIR_BASENAME"],id,obj,$5}' > "$DTYPE_ROWS"
 
 awk -F $'	' 'NR>1{  obj=($1=="INDEX EXPRESSION"?$2"."$4:$2"."$3"."$4);  k=obj SUBSEP $1; token=tolower($5); if(token=="") token="(검출 키워드 없음)";  if(!((k SUBSEP token) in seen)){seen[k SUBSEP token]=1; kws[k]=(kws[k]?kws[k]", ":"")token};  lv=0;  if(token ~ /^(rownum|rowid|dual|minus|sys_connect_by_path|connect_by_root|connect_by_isleaf|level|pragma|sqlcode|sqlerrm|raise_application_error)$/) lv=2;  else if(token ~ /^(dbms_crypto(\.[a-z0-9_]+)?|dbms_[a-z0-9_]+|utl_[a-z0-9_]+|owa_[a-z0-9_]+|htp\.[a-z0-9_]+|htf\.[a-z0-9_]+|sysdate|systimestamp|nvl|nvl2|decode|add_months|months_between|last_day|next_day|instr|greatest|least)$/) lv=1;  if(lv > level[k]) level[k]=lv} END{  for(k in kws){split(k,a,SUBSEP); op=(level[k]==2?"불가":(level[k]==1?"가능(난이도 높음)":"가능(난이도 낮음)")); print a[1]"	"a[2]"	"kws[k]"	"op}}' "$OUT_DIR/03_detail_expr_keywords.tsv" | sort -t $'	' -k1,1 -k2,2 | awk -F $'	' '{  id=$1; gsub(/[^[:alnum:]_.-]/,"_",id);  gsub("&","&amp;",$3);gsub("<","&lt;",$3);gsub(">","&gt;",$3);  b=($4=="불가"?"badge-bad":($4=="가능(난이도 높음)"?"badge-high":"badge-low"));  printf "<tr><td><a href=\"%s/src-%s.html\"><code>%s</code></a></td><td><code>%s</code></td><td><code>%s</code></td><td><span class=\"badge %s\">%s</span></td></tr>\n",ENVIRON["SOURCE_DIR_BASENAME"],id,$1,$2,$3,b,$4}' > "$EXPR_ROWS"
@@ -267,7 +267,7 @@ for ot,s,t,tr,k in iter_fields(out/'03_detail_expr_keywords.tsv', 5):
 for t,s,o,k in iter_fields(out/'02_summary_packages.tsv', 4):
   kw.setdefault(f'{s}.{o}',set()).add(k.lower() if k else '(검출 키워드 없음)')
 for s,t,c,d in iter_fields(out/'03_detail_datatypes_tables.tsv', 4):
-  kw.setdefault(f'{s}.{t}.{c}',set()).add(d.lower() if d else '(검출 키워드 없음)')
+  kw.setdefault(f'{s}.{t}',set()).add(d.lower() if d else '(검출 키워드 없음)')
 
 raw={}
 for t,s,o,src in list(iter_fields(out/'02_summary_packages_raw.tsv', 4))+list(iter_fields(out/'03_detail_keywords_raw.tsv', 4)):
@@ -280,6 +280,12 @@ for ot,s,t,tr,e in iter_fields(out/'03_detail_expr_raw.tsv', 5):
 for prf, detail, users in iter_fields(out/'04_policy_edb_profile.tsv', 3):
   obj=f'policy.profile.{prf}'
   raw[obj]=('PROFILE', restore_text(detail) if detail else f'PROFILE: {prf}\nAPPLIED USERS: {users if users else "(미적용)"}')
+for schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check in iter_fields(out/'02_summary_policies.tsv', 8):
+  obj=f'policy.rls.{schemaname}.{tablename}.{policyname}'
+  raw[obj]=('RLS POLICY', f'Schema: {schemaname}\nTable: {tablename}\nPolicy: {policyname}\nPermissive: {permissive}\nRoles: {roles}\nCommand: {cmd}\nUsing: {qual}\nWith check: {with_check}')
+for object_owner, schema_name, object_name, policy_group, policy_name, pf_owner, package, function_name in iter_fields(out/'02_summary_policies_dbms_rls.tsv', 8):
+  obj=f'policy.rls.{schema_name}.{object_name}.{policy_name}'
+  raw[obj]=('RLS POLICY', f'Owner: {object_owner}\nSchema: {schema_name}\nObject: {object_name}\nPolicy group: {policy_group}\nPolicy name: {policy_name}\nFunction owner: {pf_owner}\nPackage: {package}\nFunction: {function_name}')
 
 table_lines={}
 for s,t,c,ctype,nullok,default in iter_fields(out/'03_detail_table_columns_raw.tsv', 6):
@@ -291,6 +297,8 @@ table_raw={}
 for s,t,src in iter_fields(out/'03_detail_table_objects_raw.tsv', 3):
   if src:
     table_raw[f'{s}.{t}']=restore_text(src)
+for k,v in table_raw.items():
+  raw.setdefault(k, ('TABLE COLUMN', v))
 
 idx_to_table={}
 for ot,s,t,tr,e in iter_fields(out/'03_detail_expr_raw.tsv', 5):
@@ -386,13 +394,16 @@ if [[ "$PY_RENDERED" -eq 0 ]]; then
   awk -F $'	' 'NR>1{print $2"."$3"	"$1"	"$4}' "$OUT_DIR/02_summary_packages_raw.tsv" >> "$RAW_MERGED"
   awk -F $'	' 'NR>1{print $2"."$3"	"$1"	"$4}' "$OUT_DIR/03_detail_keywords_raw.tsv" >> "$RAW_MERGED"
   awk -F $'	' 'NR>1{obj=($1=="INDEX EXPRESSION"?$2"."$4:$2"."$3"."$4); print obj"	"$1"	"$5}' "$OUT_DIR/03_detail_expr_raw.tsv" >> "$RAW_MERGED"
+  awk -F $'\t' 'NR>1{print $1"."$2"\tTABLE COLUMN\t"$3}' "$OUT_DIR/03_detail_table_objects_raw.tsv" >> "$RAW_MERGED"
 
   awk -F $'	' 'NR>1{users=($3==""?"(미적용)":$3); detail=($2==""?"PROFILE: "$1"\\nAPPLIED USERS: "users:$2); printf "policy.profile.%s\tPROFILE\t%s\n", $1, detail}' "$OUT_DIR/04_policy_edb_profile.tsv" >> "$RAW_MERGED"
+  awk -F $'\t' 'NR>1{printf "policy.rls.%s.%s.%s\tRLS POLICY\tSchema: %s\\nTable: %s\\nPolicy: %s\\nPermissive: %s\\nRoles: %s\\nCommand: %s\\nUsing: %s\\nWith check: %s\n", $1,$2,$3,$1,$2,$3,$4,$5,$6,$7,$8}' "$OUT_DIR/02_summary_policies.tsv" >> "$RAW_MERGED"
+  awk -F $'\t' 'NR>1{printf "policy.rls.%s.%s.%s\tRLS POLICY\tOwner: %s\\nSchema: %s\\nObject: %s\\nPolicy group: %s\\nPolicy name: %s\\nFunction owner: %s\\nPackage: %s\\nFunction: %s\n", $2,$3,$5,$1,$2,$3,$4,$5,$6,$7,$8}' "$OUT_DIR/02_summary_policies_dbms_rls.tsv" >> "$RAW_MERGED"
 
   awk -F $'	' 'NR>1{print $2"."$3"	"$4}' "$OUT_DIR/02_summary_packages.tsv" >> "$KW_MERGED"
   awk -F $'	' 'NR>1{print $2"."$3"	"$4}' "$OUT_DIR/03_detail_keywords.tsv" >> "$KW_MERGED"
   awk -F $'	' 'NR>1{obj=($1=="INDEX EXPRESSION"?$2"."$4:$2"."$3"."$4); print obj"	"$5}' "$OUT_DIR/03_detail_expr_keywords.tsv" >> "$KW_MERGED"
-  awk -F $'	' 'NR>1{print $1"."$2"."$3"	"$4}' "$OUT_DIR/03_detail_datatypes_tables.tsv" >> "$KW_MERGED"
+  awk -F $'\t' 'NR>1{print $1"."$2"\t"$4}' "$OUT_DIR/03_detail_datatypes_tables.tsv" >> "$KW_MERGED"
 
   awk -F $'	' '!seen[$1]++{print $1"	"$2"	"$3}' "$RAW_MERGED" > "$RAW_AGG"
   awk -F $'	' '{k=$1; t=tolower($2); if(t=="") t="(검출 키워드 없음)"; if(!seen[k SUBSEP t]++){a[k]=(a[k]?a[k]", ":"")t}} END{for(k in a) print k"	"a[k]}' "$KW_MERGED" > "$KW_AGG"
@@ -508,8 +519,8 @@ fi
 
 default_row_if_empty(){ [[ -s "$1" ]] && cat "$1" || printf '<tr><td colspan="%s">검출 없음</td></tr>' "$2"; }
 syn_rows_html=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s.%s</code></td><td><code>%s.%s</code></td><td><span class=\"badge badge-low\">가능(난이도 낮음)</span></td></tr>\n",$1,$2,$3,$4}' "$OUT_DIR/02_summary_synonyms.tsv")
-rls_pg_rows=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s.%s</code></td><td><code>%s</code></td><td>%s</td><td><span class=\"badge badge-low\">가능(난이도 낮음)</span></td></tr>\n",$1,$2,$3,$6}' "$OUT_DIR/02_summary_policies.tsv")
-rls_dbms_rows=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s.%s</code></td><td><code>%s</code></td><td>%s.%s</td><td><span class=\"badge badge-low\">가능(난이도 낮음)</span></td></tr>\n",$2,$3,$5,$7,$8}' "$OUT_DIR/02_summary_policies_dbms_rls.tsv")
+rls_pg_rows=$(awk -F $'\t' 'NR>1{obj="policy.rls."$1"."$2"."$3; id=obj; gsub(/[^[:alnum:]_.-]/,"_",id); printf "<tr><td><code>%s.%s</code></td><td><a href=\"%s/src-%s.html\"><code>%s</code></a></td><td>%s</td><td><span class=\"badge badge-low\">가능(난이도 낮음)</span></td></tr>\n",$1,$2,ENVIRON["SOURCE_DIR_BASENAME"],id,$3,$6}' "$OUT_DIR/02_summary_policies.tsv")
+rls_dbms_rows=$(awk -F $'\t' 'NR>1{obj="policy.rls."$2"."$3"."$5; id=obj; gsub(/[^[:alnum:]_.-]/,"_",id); printf "<tr><td><code>%s.%s</code></td><td><a href=\"%s/src-%s.html\"><code>%s</code></a></td><td>%s.%s</td><td><span class=\"badge badge-low\">가능(난이도 낮음)</span></td></tr>\n",$2,$3,ENVIRON["SOURCE_DIR_BASENAME"],id,$5,$7,$8}' "$OUT_DIR/02_summary_policies_dbms_rls.tsv")
 rls_rows_html="${rls_pg_rows}${rls_dbms_rows}"
 redaction_rows_html=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s.%s</code></td><td><code>%s</code></td><td><code>%s</code></td><td><span class=\"badge badge-high\">가능(난이도 높음)</span></td></tr>\n",$1,$2,$3,$4}' "$OUT_DIR/02_summary_redaction.tsv")
 profile_rows_html=$(awk -F $'\t' 'NR>1{users=($3==""?"(미적용)":$3); obj="policy.profile."$1; id=obj; gsub(/[^[:alnum:]_.-]/,"_",id); printf "<tr><td><a href=\"%s/src-%s.html\"><code>%s</code></a></td><td><code>%s</code></td><td><span class=\"badge badge-low\">가능(난이도 낮음)</span></td></tr>\n",ENVIRON["SOURCE_DIR_BASENAME"],id,$1,users}' "$OUT_DIR/04_policy_edb_profile.tsv")

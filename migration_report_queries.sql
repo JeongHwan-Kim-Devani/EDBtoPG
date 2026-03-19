@@ -160,6 +160,16 @@ FROM (
     LATERAL regexp_matches(lower(p.prosrc), '(\m(?:dbms_crypto(?:\.[a-z0-9_]+)?|clob|bfile|raw|greatest|least|sysdate|systimestamp|rownum|rowid|level|nvl|nvl2|decode|add_months|months_between|last_day|next_day|instr|listagg|wm_concat|dual|minus|sys_connect_by_path|connect_by_root|connect_by_isleaf|pragma|sqlcode|sqlerrm|raise_application_error|numtodsinterval|numtoyminterval|sys_extract_utc|tz_offset|dbtimezone|sessiontimezone|lnnvl|nanvl|ratio_to_report|substrb|instrb|lengthb)\M)', 'g') AS m
     WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
     UNION ALL
+    SELECT CASE WHEN p.prokind='p' THEN 'P' ELSE 'F' END AS object_type,
+           n.nspname AS schema_name,
+           p.proname AS object_name,
+           lower(l.lanname) AS detected_keyword
+    FROM pg_proc p
+    JOIN pg_namespace n ON p.pronamespace = n.oid
+    JOIN pg_language l ON l.oid = p.prolang
+    WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
+      AND l.lanname IS NOT NULL
+    UNION ALL
     SELECT 'V' AS object_type, v.schemaname AS schema_name, v.viewname AS object_name,
            m[1] AS detected_keyword
     FROM pg_views v,
