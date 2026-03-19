@@ -104,6 +104,14 @@ FROM (
     WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
       AND n.nspname NOT LIKE 'dbms_%'
       AND n.nspname NOT LIKE 'utl_%'
+      AND NOT EXISTS (
+        SELECT 1
+        FROM pg_depend d
+        JOIN pg_extension e ON e.oid = d.refobjid
+        WHERE d.classid = 'pg_proc'::regclass
+          AND d.objid = p.oid
+          AND d.deptype = 'e'
+      )
     UNION ALL
     SELECT
         'V' AS object_type,
@@ -159,6 +167,14 @@ FROM (
     JOIN pg_namespace n ON p.pronamespace = n.oid,
     LATERAL regexp_matches(lower(p.prosrc), '(\m(?:dbms_crypto(?:\.[a-z0-9_]+)?|clob|bfile|raw|greatest|least|sysdate|systimestamp|rownum|rowid|level|nvl|nvl2|decode|add_months|months_between|last_day|next_day|instr|listagg|wm_concat|dual|minus|sys_connect_by_path|connect_by_root|connect_by_isleaf|pragma|sqlcode|sqlerrm|raise_application_error|numtodsinterval|numtoyminterval|sys_extract_utc|tz_offset|dbtimezone|sessiontimezone|lnnvl|nanvl|ratio_to_report|substrb|instrb|lengthb)\M)', 'g') AS m
     WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
+      AND NOT EXISTS (
+        SELECT 1
+        FROM pg_depend d
+        JOIN pg_extension e ON e.oid = d.refobjid
+        WHERE d.classid = 'pg_proc'::regclass
+          AND d.objid = p.oid
+          AND d.deptype = 'e'
+      )
     UNION ALL
     SELECT CASE WHEN p.prokind='p' THEN 'P' ELSE 'F' END AS object_type,
            n.nspname AS schema_name,
@@ -170,7 +186,15 @@ FROM (
     WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
       AND n.nspname NOT LIKE 'dbms_%'
       AND n.nspname NOT LIKE 'utl_%'
-      AND p.proname !~* '^(dbms_|utl_|owa_|htp_|htf_|aq\$)'
+      AND p.proname !~* '^((dbms|utl|owa|htp|htf)(_|\.)|aq\$)'
+      AND NOT EXISTS (
+        SELECT 1
+        FROM pg_depend d
+        JOIN pg_extension e ON e.oid = d.refobjid
+        WHERE d.classid = 'pg_proc'::regclass
+          AND d.objid = p.oid
+          AND d.deptype = 'e'
+      )
       AND l.lanname IS NOT NULL
     UNION ALL
     SELECT 'V' AS object_type, v.schemaname AS schema_name, v.viewname AS object_name,

@@ -268,6 +268,12 @@ for t,s,o,k in iter_fields(out/'02_summary_packages.tsv', 4):
   kw.setdefault(f'{s}.{o}',set()).add(k.lower() if k else '(검출 키워드 없음)')
 for s,t,c,d in iter_fields(out/'03_detail_datatypes_tables.tsv', 4):
   kw.setdefault(f'{s}.{t}',set()).add(d.lower() if d else '(검출 키워드 없음)')
+for object_owner, schema_name, object_name, policy_group, policy_name, pf_owner, package, function_name in iter_fields(out/'02_summary_policies_dbms_rls.tsv', 8):
+  obj=f'policy.rls.{schema_name}.{object_name}.{policy_name}'
+  if function_name:
+    kw.setdefault(obj,set()).add(function_name.lower())
+  if package and function_name:
+    kw.setdefault(obj,set()).add(f'{package.lower()}.{function_name.lower()}')
 
 raw={}
 for t,s,o,src in list(iter_fields(out/'02_summary_packages_raw.tsv', 4))+list(iter_fields(out/'03_detail_keywords_raw.tsv', 4)):
@@ -404,6 +410,7 @@ if [[ "$PY_RENDERED" -eq 0 ]]; then
   awk -F $'	' 'NR>1{print $2"."$3"	"$4}' "$OUT_DIR/03_detail_keywords.tsv" >> "$KW_MERGED"
   awk -F $'	' 'NR>1{obj=($1=="INDEX EXPRESSION"?$2"."$4:$2"."$3"."$4); print obj"	"$5}' "$OUT_DIR/03_detail_expr_keywords.tsv" >> "$KW_MERGED"
   awk -F $'\t' 'NR>1{print $1"."$2"\t"$4}' "$OUT_DIR/03_detail_datatypes_tables.tsv" >> "$KW_MERGED"
+  awk -F $'\t' 'NR>1{obj="policy.rls."$2"."$3"."$5; fn=tolower($8); pkg=tolower($7); if(fn!="") print obj"\t"fn; if(pkg!=""&&fn!="") print obj"\t"pkg"."fn}' "$OUT_DIR/02_summary_policies_dbms_rls.tsv" >> "$KW_MERGED"
 
   awk -F $'	' '!seen[$1]++{print $1"	"$2"	"$3}' "$RAW_MERGED" > "$RAW_AGG"
   awk -F $'	' '{k=$1; t=tolower($2); if(t=="") t="(검출 키워드 없음)"; if(!seen[k SUBSEP t]++){a[k]=(a[k]?a[k]", ":"")t}} END{for(k in a) print k"	"a[k]}' "$KW_MERGED" > "$KW_AGG"
