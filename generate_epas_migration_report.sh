@@ -289,9 +289,41 @@ for prf, detail, users in iter_fields(out/'04_policy_edb_profile.tsv', 3):
 for schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check in iter_fields(out/'02_summary_policies.tsv', 8):
   obj=f'policy.rls.{schemaname}.{tablename}.{policyname}'
   raw[obj]=('RLS POLICY', f'Schema: {schemaname}\nTable: {tablename}\nPolicy: {policyname}\nPermissive: {permissive}\nRoles: {roles}\nCommand: {cmd}\nUsing: {qual}\nWith check: {with_check}')
+policy_meta={}
+for schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check in iter_fields(out/'02_summary_policies.tsv', 8):
+  policy_meta[(schemaname.lower(), tablename.lower(), policyname.lower())]=(permissive, roles, cmd, qual, with_check)
+function_meta={}
+for object_type, schema_name, object_name, source_text in iter_fields(out/'02_summary_packages_raw.tsv', 4):
+  if (object_type or '').upper() in ('F','P'):
+    function_meta[(schema_name.lower(), object_name.lower())]=restore_text(source_text)
 for object_owner, schema_name, object_name, policy_group, policy_name, pf_owner, package, function_name in iter_fields(out/'02_summary_policies_dbms_rls.tsv', 8):
   obj=f'policy.rls.{schema_name}.{object_name}.{policy_name}'
-  raw[obj]=('RLS POLICY', f'Owner: {object_owner}\nSchema: {schema_name}\nObject: {object_name}\nPolicy group: {policy_group}\nPolicy name: {policy_name}\nFunction owner: {pf_owner}\nPackage: {package}\nFunction: {function_name}')
+  lines=[
+    f'Owner: {object_owner}',
+    f'Schema: {schema_name}',
+    f'Object: {object_name}',
+    f'Policy group: {policy_group}',
+    f'Policy name: {policy_name}',
+    f'Function owner: {pf_owner}',
+    f'Package: {package}',
+    f'Function: {function_name}'
+  ]
+  meta=policy_meta.get((schema_name.lower(), object_name.lower(), policy_name.lower()))
+  if meta:
+    permissive, roles, cmd, qual, with_check = meta
+    lines.extend([
+      '',
+      '[Policy rule summary]',
+      f'Command: {cmd}',
+      f'Permissive: {permissive}',
+      f'Roles: {roles}',
+      f'Using: {qual}',
+      f'With check: {with_check}'
+    ])
+  function_source=function_meta.get((pf_owner.lower(), function_name.lower()))
+  if function_source:
+    lines.extend(['', '[Policy function definition]', function_source])
+  raw[obj]=('RLS POLICY', '\n'.join(lines))
 
 table_lines={}
 for s,t,c,ctype,nullok,default in iter_fields(out/'03_detail_table_columns_raw.tsv', 6):
@@ -404,7 +436,29 @@ if [[ "$PY_RENDERED" -eq 0 ]]; then
 
   awk -F $'	' 'NR>1{users=($3==""?"(미적용)":$3); detail=($2==""?"PROFILE: "$1"\\nAPPLIED USERS: "users:$2); printf "policy.profile.%s\tPROFILE\t%s\n", $1, detail}' "$OUT_DIR/04_policy_edb_profile.tsv" >> "$RAW_MERGED"
   awk -F $'\t' 'NR>1{printf "policy.rls.%s.%s.%s\tRLS POLICY\tSchema: %s\\nTable: %s\\nPolicy: %s\\nPermissive: %s\\nRoles: %s\\nCommand: %s\\nUsing: %s\\nWith check: %s\n", $1,$2,$3,$1,$2,$3,$4,$5,$6,$7,$8}' "$OUT_DIR/02_summary_policies.tsv" >> "$RAW_MERGED"
-  awk -F $'\t' 'NR>1{printf "policy.rls.%s.%s.%s\tRLS POLICY\tOwner: %s\\nSchema: %s\\nObject: %s\\nPolicy group: %s\\nPolicy name: %s\\nFunction owner: %s\\nPackage: %s\\nFunction: %s\n", $2,$3,$5,$1,$2,$3,$4,$5,$6,$7,$8}' "$OUT_DIR/02_summary_policies_dbms_rls.tsv" >> "$RAW_MERGED"
+  awk -F $'\t' '
+    ARGIND==1 && FNR>1{
+      key=tolower($1) SUBSEP tolower($2) SUBSEP tolower($3)
+      pm[key]="Command: "$6"\\nPermissive: "$4"\\nRoles: "$5"\\nUsing: "$7"\\nWith check: "$8
+      next
+    }
+    ARGIND==2 && FNR>1{
+      if($1=="F" || $1=="P"){
+        fk=tolower($2) SUBSEP tolower($3)
+        fs[fk]=$4
+      }
+      next
+    }
+    ARGIND==3 && FNR>1{
+      obj="policy.rls."$2"."$3"."$5
+      key=tolower($2) SUBSEP tolower($3) SUBSEP tolower($5)
+      fkey=tolower($6) SUBSEP tolower($8)
+      detail="Owner: "$1"\\nSchema: "$2"\\nObject: "$3"\\nPolicy group: "$4"\\nPolicy name: "$5"\\nFunction owner: "$6"\\nPackage: "$7"\\nFunction: "$8
+      if(pm[key]!="") detail=detail"\\n\\n[Policy rule summary]\\n"pm[key]
+      if(fs[fkey]!="") detail=detail"\\n\\n[Policy function definition]\\n"fs[fkey]
+      printf "%s\tRLS POLICY\t%s\n", obj, detail
+    }
+  ' "$OUT_DIR/02_summary_policies.tsv" "$OUT_DIR/02_summary_packages_raw.tsv" "$OUT_DIR/02_summary_policies_dbms_rls.tsv" >> "$RAW_MERGED"
 
   awk -F $'	' 'NR>1{print $2"."$3"	"$4}' "$OUT_DIR/02_summary_packages.tsv" >> "$KW_MERGED"
   awk -F $'	' 'NR>1{print $2"."$3"	"$4}' "$OUT_DIR/03_detail_keywords.tsv" >> "$KW_MERGED"
