@@ -105,8 +105,19 @@ FROM (
       AND n.nspname NOT LIKE 'dbms_%'
       AND n.nspname NOT LIKE 'utl_%'
       AND NOT (
-        p.prosrc LIKE '$__EDBwrapped__$$PROTOCOL2$%'
-        AND lower(p.proname) ~ '^(htf|htp|xmltype)'
+        lower(p.proname) ~ '^(htf|htp|xmltype)'
+        AND (
+          p.prosrc LIKE '$__EDBwrapped__$$PROTOCOL2$%'
+          OR lower(pg_catalog.pg_get_userbyid(p.proowner)) = 'enterprisedb'
+          OR EXISTS (
+            SELECT 1
+            FROM pg_depend d2
+            JOIN pg_extension e2 ON e2.oid = d2.refobjid
+            WHERE d2.classid = 'pg_proc'::regclass
+              AND d2.objid = p.oid
+              AND d2.deptype = 'e'
+          )
+        )
       )
       AND NOT EXISTS (
         SELECT 1
@@ -172,8 +183,19 @@ FROM (
     LATERAL regexp_matches(lower(p.prosrc), '(\m(?:dbms_crypto(?:\.[a-z0-9_]+)?|clob|bfile|raw|greatest|least|sysdate|systimestamp|rownum|rowid|level|nvl|nvl2|decode|add_months|months_between|last_day|next_day|instr|listagg|wm_concat|dual|minus|sys_connect_by_path|connect_by_root|connect_by_isleaf|pragma|sqlcode|sqlerrm|raise_application_error|numtodsinterval|numtoyminterval|sys_extract_utc|tz_offset|dbtimezone|sessiontimezone|lnnvl|nanvl|ratio_to_report|substrb|instrb|lengthb)\M)', 'g') AS m
     WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
       AND NOT (
-        p.prosrc LIKE '$__EDBwrapped__$$PROTOCOL2$%'
-        AND lower(p.proname) ~ '^(htf|htp|xmltype)'
+        lower(p.proname) ~ '^(htf|htp|xmltype)'
+        AND (
+          p.prosrc LIKE '$__EDBwrapped__$$PROTOCOL2$%'
+          OR lower(pg_catalog.pg_get_userbyid(p.proowner)) = 'enterprisedb'
+          OR EXISTS (
+            SELECT 1
+            FROM pg_depend d2
+            JOIN pg_extension e2 ON e2.oid = d2.refobjid
+            WHERE d2.classid = 'pg_proc'::regclass
+              AND d2.objid = p.oid
+              AND d2.deptype = 'e'
+          )
+        )
       )
       AND NOT EXISTS (
         SELECT 1
@@ -196,8 +218,19 @@ FROM (
       AND n.nspname NOT LIKE 'utl_%'
       AND p.proname !~* '^((dbms|utl|owa|htp|htf)(_|\.)|aq\$)'
       AND NOT (
-        p.prosrc LIKE '$__EDBwrapped__$$PROTOCOL2$%'
-        AND lower(p.proname) ~ '^(htf|htp|xmltype)'
+        lower(p.proname) ~ '^(htf|htp|xmltype)'
+        AND (
+          p.prosrc LIKE '$__EDBwrapped__$$PROTOCOL2$%'
+          OR lower(pg_catalog.pg_get_userbyid(p.proowner)) = 'enterprisedb'
+          OR EXISTS (
+            SELECT 1
+            FROM pg_depend d2
+            JOIN pg_extension e2 ON e2.oid = d2.refobjid
+            WHERE d2.classid = 'pg_proc'::regclass
+              AND d2.objid = p.oid
+              AND d2.deptype = 'e'
+          )
+        )
       )
       AND NOT EXISTS (
         SELECT 1
@@ -453,8 +486,19 @@ JOIN pg_namespace n ON p.pronamespace = n.oid
 LEFT JOIN pg_catalog.pg_language l ON l.oid = p.prolang
 WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
   AND NOT (
-    p.prosrc LIKE '$__EDBwrapped__$$PROTOCOL2$%'
-    AND lower(p.proname) ~ '^(htf|htp|xmltype)'
+    lower(p.proname) ~ '^(htf|htp|xmltype)'
+    AND (
+      p.prosrc LIKE '$__EDBwrapped__$$PROTOCOL2$%'
+      OR lower(pg_catalog.pg_get_userbyid(p.proowner)) = 'enterprisedb'
+      OR EXISTS (
+        SELECT 1
+        FROM pg_depend d2
+        JOIN pg_extension e2 ON e2.oid = d2.refobjid
+        WHERE d2.classid = 'pg_proc'::regclass
+          AND d2.objid = p.oid
+          AND d2.deptype = 'e'
+      )
+    )
   )
 UNION ALL
 SELECT 'V' AS object_type,
@@ -492,8 +536,19 @@ JOIN pg_namespace n ON p.pronamespace = n.oid
 LEFT JOIN pg_catalog.pg_language l ON l.oid = p.prolang
 WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
   AND NOT (
-    p.prosrc LIKE '$__EDBwrapped__$$PROTOCOL2$%'
-    AND lower(p.proname) ~ '^(htf|htp|xmltype)'
+    lower(p.proname) ~ '^(htf|htp|xmltype)'
+    AND (
+      p.prosrc LIKE '$__EDBwrapped__$$PROTOCOL2$%'
+      OR lower(pg_catalog.pg_get_userbyid(p.proowner)) = 'enterprisedb'
+      OR EXISTS (
+        SELECT 1
+        FROM pg_depend d2
+        JOIN pg_extension e2 ON e2.oid = d2.refobjid
+        WHERE d2.classid = 'pg_proc'::regclass
+          AND d2.objid = p.oid
+          AND d2.deptype = 'e'
+      )
+    )
   )
 UNION ALL
 SELECT 'V' AS object_type,
