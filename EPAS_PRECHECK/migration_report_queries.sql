@@ -106,8 +106,10 @@ FROM (
       AND n.nspname NOT LIKE 'utl_%'
       AND NOT (
         lower(p.proname) ~ '^(htf|htp|xmltype)'
+        AND COALESCE(p.prosrc, '') !~* 'USER_CREATED'
         AND (
-          p.prosrc LIKE '$__EDBwrapped__$$PROTOCOL2$%'
+          n.nspname IN ('htf', 'htp', 'xmltype')
+          OR p.prosrc LIKE '$__EDBwrapped__$$PROTOCOL2$%'
           OR lower(pg_catalog.pg_get_userbyid(p.proowner)) = 'enterprisedb'
           OR EXISTS (
             SELECT 1
@@ -184,8 +186,10 @@ FROM (
     WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
       AND NOT (
         lower(p.proname) ~ '^(htf|htp|xmltype)'
+        AND COALESCE(p.prosrc, '') !~* 'USER_CREATED'
         AND (
-          p.prosrc LIKE '$__EDBwrapped__$$PROTOCOL2$%'
+          n.nspname IN ('htf', 'htp', 'xmltype')
+          OR p.prosrc LIKE '$__EDBwrapped__$$PROTOCOL2$%'
           OR lower(pg_catalog.pg_get_userbyid(p.proowner)) = 'enterprisedb'
           OR EXISTS (
             SELECT 1
@@ -219,8 +223,10 @@ FROM (
       AND p.proname !~* '^((dbms|utl|owa|htp|htf)(_|\.)|aq\$)'
       AND NOT (
         lower(p.proname) ~ '^(htf|htp|xmltype)'
+        AND COALESCE(p.prosrc, '') !~* 'USER_CREATED'
         AND (
-          p.prosrc LIKE '$__EDBwrapped__$$PROTOCOL2$%'
+          n.nspname IN ('htf', 'htp', 'xmltype')
+          OR p.prosrc LIKE '$__EDBwrapped__$$PROTOCOL2$%'
           OR lower(pg_catalog.pg_get_userbyid(p.proowner)) = 'enterprisedb'
           OR EXISTS (
             SELECT 1
@@ -487,8 +493,10 @@ LEFT JOIN pg_catalog.pg_language l ON l.oid = p.prolang
 WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
   AND NOT (
     lower(p.proname) ~ '^(htf|htp|xmltype)'
+    AND COALESCE(p.prosrc, '') !~* 'USER_CREATED'
     AND (
-      p.prosrc LIKE '$__EDBwrapped__$$PROTOCOL2$%'
+      n.nspname IN ('htf', 'htp', 'xmltype')
+      OR p.prosrc LIKE '$__EDBwrapped__$$PROTOCOL2$%'
       OR lower(pg_catalog.pg_get_userbyid(p.proowner)) = 'enterprisedb'
       OR EXISTS (
         SELECT 1
@@ -537,8 +545,10 @@ LEFT JOIN pg_catalog.pg_language l ON l.oid = p.prolang
 WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
   AND NOT (
     lower(p.proname) ~ '^(htf|htp|xmltype)'
+    AND COALESCE(p.prosrc, '') !~* 'USER_CREATED'
     AND (
-      p.prosrc LIKE '$__EDBwrapped__$$PROTOCOL2$%'
+      n.nspname IN ('htf', 'htp', 'xmltype')
+      OR p.prosrc LIKE '$__EDBwrapped__$$PROTOCOL2$%'
       OR lower(pg_catalog.pg_get_userbyid(p.proowner)) = 'enterprisedb'
       OR EXISTS (
         SELECT 1
