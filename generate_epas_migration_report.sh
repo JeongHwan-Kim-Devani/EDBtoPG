@@ -293,9 +293,14 @@ policy_meta={}
 for schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check in iter_fields(out/'02_summary_policies.tsv', 8):
   policy_meta[(schemaname.lower(), tablename.lower(), policyname.lower())]=(permissive, roles, cmd, qual, with_check)
 function_meta={}
+function_lang={}
 for object_type, schema_name, object_name, source_text in iter_fields(out/'02_summary_packages_raw.tsv', 4):
   if (object_type or '').upper() in ('F','P'):
-    function_meta[(schema_name.lower(), object_name.lower())]=restore_text(source_text)
+    restored=restore_text(source_text)
+    function_meta[(schema_name.lower(), object_name.lower())]=restored
+    m=re.search(r'^Language:\s*(.+)$', restored, re.IGNORECASE | re.MULTILINE)
+    if m:
+      function_lang[(schema_name.lower(), object_name.lower())]=m.group(1).strip().lower()
 for object_owner, schema_name, object_name, policy_group, policy_name, pf_owner, package, function_name in iter_fields(out/'02_summary_policies_dbms_rls.tsv', 8):
   obj=f'policy.rls.{schema_name}.{object_name}.{policy_name}'
   lines=[
@@ -320,9 +325,13 @@ for object_owner, schema_name, object_name, policy_group, policy_name, pf_owner,
       f'Using: {qual}',
       f'With check: {with_check}'
     ])
-  function_source=function_meta.get((pf_owner.lower(), function_name.lower()))
+  function_key=(pf_owner.lower(), function_name.lower())
+  function_source=function_meta.get(function_key)
   if function_source:
     lines.extend(['', '[Policy function definition]', function_source])
+  language_kw=function_lang.get(function_key)
+  if language_kw:
+    kw.setdefault(obj,set()).add(language_kw)
   raw[obj]=('RLS POLICY', '\n'.join(lines))
 
 table_lines={}
