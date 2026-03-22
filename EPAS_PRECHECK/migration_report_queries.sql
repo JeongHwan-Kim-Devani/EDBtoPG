@@ -246,7 +246,7 @@ FROM (
           AND d.objid = p.oid
           AND d.deptype = 'e'
       )
-      AND l.lanname IS NOT NULL
+      AND lower(l.lanname) IN ('edbspl')
     UNION ALL
     SELECT 'V' AS object_type, v.schemaname AS schema_name, v.viewname AS object_name,
            m[1] AS detected_keyword
