@@ -101,7 +101,7 @@ FROM (
     FROM pg_proc p
     JOIN pg_namespace n ON p.pronamespace = n.oid,
     LATERAL regexp_matches(lower(p.prosrc), '(\m(?:dbms_crypto(?:\.[a-z0-9_]+)?|dbms_[a-z0-9_]+|utl_[a-z0-9_]+|owa_[a-z0-9_]+|htp\.[a-z0-9_]+|htf\.[a-z0-9_]+)\M)', 'g') AS m
-    WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
+    WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb', 'htf', 'htp', 'xmltype')
       AND n.nspname NOT LIKE 'dbms_%'
       AND n.nspname NOT LIKE 'utl_%'
       AND NOT (
@@ -137,7 +137,7 @@ FROM (
         m[1] AS feature
     FROM pg_views v,
     LATERAL regexp_matches(lower(v.definition), '(\m(?:dbms_crypto(?:\.[a-z0-9_]+)?|dbms_[a-z0-9_]+|utl_[a-z0-9_]+|owa_[a-z0-9_]+|htp\.[a-z0-9_]+|htf\.[a-z0-9_]+)\M)', 'g') AS m
-    WHERE v.schemaname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
+    WHERE v.schemaname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb', 'htf', 'htp', 'xmltype')
       AND v.schemaname NOT LIKE 'dbms_%'
       AND v.schemaname NOT LIKE 'utl_%'
 ) x
@@ -152,7 +152,7 @@ ORDER BY ns.nspname, s.synname;
 --@@ summary_policies
 SELECT schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check
 FROM pg_policies
-WHERE schemaname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
+WHERE schemaname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb', 'htf', 'htp', 'xmltype')
 ORDER BY schemaname, tablename, policyname;
 
 
@@ -183,7 +183,7 @@ FROM (
     FROM pg_proc p
     JOIN pg_namespace n ON p.pronamespace = n.oid,
     LATERAL regexp_matches(lower(p.prosrc), '(\m(?:dbms_crypto(?:\.[a-z0-9_]+)?|clob|bfile|raw|greatest|least|sysdate|systimestamp|rownum|rowid|level|nvl|nvl2|decode|add_months|months_between|last_day|next_day|instr|listagg|wm_concat|dual|minus|sys_connect_by_path|connect_by_root|connect_by_isleaf|pragma|sqlcode|sqlerrm|raise_application_error|numtodsinterval|numtoyminterval|sys_extract_utc|tz_offset|dbtimezone|sessiontimezone|lnnvl|nanvl|ratio_to_report|substrb|instrb|lengthb)\M)', 'g') AS m
-    WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
+    WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb', 'htf', 'htp', 'xmltype')
       AND NOT (
         lower(p.proname) ~ '^(htf|htp|xmltype)'
         AND COALESCE(p.prosrc, '') !~* 'USER_CREATED'
@@ -217,7 +217,7 @@ FROM (
     FROM pg_proc p
     JOIN pg_namespace n ON p.pronamespace = n.oid
     JOIN pg_language l ON l.oid = p.prolang
-    WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
+    WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb', 'htf', 'htp', 'xmltype')
       AND n.nspname NOT LIKE 'dbms_%'
       AND n.nspname NOT LIKE 'utl_%'
       AND p.proname !~* '^((dbms|utl|owa|htp|htf)(_|\.)|aq\$)'
@@ -246,13 +246,13 @@ FROM (
           AND d.objid = p.oid
           AND d.deptype = 'e'
       )
-      AND l.lanname IS NOT NULL
+      AND lower(l.lanname) IN ('edbspl')
     UNION ALL
     SELECT 'V' AS object_type, v.schemaname AS schema_name, v.viewname AS object_name,
            m[1] AS detected_keyword
     FROM pg_views v,
     LATERAL regexp_matches(lower(v.definition), '(\m(?:dbms_crypto(?:\.[a-z0-9_]+)?|clob|bfile|raw|greatest|least|sysdate|systimestamp|rownum|rowid|level|nvl|nvl2|decode|add_months|months_between|last_day|next_day|instr|listagg|wm_concat|dual|minus|sys_connect_by_path|connect_by_root|connect_by_isleaf|pragma|sqlcode|sqlerrm|raise_application_error|numtodsinterval|numtoyminterval|sys_extract_utc|tz_offset|dbtimezone|sessiontimezone|lnnvl|nanvl|ratio_to_report|substrb|instrb|lengthb)\M)', 'g') AS m
-    WHERE v.schemaname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
+    WHERE v.schemaname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb', 'htf', 'htp', 'xmltype')
 ) z
 ORDER BY schema_name, CASE object_type WHEN 'P' THEN 1 WHEN 'F' THEN 2 WHEN 'V' THEN 3 ELSE 9 END, object_name;
 
@@ -264,13 +264,13 @@ FROM (
     FROM pg_proc p
     JOIN pg_namespace n ON p.pronamespace = n.oid,
     LATERAL regexp_matches(lower(p.prosrc), '(\m(?:clob|bfile|raw)\M)', 'g') AS m
-    WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
+    WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb', 'htf', 'htp', 'xmltype')
     UNION ALL
     SELECT 'V' AS object_type, v.schemaname AS schema_name, v.viewname AS object_name,
            m[1] AS detected_datatype
     FROM pg_views v,
     LATERAL regexp_matches(lower(v.definition), '(\m(?:clob|bfile|raw)\M)', 'g') AS m
-    WHERE v.schemaname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
+    WHERE v.schemaname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb', 'htf', 'htp', 'xmltype')
 ) z
 ORDER BY schema_name, CASE object_type WHEN 'P' THEN 1 WHEN 'F' THEN 2 WHEN 'V' THEN 3 ELSE 9 END, object_name;
 
@@ -281,7 +281,7 @@ SELECT
   string_agg(column_name, ', ' ORDER BY column_name) AS merged_columns,
   string_agg(DISTINCT COALESCE(domain_name, udt_name), ', ' ORDER BY COALESCE(domain_name, udt_name)) AS current_datatype
 FROM information_schema.columns
-WHERE table_schema NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
+WHERE table_schema NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb', 'htf', 'htp', 'xmltype')
   AND (udt_name IN ('clob', 'bfile', 'raw')
        OR domain_name IN ('clob', 'bfile', 'raw'))
 GROUP BY table_schema, table_name
@@ -296,7 +296,7 @@ FROM (
     JOIN pg_attribute a ON d.adrelid = a.attrelid AND d.adnum = a.attnum
     JOIN pg_class c ON d.adrelid = c.oid
     JOIN pg_namespace n ON c.relnamespace = n.oid
-    WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
+    WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb', 'htf', 'htp', 'xmltype')
       AND pg_get_expr(d.adbin, d.adrelid) ~* '\m(sysdate|systimestamp|nvl|nvl2|decode|add_months|months_between|last_day|next_day|instr)\M'
     UNION ALL
     SELECT 'CHECK CONSTRAINT' AS object_type, n.nspname AS schema_name, c.relname AS table_name, con.conname AS target_name,
@@ -305,7 +305,7 @@ FROM (
     JOIN pg_class c ON con.conrelid = c.oid
     JOIN pg_namespace n ON c.relnamespace = n.oid
     WHERE con.contype = 'c'
-      AND n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
+      AND n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb', 'htf', 'htp', 'xmltype')
       AND pg_get_expr(con.conbin, con.conrelid) ~* '\m(sysdate|systimestamp|nvl|nvl2|decode|add_months|months_between|last_day|next_day|instr)\M'
     UNION ALL
     SELECT 'INDEX EXPRESSION' AS object_type, n.nspname AS schema_name, c.relname AS table_name, i.relname AS target_name,
@@ -315,7 +315,7 @@ FROM (
     JOIN pg_class i ON idx.indexrelid = i.oid
     JOIN pg_namespace n ON c.relnamespace = n.oid
     WHERE idx.indexprs IS NOT NULL
-      AND n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
+      AND n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb', 'htf', 'htp', 'xmltype')
       AND pg_get_expr(idx.indexprs, idx.indrelid) ~* '\m(sysdate|systimestamp|nvl|nvl2|decode|add_months|months_between|last_day|next_day|instr)\M'
 ) z
 ORDER BY schema_name, table_name, target_name, object_type;
@@ -490,7 +490,7 @@ SELECT CASE WHEN p.prokind='p' THEN 'P' ELSE 'F' END AS object_type,
 FROM pg_proc p
 JOIN pg_namespace n ON p.pronamespace = n.oid
 LEFT JOIN pg_catalog.pg_language l ON l.oid = p.prolang
-WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
+WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb', 'htf', 'htp', 'xmltype')
   AND NOT (
     lower(p.proname) ~ '^(htf|htp|xmltype)'
     AND COALESCE(p.prosrc, '') !~* 'USER_CREATED'
@@ -520,7 +520,7 @@ SELECT 'V' AS object_type,
          E'[\r\n]+', E'\\n', 'g'
        ) AS source_text
 FROM pg_views v
-WHERE v.schemaname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb');
+WHERE v.schemaname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb', 'htf', 'htp', 'xmltype');
 --@@ detail_keywords_raw
 SELECT CASE WHEN p.prokind='p' THEN 'P' ELSE 'F' END AS object_type,
        n.nspname AS schema_name,
@@ -542,7 +542,7 @@ SELECT CASE WHEN p.prokind='p' THEN 'P' ELSE 'F' END AS object_type,
 FROM pg_proc p
 JOIN pg_namespace n ON p.pronamespace = n.oid
 LEFT JOIN pg_catalog.pg_language l ON l.oid = p.prolang
-WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
+WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb', 'htf', 'htp', 'xmltype')
   AND NOT (
     lower(p.proname) ~ '^(htf|htp|xmltype)'
     AND COALESCE(p.prosrc, '') !~* 'USER_CREATED'
@@ -572,7 +572,7 @@ SELECT 'V' AS object_type,
          E'[\r\n]+', E'\\n', 'g'
        ) AS source_text
 FROM pg_views v
-WHERE v.schemaname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb');
+WHERE v.schemaname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb', 'htf', 'htp', 'xmltype');
 --@@ detail_expr_raw
 SELECT 'DEFAULT VALUE' AS object_type, n.nspname AS schema_name, c.relname AS table_name, a.attname AS target_name,
        regexp_replace(pg_get_expr(d.adbin, d.adrelid), E'[\r\n]+', E'\\n', 'g') AS expression
@@ -580,7 +580,7 @@ FROM pg_attrdef d
 JOIN pg_attribute a ON d.adrelid = a.attrelid AND d.adnum = a.attnum
 JOIN pg_class c ON d.adrelid = c.oid
 JOIN pg_namespace n ON c.relnamespace = n.oid
-WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
+WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb', 'htf', 'htp', 'xmltype')
 UNION ALL
 SELECT 'CHECK CONSTRAINT' AS object_type, n.nspname AS schema_name, c.relname AS table_name, con.conname AS target_name,
        regexp_replace(
@@ -594,7 +594,7 @@ SELECT 'CHECK CONSTRAINT' AS object_type, n.nspname AS schema_name, c.relname AS
 FROM pg_constraint con
 JOIN pg_class c ON con.conrelid = c.oid
 JOIN pg_namespace n ON c.relnamespace = n.oid
-WHERE con.contype = 'c' AND n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
+WHERE con.contype = 'c' AND n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb', 'htf', 'htp', 'xmltype')
 UNION ALL
 SELECT 'INDEX EXPRESSION' AS object_type, n.nspname AS schema_name, c.relname AS table_name, i.relname AS target_name,
        regexp_replace(pg_get_expr(idx.indexprs, idx.indrelid), E'[\r\n]+', E'\\n', 'g') AS expression
@@ -602,7 +602,7 @@ FROM pg_index idx
 JOIN pg_class c ON idx.indrelid = c.oid
 JOIN pg_class i ON idx.indexrelid = i.oid
 JOIN pg_namespace n ON c.relnamespace = n.oid
-WHERE idx.indexprs IS NOT NULL AND n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb');
+WHERE idx.indexprs IS NOT NULL AND n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb', 'htf', 'htp', 'xmltype');
 
 --@@ detail_table_columns_raw
 SELECT table_schema, table_name, column_name,
@@ -610,7 +610,7 @@ SELECT table_schema, table_name, column_name,
        is_nullable,
        COALESCE(column_default, '') AS column_default
 FROM information_schema.columns
-WHERE table_schema NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
+WHERE table_schema NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb', 'htf', 'htp', 'xmltype')
 ORDER BY table_schema, table_name, ordinal_position;
 
 
@@ -620,7 +620,7 @@ WITH tbl AS (
   FROM pg_class c
   JOIN pg_namespace n ON n.oid = c.relnamespace
   WHERE c.relkind IN ('r','p')
-    AND n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb')
+    AND n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb', 'htf', 'htp', 'xmltype')
 ), cols AS (
   SELECT t.oid,
          string_agg(
