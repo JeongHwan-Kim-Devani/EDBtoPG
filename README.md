@@ -50,3 +50,20 @@ bash EPAS_PRECHECK/generate_epas_migration_report.sh -d <DBNAME> -U <USER> -o ./
 
 ---
 *본 도구는 데이터베이스 현대화 및 오픈소스 전환 가이드를 위해 제작되었습니다.*
+
+## Issue #23 Updated Runtime (Prototype Integrated)
+
+- New script: `EPAS_PRECHECK/epas_precheck_v2.0.sh`
+- New SQL: `EPAS_PRECHECK/epas_precheck_v2.0.sql`
+- Purpose: Prototype-based USER_CREATED visualization + progress logging + encoding-safe output strings.
+
+### Run
+
+```bash
+bash EPAS_PRECHECK/epas_precheck_v2.0.sh -d <DBNAME> -U <USER> -o ./out
+```
+
+### Notes
+
+- The new script defaults to the new SQL file automatically.
+- Keep old file names for legacy runs, and use new names for Issue #23 integrated output.

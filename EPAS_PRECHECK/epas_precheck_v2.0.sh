@@ -9,7 +9,7 @@ set -euo pipefail
 
 usage(){ cat <<'USAGE'
 EPAS -> PostgreSQL pre-diagnostic helper
-Usage: ./generate_epas_migration_report.sh [options]
+Usage: ./epas_precheck_v2.0.sh [options]
 Options:
   -h, --host HOST
   -p, --port PORT
@@ -68,7 +68,7 @@ export PGHOST="$HOST" PGPORT="$PORT" PGDATABASE="$DBNAME" PGUSER="$DBUSER" PGCON
 [[ -n "$DBPASSWORD" ]] && export PGPASSWORD="$DBPASSWORD"
 
 mkdir -p "$OUT_DIR"
-SQL_FILE="${SQL_FILE:-$(cd "$(dirname "$0")" && pwd)/migration_report_queries.sql}"
+SQL_FILE="${SQL_FILE:-$(cd "$(dirname "$0")" && pwd)/epas_precheck_v2.0.sql}"
 [[ -f "$SQL_FILE" ]] || { echo "[ERROR] SQL file not found: $SQL_FILE" >&2; exit 1; }
 DBNAME_SAFE="$(printf '%s' "$DBNAME" | tr -cs '[:alnum:]_.-' '_')"
 HTML_BASENAME="${DBNAME_SAFE}.html"; HTML_PATH="$OUT_DIR/$HTML_BASENAME"
