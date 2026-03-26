@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env bash
+#!/usr/bin/env bash
 if [ -z "${BASH_VERSION:-}" ]; then
   exec bash "$0" "$@"
 fi
