@@ -17,3 +17,16 @@ start design/issue-23-user-created-visual-prototype.html
 - 영향도 퍼센트 도넛 그래프 프로토타입
 - 이미지 파일명 규칙 프리뷰
 - `No USER_CREATED objects` 예외 상태 토글
+
+## Issue #23 Integration Status
+
+- Prototype baseline is now connected in runtime report generation.
+- Runtime script file: `../EPAS_PRECHECK/epas_precheck_v2.0.sh`
+- SQL file: `../EPAS_PRECHECK/epas_precheck_v2.0.sql`
+- Added progress logs and encoding-safe text outputs.
+
+## Execute
+
+```bash
+bash EPAS_PRECHECK/epas_precheck_v2.0.sh -d <DBNAME> -U <USER> -o ./out
+```
