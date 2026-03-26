@@ -155,14 +155,14 @@ PARAM_ROWS="$OUT_DIR/.param_rows.html"; FEATURE_ROWS="$OUT_DIR/.feature_rows.htm
 
 awk -F $'	' 'NR>1{  op="媛???쒖씠????쓬)";  if($1 ~ /^(edb_audit|edb_audit_archiver|edb_early_lock_release|edb_max_capture_privileges_policies|qreplace_function|edb_stmt_level_tx|data_encryption_key_unwrap_command|edb_max_resource_groups|edb_resource_group)$/) op="遺덇?";  else if($1 ~ /^(edb_redwood_strings|db_dialect|datestyle|edb_redwood_greatest_least|edb_redwood_date|edb_dynatune|edb_dynatune_profile|optimizer_mode|default_with_rowids|enable_hints)$/) op="媛???쒖씠???믪쓬)";  for(i=1;i<=NF;i++){gsub("&","&amp;",$i);gsub("<","&lt;",$i);gsub(">","&gt;",$i)};  b=(op=="遺덇?"?"badge-bad":(op=="媛???쒖씠???믪쓬)"?"badge-high":"badge-low"));  printf "<tr><td><code>%s</code></td><td><code>%s</code></td><td><code>%s</code></td><td>%s</td><td><span class=\"badge %s\">%s</span></td></tr>\n",$1,$2,$3,$5,b,op}' "$OUT_DIR/01_parameters.tsv" > "$PARAM_ROWS"
 
-awk -F $'	' 'NR>1{print $1"	"$2"	"$3"	"$4"	PACKAGE"}' "$OUT_DIR/02_summary_packages.tsv" > "$OUT_DIR/.f.tsv"
-awk -F $'	' 'NR>1{print $1"	"$2"	"$3"	"$4"	KEYWORD"}' "$OUT_DIR/03_detail_keywords.tsv" >> "$OUT_DIR/.f.tsv"
+awk -F $'\t' 'NR>1{print $1 "\t" $2 "\t" $3 "\t" $4 "\tPACKAGE"}' "$OUT_DIR/02_summary_packages.tsv" > "$OUT_DIR/.f.tsv"
+awk -F $'\t' 'NR>1{print $1 "\t" $2 "\t" $3 "\t" $4 "\tKEYWORD"}' "$OUT_DIR/03_detail_keywords.tsv" >> "$OUT_DIR/.f.tsv"
 awk -F $'	' '{
   t=$1; s=$2; o=$3; token=tolower($4); k=t SUBSEP s SUBSEP o
   if(token=="") token="(寃異??ㅼ썙???놁쓬)"
   ph=(token=="(寃異??ㅼ썙???놁쓬)")
   if(!ph && !((k SUBSEP token) in seen)){seen[k SUBSEP token]=1; toks[k]=(toks[k]?toks[k]", " :"")token}
-  cat=($5=="PACKAGE"?"?⑦궎吏":"?ㅼ썙??)
+  cat=($5=="PACKAGE"?"PACKAGE":"KEYWORD")
   if(!ph && !((k SUBSEP cat SUBSEP token) in seen_cat)){seen_cat[k SUBSEP cat SUBSEP token]=1; cat_cnt[k SUBSEP cat]++}
   lv=0
   if(token ~ /^(rownum|rowid|dual|minus|sys_connect_by_path|connect_by_root|connect_by_isleaf|level|pragma|sqlcode|raise_application_error)$/) lv=2
@@ -175,11 +175,11 @@ awk -F $'	' '{
     ord=(a[1]=="F"?1:(a[1]=="P"?2:3))
     tn=(a[1]=="F"?"FUNCTION":(a[1]=="P"?"PROCEDURE":"VIEW"))
     op=(level[k]==2?"遺덇?":(level[k]==1?"媛???쒖씠???믪쓬)":"媛???쒖씠????쓬)"))
-    pkg=cat_cnt[k SUBSEP "?⑦궎吏"]+0
-    kw=cat_cnt[k SUBSEP "?ㅼ썙??]+0
-    role=(pkg>0?"?⑦궎吏(" pkg ")":"")
-    if(kw>0) role=(role?role"+":"")"?ㅼ썙??" kw ")"
-    if(role=="") role="?ㅼ썙??0)"
+    pkg=cat_cnt[k SUBSEP "PACKAGE"]+0
+    kw=cat_cnt[k SUBSEP "KEYWORD"]+0
+    role=(pkg>0?"PACKAGE(" pkg ")":"")
+    if(kw>0) role=(role?role"+":"")"KEYWORD(" kw ")"
+    if(role=="") role="KEYWORD(0)"
     detail=(toks[k]!=""?toks[k]:"(寃異??ㅼ썙???놁쓬)")
     print ord"	"a[2]"	"tn"	"role"	"a[2]"."a[3]"	"detail"	"op"	"a[2]"."a[3]
   }
