@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Project README
+    url: https://github.com/JeongHwan-Kim-Devani/EDBtoPG/blob/main/README.md
+    about: Check project overview and run instructions first.
+  - name: Design README
+    url: https://github.com/JeongHwan-Kim-Devani/EDBtoPG/blob/main/design/README.md
+    about: Check UI/UX docs and design references.

@@ -1,0 +1,138 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>EPAS PostgreSQL 사전점검 리포트 - ds1</title>
+<style>
+:root{--bg-0:#f4f8ff;--bg-1:#e6f0ff;--ink-0:#0b1020;--ink-1:#22304a;--ink-2:#5f6f8f;--surface:rgba(255,255,255,.9);--stroke:rgba(17,31,62,.14);--shadow:0 20px 50px rgba(19,38,82,.12);--critical:#ef4444;--warning:#f59e0b;--safe:#10b981}
+*{box-sizing:border-box}
+body{margin:0;color:var(--ink-0);font-family:"Pretendard","Noto Sans KR","Segoe UI",Arial,sans-serif;background:radial-gradient(circle at 10% 0,#dceeff 0,rgba(220,238,255,0) 35%),radial-gradient(circle at 100% 10%,#ddfff4 0,rgba(221,255,244,0) 38%),linear-gradient(180deg,var(--bg-0),var(--bg-1))}
+.container{max-width:1320px;margin:0 auto;padding:28px 28px 42px}
+.hero{border:1px solid var(--stroke);background:var(--surface);border-radius:22px;padding:20px 22px;box-shadow:var(--shadow);margin-bottom:14px}
+.hero h1{margin:0;font-size:30px;line-height:1.2}.hero p{margin:8px 0 0;color:var(--ink-1);font-size:14px}
+.card{border:1px solid var(--stroke);background:var(--surface);border-radius:20px;padding:16px;box-shadow:0 10px 24px rgba(19,38,82,.08);margin-bottom:14px}
+.h2{margin:0;font-size:20px}.muted{margin:8px 0 0;color:var(--ink-1);font-size:14px}
+.controls{margin-top:12px;display:flex;flex-wrap:wrap;gap:8px}.chip{border:1px solid #cfd9f0;background:#fff;border-radius:999px;padding:8px 14px;font-size:12px;font-weight:800;color:#2b3f67;cursor:pointer}
+.chip.active{background:linear-gradient(120deg,rgba(15,111,255,.14),rgba(0,179,164,.14));border-color:rgba(15,111,255,.55);color:#0e3f86}
+.grid{margin-top:14px;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:12px}.span12{grid-column:span 12}.span6{grid-column:span 6}
+.bars{margin-top:10px;display:grid;grid-template-columns:repeat(auto-fit,minmax(182px,1fr));gap:12px;align-items:end;min-height:182px}
+.bar-item{border:0;background:transparent;padding:0;text-align:center;cursor:pointer}.bar-wrap{height:148px;display:flex;align-items:end;justify-content:center;border-radius:14px;background:linear-gradient(180deg,rgba(203,218,242,.52),rgba(203,218,242,.38));border:1px solid rgba(99,122,162,.22);padding:8px;outline:2px solid transparent;position:relative}
+.bar-item.active .bar-wrap{outline-color:rgba(15,111,255,.55)}.bar-stack{width:60px;height:126px;position:relative;display:flex;align-items:end;justify-content:center}
+.bar-total{position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:56px;border-radius:10px 10px 4px 4px;height:126px;background:linear-gradient(180deg,rgba(15,111,255,.38),rgba(0,179,164,.38))}
+.bar-impact{position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:42px;border-radius:8px 8px 3px 3px;height:max(8px,calc(var(--ratio-impact)*126px));background:linear-gradient(180deg,#f97316,#ef4444)}
+.impact-label{position:absolute;left:50%;transform:translateX(-50%);bottom:max(12px,calc(var(--ratio-impact,0)*126px - 16px));white-space:nowrap;line-height:1;font-weight:900;font-size:11px;color:#143968;z-index:6;-webkit-text-stroke:.35px rgba(255,255,255,.92);text-shadow:0 0 1px rgba(255,255,255,.9),0 1px 1px rgba(15,23,42,.08)}
+.bar-label{margin-top:8px;font-size:11px;color:var(--ink-1);font-weight:800;letter-spacing:.02em}.bar-count{margin-top:2px;font-size:10px;color:var(--ink-2);font-weight:700}
+.keyword-list{margin-top:10px;display:grid;gap:9px}.keyword-row{display:grid;grid-template-columns:34px minmax(190px,2.2fr) minmax(120px,3fr) 46px;gap:8px;align-items:center;font-size:13px;color:var(--ink-1)}.keyword-rank{text-align:center;font-size:12px;font-weight:800;color:var(--ink-2)}.keyword-label{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}.keyword-value{text-align:right;font-weight:700;color:var(--ink-1)}
+.keyword-track{height:10px;border-radius:999px;background:rgba(203,218,242,.46);overflow:hidden}.keyword-fill{height:100%;border-radius:inherit;background:linear-gradient(90deg,#1e57ff,#31d2bd);width:calc(var(--ratio)*100%)}
+.impact-wrap{margin-top:10px;display:grid;grid-template-columns:180px 1fr;gap:12px;align-items:center}.donut{width:180px;aspect-ratio:1;border-radius:50%;position:relative}.donut::after{content:"";position:absolute;inset:25px;background:#fff;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(17,31,62,.08)}
+.donut-center{position:absolute;inset:0;display:grid;place-items:center;z-index:1;font-size:22px;font-weight:800;color:#0d3370}.legend{display:grid;gap:8px}.legend-item{display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,.65);border:1px solid var(--stroke);border-radius:12px;padding:8px 10px;font-size:13px}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block}.tag{display:inline-flex;align-items:center;gap:6px;font-weight:700}
+.summary-pane{display:flex;justify-content:center}
+.summary-subcard{width:min(100%,500px);background:rgba(255,255,255,.88);border:1px solid var(--stroke);border-radius:16px;padding:12px;box-shadow:0 8px 18px rgba(19,38,82,.07)}
+.summary-subcard h3{margin:0 0 8px}
+.summary-subcard .keyword-list,.summary-subcard .impact-wrap{margin-top:8px}
+.impact-subcard{width:min(100%,470px)}
+.empty{display:none;margin-top:12px;border:1px dashed rgba(17,31,62,.32);border-radius:20px;background:rgba(255,255,255,.82);padding:18px}.empty.show{display:block}
+h2{margin:0 0 10px;font-size:20px}h3{margin:16px 0 8px;font-size:17px;color:var(--ink-1)}
+table{width:100%;border-collapse:collapse;background:rgba(255,255,255,.92);border-radius:12px;overflow:hidden}
+th,td{border:1px solid #d7dfef;padding:8px 10px;font-size:14px;vertical-align:top}
+th{background:#eef3ff;text-align:left;color:#1f3356}.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:800}
+.badge-bad{color:#991b1b;background:#fee2e2;border:1px solid #fecaca}.badge-high{color:#92400e;background:#fef3c7;border:1px solid #fcd34d}.badge-low{color:#065f46;background:#d1fae5;border:1px solid #a7f3d0}.badge-none{color:#374151;background:#e5e7eb;border:1px solid #d1d5db}
+code{background:#f3f6ff;padding:2px 5px;border-radius:6px}a{color:#1b4fc7}.sub-link{margin:0 0 10px;font-size:14px;color:var(--ink-1)}
+.detail-guide{margin:2px 0 0;color:#4f648e;font-size:13px;font-weight:800}
+.details-layout{margin-top:10px;display:grid;grid-template-columns:220px minmax(0,1fr);gap:12px;align-items:start}
+.detail-shell{background:rgba(255,255,255,.88);border:1px solid var(--stroke);border-radius:16px;padding:12px;box-shadow:0 8px 18px rgba(19,38,82,.07)}
+.detail-chip-col{display:flex;flex-direction:column;gap:8px}
+.detail-chip-col .chip{width:100%;text-align:left}
+.detail-content h3{margin-top:0}
+@media (max-width:900px){.container{padding:16px}.hero h1{font-size:24px}th,td{font-size:13px;padding:7px 8px}.span6{grid-column:span 12}.impact-wrap{grid-template-columns:1fr;justify-items:center}.keyword-row{grid-template-columns:28px minmax(130px,2fr) minmax(90px,3fr) 38px}.summary-subcard,.impact-subcard{width:100%}.details-layout{grid-template-columns:1fr}}
+</style></head><body><div class="container">
+<div class="hero"><h1>EPAS PostgreSQL 사전점검 리포트</h1><p>DB 이름: <strong>ds1</strong></p></div>
+<div class="card">
+  <h2 class="h2">Summary</h2>
+  <div class="controls" id="type-chips"></div>
+  <div class="grid" id="viz-grid">
+    <div class="span12"><div class="bars" id="object-bars"></div></div>
+    <div class="span6 summary-pane"><div class="summary-subcard"><h3 style="margin-top:0">키워드 상위 10개</h3><div class="keyword-list" id="keyword-list"></div></div></div>
+    <div class="span6 summary-pane"><div class="summary-subcard impact-subcard"><h3 style="margin-top:0">영향도 퍼센트</h3><div class="impact-wrap"><div class="donut" id="impact-donut"><div class="donut-center" id="impact-total">0</div></div><div class="legend" id="impact-legend"></div></div></div></div>
+    
+  </div>
+  <div class="empty" id="empty-state"><h3>USER_CREATED 객체 없음</h3><p>시각화 대상 데이터가 없어도 리포트 생성은 정상적으로 계속됩니다.</p></div>
+</div>
+<div class="card"><h2>Details</h2><p class="sub-link">Source navigator: <a href="ds1_source.html">ds1_source.html</a></p><p class="detail-guide">상세 항목 분류 칩</p><div class="details-layout"><div class="detail-shell"><div class="detail-chip-col" id="detail-chips"></div></div><div class="detail-shell"><div class="detail-content" id="detail-content">
+<h3>1-1. 파라미터 (8)</h3><table><tr><th>Parameter</th><th>Default</th><th>Current</th><th>Description</th><th>Status</th></tr><tr><td><code>edb_audit</code></td><td><code></code></td><td><code>csv</code></td><td>EDB 전용 감사 기능 (PostgreSQL에서 사용 불가)</td><td><span class="badge badge-bad">높음</span></td></tr>
+<tr><td><code>db_dialect</code></td><td><code>redwood</code></td><td><code>redwood</code></td><td>오라클 호환 문법 비활성화 (표준 SQL 재작성 필요)</td><td><span class="badge badge-high">중간</span></td></tr>
+<tr><td><code>edb_dynatune</code></td><td><code>66</code></td><td><code>60</code></td><td>자동 메모리 튜닝 상실 (수동 튜닝 필요)</td><td><span class="badge badge-high">중간</span></td></tr>
+<tr><td><code>edb_dynatune_profile</code></td><td><code>oltp</code></td><td><code>oltp</code></td><td>동적 프로파일링 상실 (work_mem 등 수동 설정 필요)</td><td><span class="badge badge-high">중간</span></td></tr>
+<tr><td><code>edb_redwood_date</code></td><td><code>on</code></td><td><code>on</code></td><td>DATE 시간 정보 유실 위험 (TIMESTAMP 권장)</td><td><span class="badge badge-high">중간</span></td></tr>
+<tr><td><code>edb_redwood_greatest_least</code></td><td><code>on</code></td><td><code>on</code></td><td>GREATEST/LEAST의 NULL 처리 차이 주의</td><td><span class="badge badge-high">중간</span></td></tr>
+<tr><td><code>edb_redwood_strings</code></td><td><code>on</code></td><td><code>on</code></td><td>빈 문자열과 NULL 처리 방식 변경 (앱 로직 수정 필요)</td><td><span class="badge badge-high">중간</span></td></tr>
+<tr><td><code>enable_hints</code></td><td><code>on</code></td><td><code>on</code></td><td>EDB 힌트 기능 상실 (pg_hint_plan 검토 필요)</td><td><span class="badge badge-high">중간</span></td></tr></table>
+<h3>2-1. 호환성 객체 (10)</h3><table><tr><th>Type</th><th>Category</th><th>Object</th><th>Detected</th><th>Status</th></tr><tr><td><code>FUNCTION</code></td><td>KEYWORD(1)</td><td><a href="ds1_sources/src-public.edb_password_verify.html"><code>public.edb_password_verify</code></a></td><td><code>edbspl</code></td><td><span class="badge badge-low">낮음</span></td></tr>
+<tr><td><code>FUNCTION</code></td><td>PACKAGE(4)+KEYWORD(5)</td><td><a href="ds1_sources/src-public.fn_decrypt.html"><code>public.fn_decrypt</code></a></td><td><code>dbms_crypto, utl_raw, dbms_crypto.decrypt, dbms_crypto.hash, raw, edbspl</code></td><td><span class="badge badge-high">중간</span></td></tr>
+<tr><td><code>FUNCTION</code></td><td>PACKAGE(4)+KEYWORD(5)</td><td><a href="ds1_sources/src-public.fn_encrypt.html"><code>public.fn_encrypt</code></a></td><td><code>utl_raw, dbms_crypto.encrypt, dbms_crypto, dbms_crypto.hash, raw, edbspl</code></td><td><span class="badge badge-high">중간</span></td></tr>
+<tr><td><code>FUNCTION</code></td><td>KEYWORD(3)</td><td><a href="ds1_sources/src-public.fn_migration_test.html"><code>public.fn_migration_test</code></a></td><td><code>nvl, sysdate, decode</code></td><td><span class="badge badge-high">중간</span></td></tr>
+<tr><td><code>FUNCTION</code></td><td>KEYWORD(2)</td><td><a href="ds1_sources/src-public.get_sysdate.html"><code>public.get_sysdate</code></a></td><td><code>sysdate, edbspl</code></td><td><span class="badge badge-high">중간</span></td></tr>
+<tr><td><code>FUNCTION</code></td><td>KEYWORD(1)</td><td><a href="ds1_sources/src-public.sal_lt_2000.html"><code>public.sal_lt_2000</code></a></td><td><code>edbspl</code></td><td><span class="badge badge-low">낮음</span></td></tr>
+<tr><td><code>FUNCTION</code></td><td>KEYWORD(1)</td><td><a href="ds1_sources/src-public.verify_session_user.html"><code>public.verify_session_user</code></a></td><td><code>edbspl</code></td><td><span class="badge badge-low">낮음</span></td></tr>
+<tr><td><code>PROCEDURE</code></td><td>PACKAGE(1)+KEYWORD(2)</td><td><a href="ds1_sources/src-public.calc_emp_bonus.html"><code>public.calc_emp_bonus</code></a></td><td><code>dbms_output, sqlerrm, edbspl</code></td><td><span class="badge badge-high">중간</span></td></tr>
+<tr><td><code>PROCEDURE</code></td><td>PACKAGE(4)+KEYWORD(5)</td><td><a href="ds1_sources/src-sc_crypto.proc_generate_crypto_data.html"><code>sc_crypto.proc_generate_crypto_data</code></a></td><td><code>utl_raw, dbms_crypto.encrypt, dbms_crypto.randombytes, dbms_crypto.hash, raw, edbspl</code></td><td><span class="badge badge-high">중간</span></td></tr>
+<tr><td><code>VIEW</code></td><td>KEYWORD(3)</td><td><a href="ds1_sources/src-public.v_epas_contract_info.html"><code>public.v_epas_contract_info</code></a></td><td><code>add_months, systimestamp, nvl</code></td><td><span class="badge badge-high">중간</span></td></tr></table>
+<h3>2-2. 데이터 타입 (11)</h3><table><tr><th>Type</th><th>Object</th><th>Datatype</th><th>Status</th></tr><tr><td><code>PROCEDURE</code></td><td><a href="ds1_sources/src-sc_crypto.proc_generate_crypto_data.html"><code>sc_crypto.proc_generate_crypto_data</code></a></td><td><code>raw</code></td><td><span class="badge badge-low">낮음</span></td></tr>
+<tr><td><code>FUNCTION</code></td><td><a href="ds1_sources/src-public.fn_decrypt.html"><code>public.fn_decrypt</code></a></td><td><code>raw</code></td><td><span class="badge badge-low">낮음</span></td></tr>
+<tr><td><code>FUNCTION</code></td><td><a href="ds1_sources/src-public.fn_encrypt.html"><code>public.fn_encrypt</code></a></td><td><code>raw</code></td><td><span class="badge badge-low">낮음</span></td></tr>
+<tr><td><code>TABLE COLUMN</code></td><td><a href="ds1_sources/src-public.clob_test.html"><code>public.clob_test</code></a></td><td><code>clob</code></td><td><span class="badge badge-low">낮음</span></td></tr>
+<tr><td><code>TABLE COLUMN</code></td><td><a href="ds1_sources/src-public.t11.html"><code>public.t11</code></a></td><td><code>bfile</code></td><td><span class="badge badge-low">낮음</span></td></tr>
+<tr><td><code>TABLE COLUMN</code></td><td><a href="ds1_sources/src-public.t12.html"><code>public.t12</code></a></td><td><code>bfile, clob</code></td><td><span class="badge badge-low">낮음</span></td></tr>
+<tr><td><code>TABLE COLUMN</code></td><td><a href="ds1_sources/src-public.tb_datatype_test.html"><code>public.tb_datatype_test</code></a></td><td><code>bfile, clob</code></td><td><span class="badge badge-low">낮음</span></td></tr>
+<tr><td><code>TABLE COLUMN</code></td><td><a href="ds1_sources/src-public.tb_employee_info.html"><code>public.tb_employee_info</code></a></td><td><code>bfile, clob</code></td><td><span class="badge badge-low">낮음</span></td></tr>
+<tr><td><code>TABLE COLUMN</code></td><td><a href="ds1_sources/src-public.test2.html"><code>public.test2</code></a></td><td><code>clob</code></td><td><span class="badge badge-low">낮음</span></td></tr>
+<tr><td><code>TABLE COLUMN</code></td><td><a href="ds1_sources/src-public.tv.html"><code>public.tv</code></a></td><td><code>bfile</code></td><td><span class="badge badge-low">낮음</span></td></tr>
+<tr><td><code>TABLE COLUMN</code></td><td><a href="ds1_sources/src-public.vw_clob_test.html"><code>public.vw_clob_test</code></a></td><td><code>clob</code></td><td><span class="badge badge-low">낮음</span></td></tr></table>
+<h3>2-3. 표현식 (7)</h3><table><tr><th>Object</th><th>Type</th><th>Keyword</th><th>Status</th></tr><tr><td><a href="ds1_sources/src-public.a5.reg_date.html"><code>public.a5.reg_date</code></a></td><td><code>DEFAULT VALUE</code></td><td><code>sysdate</code></td><td><span class="badge badge-high">중간</span></td></tr>
+<tr><td><a href="ds1_sources/src-public.epas_emp_contracts.contract_date.html"><code>public.epas_emp_contracts.contract_date</code></a></td><td><code>DEFAULT VALUE</code></td><td><code>systimestamp</code></td><td><span class="badge badge-high">중간</span></td></tr>
+<tr><td><a href="ds1_sources/src-public.idx_created_at_add_months.html"><code>public.idx_created_at_add_months</code></a></td><td><code>INDEX EXPRESSION</code></td><td><code>add_months</code></td><td><span class="badge badge-high">중간</span></td></tr>
+<tr><td><a href="ds1_sources/src-public.tb_ddl_migration_test.chk_emp_id_valid.html"><code>public.tb_ddl_migration_test.chk_emp_id_valid</code></a></td><td><code>CHECK CONSTRAINT</code></td><td><code>nvl</code></td><td><span class="badge badge-high">중간</span></td></tr>
+<tr><td><a href="ds1_sources/src-public.tb_ddl_migration_test.chk_emp_status.html"><code>public.tb_ddl_migration_test.chk_emp_status</code></a></td><td><code>CHECK CONSTRAINT</code></td><td><code>decode</code></td><td><span class="badge badge-high">중간</span></td></tr>
+<tr><td><a href="ds1_sources/src-public.tb_ddl_migration_test.created_at.html"><code>public.tb_ddl_migration_test.created_at</code></a></td><td><code>DEFAULT VALUE</code></td><td><code>sysdate</code></td><td><span class="badge badge-high">중간</span></td></tr>
+<tr><td><a href="ds1_sources/src-sc_crypto.user_secure_data.created_at.html"><code>sc_crypto.user_secure_data.created_at</code></a></td><td><code>DEFAULT VALUE</code></td><td><code>sysdate</code></td><td><span class="badge badge-high">중간</span></td></tr></table>
+<h3>2-4. 시노님 (1)</h3><table><tr><th>Synonym</th><th>Target Object</th><th>Status</th></tr><tr><td><code>public.test</code></td><td><code>public.test1234</code></td><td><span class="badge badge-low">낮음</span></td></tr></table>
+<h3>3-1. RLS 정책 (2)</h3><table><tr><th>Target</th><th>Policy</th><th>Command</th><th>Status</th></tr><tr><td><code>PUBLIC.VPEMP</code></td><td><a href="ds1_sources/src-policy.rls.PUBLIC.VPEMP.SECURE_SALARY.html"><code>SECURE_SALARY</code></a></td><td>.SAL_LT_2000</td><td><span class="badge badge-low">낮음</span></td></tr>
+<tr><td><code>PUBLIC.VPEMP</code></td><td><a href="ds1_sources/src-policy.rls.PUBLIC.VPEMP.SECURE_UPDATE.html"><code>SECURE_UPDATE</code></a></td><td>.VERIFY_SESSION_USER</td><td><span class="badge badge-low">낮음</span></td></tr></table>
+<h3>3-2. Redication (4)</h3><table><tr><th>Target</th><th>Policy</th><th>Column</th><th>Status</th></tr><tr><td><code>public.tb_redaction_test</code></td><td><code>mask_phone_policy</code></td><td><code>phone_number</code></td><td><span class="badge badge-high">중간</span></td></tr>
+<tr><td><code>sc_redact.tb_redaction_test</code></td><td><code>policy_mask_phone</code></td><td><code>phone_number</code></td><td><span class="badge badge-high">중간</span></td></tr>
+<tr><td><code>sc_redact.tb_redaction_test</code></td><td><code>policy_mask_salary</code></td><td><code>salary</code></td><td><span class="badge badge-high">중간</span></td></tr>
+<tr><td><code>sc_redact.tb_redaction_test</code></td><td><code>policy_mask_ssn</code></td><td><code>ssn</code></td><td><span class="badge badge-high">중간</span></td></tr></table>
+<h3>3-3. 프로파일 (4)</h3><table><tr><th>Profile</th><th>Users</th><th>Status</th></tr><tr><td><a href="ds1_sources/src-policy.profile.P2.html"><code>P2</code></a></td><td><code>kim, testuser</code></td><td><span class="badge badge-low">낮음</span></td></tr>
+<tr><td><a href="ds1_sources/src-policy.profile.PROF_MIG_01.html"><code>PROF_MIG_01</code></a></td><td><code>t1</code></td><td><span class="badge badge-low">낮음</span></td></tr>
+<tr><td><a href="ds1_sources/src-policy.profile.PROF_MIG_02.html"><code>PROF_MIG_02</code></a></td><td><code>(사용자 없음)</code></td><td><span class="badge badge-low">낮음</span></td></tr>
+<tr><td><a href="ds1_sources/src-policy.profile.TEST_MIG_PROFILE.html"><code>TEST_MIG_PROFILE</code></a></td><td><code>(사용자 없음)</code></td><td><span class="badge badge-low">낮음</span></td></tr></table>
+<h3>3-4. 리소스 그룹 (3)</h3><table><tr><th>Group</th><th>CPU rate</th><th>dirtyratelimit</th><th>Users</th><th>Status</th></tr><tr><td><code>rg_mig_10</code></td><td>100</td><td>10240</td><td><code>kim</code></td><td><span class="badge badge-low">낮음</span></td></tr>
+<tr><td><code>rg_mig_test</code></td><td>100</td><td>20480</td><td><code>(사용자 없음)</code></td><td><span class="badge badge-low">낮음</span></td></tr>
+<tr><td><code>rg_test_50</code></td><td>50</td><td>20480</td><td><code>dsg_user</code></td><td><span class="badge badge-low">낮음</span></td></tr></table>
+<h3>4-1. DBLink (3)</h3><table><tr><th>DBLINK</th><th>User</th><th>Connection</th><th>Status</th></tr><tr><td><code>oralink</code></td><td>test</td><td><code>//192.168.56.11:1521/ORACLE19</code></td><td><span class="badge badge-low">낮음</span></td></tr>
+<tr><td><code>pg16_link</code></td><td>postgres</td><td><code>host=192.168.56.216 port=5432 dbname=postgres</code></td><td><span class="badge badge-low">낮음</span></td></tr>
+<tr><td><code>testlink</code></td><td>postgres</td><td><code>host=192.168.56.216 port=5432 dbname=postgres</code></td><td><span class="badge badge-low">낮음</span></td></tr></table>
+</div></div></div></div>
+<script>
+function splitImpact(total, impacted){if(total<=0){return {critical:0,warning:0,safe:100};}const r=impacted/total;const critical=Math.round(r*45);const warning=Math.round(r*35);const safe=Math.max(0,100-critical-warning);return {critical,warning,safe};}
+const objectTypes=["PACKAGE","FUNCTION","PROCEDURE","VIEW","TABLE"];
+const dataset={
+  PACKAGE:{total:4,impacted:4,keywords:[["utl_raw",10],["dbms_output",7],["dbms_crypto.hash",3],["dbms_crypto.encrypt",3],["dbms_crypto.decrypt",2],["dbms_crypto",2],["dbms_crypto.randombytes",1]],impact:splitImpact(4,4)},
+  FUNCTION:{total:7,impacted:7,keywords:[["raw",7],["edbspl",6],["sysdate",2],["nvl",2],["decode",2],["dbms_crypto.hash",2],["dbms_crypto.encrypt",2],["dbms_crypto.decrypt",2],["dbms_crypto",2]],impact:splitImpact(7,7)},
+  PROCEDURE:{total:2,impacted:2,keywords:[["raw",4],["edbspl",2],["sqlerrm",1],["dbms_crypto.randombytes",1],["dbms_crypto.hash",1],["dbms_crypto.encrypt",1]],impact:splitImpact(2,2)},
+  VIEW:{total:1,impacted:1,keywords:[["nvl",2],["systimestamp",1],["add_months",1]],impact:splitImpact(1,1)},
+  TABLE:{total:8,impacted:4,keywords:[["sysdate",3],["clob",3],["bfile, clob",3],["bfile",2],["systimestamp",1],["nvl",1],["decode",1],["add_months",1]],impact:splitImpact(8,4)}
+};
+const state={selectedType:"PACKAGE"};const detailState={selectedKey:""};const detailBlocks=[];
+const chipsRoot=document.getElementById("type-chips");const barsRoot=document.getElementById("object-bars");const keywordRoot=document.getElementById("keyword-list");const donut=document.getElementById("impact-donut");const impactTotal=document.getElementById("impact-total");const legendRoot=document.getElementById("impact-legend");const vizGrid=document.getElementById("viz-grid");const empty=document.getElementById("empty-state");const detailChipsRoot=document.getElementById("detail-chips");const detailContentRoot=document.getElementById("detail-content");
+function renderChips(){chipsRoot.innerHTML="";objectTypes.forEach((t)=>{const b=document.createElement("button");b.className="chip "+(state.selectedType===t?"active":"");b.textContent=t;b.addEventListener("click",()=>{state.selectedType=t;render();});chipsRoot.appendChild(b);});}
+function renderBars(){barsRoot.innerHTML="";objectTypes.forEach((t)=>{const d=dataset[t];const ratio=d.total>0?(d.impacted/d.total):0;const pct=Math.round(ratio*100);const item=document.createElement("button");item.className="bar-item "+(state.selectedType===t?"active":"");item.innerHTML='<div class="bar-wrap"><div class="bar-stack"><div class="bar-total"></div><div class="bar-impact" style="--ratio-impact:'+ratio.toFixed(3)+'"></div><span class="impact-label" style="--ratio-impact:'+ratio.toFixed(3)+'">'+pct+'%</span></div></div><div class="bar-label">'+t+'</div><div class="bar-count">'+d.impacted+' / '+d.total+'</div>';item.addEventListener("click",()=>{state.selectedType=t;render();});barsRoot.appendChild(item);});}
+function renderKeywords(){keywordRoot.innerHTML="";const items=[...(dataset[state.selectedType].keywords||[])].sort((a,b)=>b[1]-a[1]).slice(0,10);const max=Math.max(1,...items.map(i=>i[1]||0));if(items.length===0){keywordRoot.innerHTML='<div class="keyword-row"><span class="keyword-rank">-</span><strong class="keyword-label">(없음)</strong><div class="keyword-track"><div class="keyword-fill" style="--ratio:0"></div></div><span class="keyword-value">0</span></div>';return;}items.forEach(([k,v],idx)=>{const r=(v||0)/max;const row=document.createElement("div");row.className="keyword-row";row.innerHTML='<span class="keyword-rank">'+(idx+1)+'</span><strong class="keyword-label" title="'+k+'">'+k+'</strong><div class="keyword-track"><div class="keyword-fill" style="--ratio:'+r.toFixed(3)+'"></div></div><span class="keyword-value">'+v+'</span>';keywordRoot.appendChild(row);});}
+function renderImpact(){const i=dataset[state.selectedType].impact;const c=i.critical;const w=i.warning;const s=i.safe;donut.style.background='conic-gradient(var(--critical) 0% '+c+'%,var(--warning) '+c+'% '+(c+w)+'%,var(--safe) '+(c+w)+'% 100%)';impactTotal.textContent=String(dataset[state.selectedType].total);legendRoot.innerHTML='<div class="legend-item"><span class="tag"><span class="dot" style="background:var(--critical)"></span>고영향도</span><strong>'+c+'%</strong></div><div class="legend-item"><span class="tag"><span class="dot" style="background:var(--warning)"></span>중영향도</span><strong>'+w+'%</strong></div><div class="legend-item"><span class="tag"><span class="dot" style="background:var(--safe)"></span>저영향도</span><strong>'+s+'%</strong></div>';}
+function initDetailSections(){if(!detailChipsRoot||!detailContentRoot){return;}const headers=[...detailContentRoot.querySelectorAll("h3")];headers.forEach((header)=>{const keyMatch=header.textContent.trim().match(/^(\d-\d)\./);const key=keyMatch?keyMatch[1]:header.textContent.trim();const table=(header.nextElementSibling&&header.nextElementSibling.tagName==="TABLE")?header.nextElementSibling:null;const label=header.textContent.trim().replace(/\s*\(\d+\)\s*$/,"");detailBlocks.push({key,label,header,table});});if(detailBlocks.length>0){detailState.selectedKey=detailBlocks[0].key;}renderDetailChips();renderDetailSections();}
+function renderDetailChips(){if(!detailChipsRoot){return;}detailChipsRoot.innerHTML="";const keys=[];detailBlocks.forEach((block)=>{if(!keys.includes(block.key)){keys.push(block.key);}});keys.forEach((key)=>{const block=detailBlocks.find((item)=>item.key===key);const chip=document.createElement("button");chip.className="chip "+(detailState.selectedKey===key?"active":"");chip.textContent=block?block.label:key;chip.addEventListener("click",()=>{detailState.selectedKey=key;renderDetailChips();renderDetailSections();});detailChipsRoot.appendChild(chip);});}
+function renderDetailSections(){detailBlocks.forEach((block)=>{const visible=detailState.selectedKey===block.key;block.header.style.display=visible?"":"none";if(block.table){block.table.style.display=visible?"table":"none";}});}
+
+function render(){renderChips();const grand=objectTypes.reduce((a,t)=>a+(dataset[t].total||0),0);if(grand===0){vizGrid.style.display="none";empty.classList.add("show");return;}vizGrid.style.display="grid";empty.classList.remove("show");renderBars();renderKeywords();renderImpact();}
+render();
+initDetailSections();
+</script>
+</div></body></html>
+

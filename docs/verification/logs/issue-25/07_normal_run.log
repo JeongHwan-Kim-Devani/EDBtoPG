@@ -1,0 +1,20 @@
+[####--------------------------]  14% Exporting base TSV datasets
+[DONE] Exporting base TSV datasets
+[########----------------------]  28% Building intermediate report rows
+[DONE] Building intermediate report rows
+[############------------------]  42% Preparing visualization dataset
+[DONE] Preparing visualization dataset
+[#################-------------]  57% Generating source navigator pages
+[DONE] Generating source navigator pages
+[#####################---------]  71% Rendering prototype-based main report
+[DONE] Rendering prototype-based main report
+[#########################-----]  85% Writing report index
+[DONE] Writing report index
+[##############################] 100% Finalizing report
+[DONE] Finalizing report
+[DONE] Report generated at: /tmp/issue25_normal_run
+       Main HTML  : /tmp/issue25_normal_run/precheck.html
+       Source HTML: /tmp/issue25_normal_run/precheck_source.html
+       Source dir : /tmp/issue25_normal_run/precheck_sources/
+
+EXIT_CODE=0

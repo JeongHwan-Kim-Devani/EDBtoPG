@@ -1,4 +1,5 @@
---@@ parameters
+-- == SECTION 1-1: Parameters ==
+--@@ sec_1_1_parameters
 SELECT
     parameter_name,
     default_value,
@@ -86,7 +87,8 @@ ORDER BY
     END,
     parameter_name;
 
---@@ summary_packages
+-- == SECTION 2-1: Compatibility Objects (Package usage) ==
+--@@ sec_2_1_packages_summary
 SELECT
     object_type,
     schema_name,
@@ -143,25 +145,29 @@ FROM (
 ) x
 ORDER BY schema_name, CASE object_type WHEN 'P' THEN 1 WHEN 'F' THEN 2 WHEN 'V' THEN 3 ELSE 9 END, object_name;
 
---@@ summary_synonyms
+-- == SECTION 2-4: Synonyms ==
+--@@ sec_2_4_synonyms
 SELECT ns.nspname AS synonym_schema, s.synname, s.synobjschema, s.synobjname, COALESCE(s.synlink,'') AS synlink
 FROM pg_catalog.pg_synonym s
 JOIN pg_namespace ns ON ns.oid = s.synnamespace
 ORDER BY ns.nspname, s.synname;
 
---@@ summary_policies
+-- == SECTION 3-1: RLS (pg_policies) ==
+--@@ sec_3_1_policies_pg
 SELECT schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check
 FROM pg_policies
 WHERE schemaname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb', 'htf', 'htp', 'xmltype')
 ORDER BY schemaname, tablename, policyname;
 
 
---@@ summary_policies_dbms_rls
+-- == SECTION 3-1: RLS (sys.all_policies) ==
+--@@ sec_3_1_policies_dbms
 SELECT object_owner, schema_name, object_name, policy_group, policy_name, pf_owner, package, function
 FROM sys.all_policies
 ORDER BY schema_name, object_name, policy_name;
 
---@@ summary_redaction
+-- == SECTION 3-2: Redaction ==
+--@@ sec_3_2_redaction
 SELECT
     n.nspname AS schema_name,
     c.relname AS table_name,
@@ -175,7 +181,8 @@ JOIN pg_namespace n ON c.relnamespace = n.oid
 JOIN pg_attribute a ON rc.rdrelid = a.attrelid AND rc.rdattnum = a.attnum
 ORDER BY schema_name, table_name, policy_name;
 
---@@ detail_keywords
+-- == SECTION 2-1: Compatibility Objects (Keyword/lang detection) ==
+--@@ sec_2_1_keywords
 SELECT object_type, schema_name, object_name, detected_keyword
 FROM (
     SELECT CASE WHEN p.prokind='p' THEN 'P' ELSE 'F' END AS object_type, n.nspname AS schema_name, p.proname AS object_name,
@@ -256,7 +263,8 @@ FROM (
 ) z
 ORDER BY schema_name, CASE object_type WHEN 'P' THEN 1 WHEN 'F' THEN 2 WHEN 'V' THEN 3 ELSE 9 END, object_name;
 
---@@ detail_datatypes_objects
+-- == SECTION 2-2: Datatypes (objects) ==
+--@@ sec_2_2_datatypes_objects
 SELECT object_type, schema_name, object_name, detected_datatype
 FROM (
     SELECT CASE WHEN p.prokind='p' THEN 'P' ELSE 'F' END AS object_type, n.nspname AS schema_name, p.proname AS object_name,
@@ -274,7 +282,8 @@ FROM (
 ) z
 ORDER BY schema_name, CASE object_type WHEN 'P' THEN 1 WHEN 'F' THEN 2 WHEN 'V' THEN 3 ELSE 9 END, object_name;
 
---@@ detail_datatypes_tables
+-- == SECTION 2-2: Datatypes (tables/columns) ==
+--@@ sec_2_2_datatypes_tables
 SELECT
   table_schema AS schema_name,
   table_name,
@@ -287,7 +296,8 @@ WHERE table_schema NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sy
 GROUP BY table_schema, table_name
 ORDER BY schema_name, table_name;
 
---@@ detail_expr_keywords
+-- == SECTION 2-3: Expressions ==
+--@@ sec_2_3_expr_keywords
 SELECT object_type, schema_name, table_name, target_name, detected_keyword
 FROM (
     SELECT 'DEFAULT VALUE' AS object_type, n.nspname AS schema_name, c.relname AS table_name, a.attname AS target_name,
@@ -320,7 +330,8 @@ FROM (
 ) z
 ORDER BY schema_name, table_name, target_name, object_type;
 
---@@ policy_edb_profile
+-- == SECTION 3-3: Profiles (pg_catalog) ==
+--@@ sec_3_3_profiles
 WITH prof AS (
   SELECT p.*
   FROM pg_catalog.edb_profile p
@@ -381,7 +392,8 @@ SELECT
 FROM profile_rows
 GROUP BY profile_name, applied_users
 ORDER BY profile_name;
---@@ policy_edb_profile_dba
+-- == SECTION 3-3: Profiles (sys.dba_profiles) ==
+--@@ sec_3_3_profiles_dba
 WITH prof_users AS (
   SELECT
     p.profile AS profile_name,
@@ -430,7 +442,8 @@ FROM prof_detail d
 LEFT JOIN prof_users u ON u.profile_name = d.profile_name
 ORDER BY d.profile_name;
 
---@@ policy_edb_resource_group
+-- == SECTION 3-4: Resource Groups ==
+--@@ sec_3_4_resource_groups
 SELECT
   rg.rgrpname AS resource_group_name,
   COALESCE(
@@ -463,13 +476,15 @@ SELECT
 FROM pg_catalog.edb_resource_group rg
 ORDER BY rg.rgrpname;
 
---@@ policy_edb_dblink
+-- == SECTION 4-1: DBLink ==
+--@@ sec_4_1_dblink
 SELECT lnkname, lnkowner, lnktype, lnkispublic, lnkuser, lnkconnstr, oid
 FROM pg_catalog.edb_dblink
 ORDER BY lnkname;
 
 
---@@ summary_packages_raw
+-- == SOURCE COMPONENT: package/view source dump ==
+--@@ raw_2_1_packages
 SELECT CASE WHEN p.prokind='p' THEN 'P' ELSE 'F' END AS object_type,
        n.nspname AS schema_name,
        p.proname AS object_name,
@@ -521,7 +536,8 @@ SELECT 'V' AS object_type,
        ) AS source_text
 FROM pg_views v
 WHERE v.schemaname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb', 'htf', 'htp', 'xmltype');
---@@ detail_keywords_raw
+-- == SOURCE COMPONENT: keyword object source dump ==
+--@@ raw_2_1_keywords
 SELECT CASE WHEN p.prokind='p' THEN 'P' ELSE 'F' END AS object_type,
        n.nspname AS schema_name,
        p.proname AS object_name,
@@ -573,7 +589,8 @@ SELECT 'V' AS object_type,
        ) AS source_text
 FROM pg_views v
 WHERE v.schemaname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb', 'htf', 'htp', 'xmltype');
---@@ detail_expr_raw
+-- == SOURCE COMPONENT: expression source dump ==
+--@@ raw_2_3_expr
 SELECT 'DEFAULT VALUE' AS object_type, n.nspname AS schema_name, c.relname AS table_name, a.attname AS target_name,
        regexp_replace(pg_get_expr(d.adbin, d.adrelid), E'[\r\n]+', E'\\n', 'g') AS expression
 FROM pg_attrdef d
@@ -604,7 +621,8 @@ JOIN pg_class i ON idx.indexrelid = i.oid
 JOIN pg_namespace n ON c.relnamespace = n.oid
 WHERE idx.indexprs IS NOT NULL AND n.nspname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb', 'htf', 'htp', 'xmltype');
 
---@@ detail_table_columns_raw
+-- == SOURCE COMPONENT: table column catalog dump ==
+--@@ raw_tables_columns
 SELECT table_schema, table_name, column_name,
        COALESCE(domain_name, udt_name) AS column_type,
        is_nullable,
@@ -614,7 +632,8 @@ WHERE table_schema NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sy
 ORDER BY table_schema, table_name, ordinal_position;
 
 
---@@ detail_table_objects_raw
+-- == SOURCE COMPONENT: table object source dump ==
+--@@ raw_tables_objects
 WITH tbl AS (
   SELECT c.oid, n.nspname AS schema_name, c.relname AS table_name
   FROM pg_class c

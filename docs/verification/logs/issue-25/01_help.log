@@ -1,0 +1,14 @@
+EPAS -> PostgreSQL pre-diagnostic helper
+Usage: ./epas_precheck_v2.0.sh [options]
+Options:
+  -h, --host HOST
+  -p, --port PORT
+  -d, --dbname DBNAME   (required)
+  -U, --user USER       (required)
+  -W, --password PASS
+  -o, --output DIR      Output directory (required)
+  -c, --compress TYPE   tar | gz
+  --connect-timeout SEC
+  --help
+
+EXIT_CODE=0
