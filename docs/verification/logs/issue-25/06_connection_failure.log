@@ -1,0 +1,4 @@
+[####--------------------------]  14% Exporting base TSV datasets
+psql: error: connection to server at "203.0.113.1", port 5417 failed: timeout expired
+
+EXIT_CODE=2

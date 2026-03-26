@@ -1,0 +1,3 @@
+[ERROR] --compress must be one of: tar, gz
+
+EXIT_CODE=1
