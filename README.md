@@ -8,6 +8,12 @@
 `EDBtoPG`는 EPAS(EnterpriseDB Advanced Server) 환경에서 PostgreSQL로 마이그레이션하기 전에
 호환성 이슈를 사전 진단하고, 결과를 HTML/TSV 리포트로 생성하는 도구입니다.
 
+## 담당자
+- 총괄/기획/설계 : 최영준 (yjchoi@rockplace.com)
+- 디자인/개발/품질 : 김정환 (jeonghwan.kim@rockplace.com)
+- 품질/인프라/지원 : 강홍용 (hykang@rockplace.com)
+
+
 ## 주요 기능
 - 파라미터 점검: 기본값 대비 현재값 비교 및 변경 영향 확인
 - Oracle/EDB 호환 키워드 탐지: 객체 소스 내 주요 키워드 매칭
