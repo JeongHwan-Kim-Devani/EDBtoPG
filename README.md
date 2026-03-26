@@ -47,7 +47,8 @@ bash EPAS_PRECHECK/epas_precheck_v2.0.sh -d <DBNAME> -U <USER> -o ./out
 
 ### 출력 샘플 (v2.0 최종 디자인)
 <p align="center">
-  <img src="./assets/images/precheck_report_sample.png" alt="EPAS Precheck v2.0 output sample" width="1200">
+  <img src="./assets/images/precheck_report_sample1.png" alt="EPAS Precheck v2.0 output sample" width="1200">
+  <img src="./assets/images/precheck_report_sample2.png" alt="EPAS Precheck v2.0 output sample" width="1200">
 </p>
 
 ## 디자인 문서
