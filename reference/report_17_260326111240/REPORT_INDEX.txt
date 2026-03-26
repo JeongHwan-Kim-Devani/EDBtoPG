@@ -1,7 +1,0 @@
-[EPAS to PostgreSQL Precheck]
-Output directory : report_17_260326111240
-Connection hints : host=localhost, port=5417, db=ds1, user=enterprisedb
-HTML report      : ds1.html
-Source HTML      : ds1_source.html
-Source directory : ds1_sources/
-Compatibility   : OS[RHEL 7/8/9, Ubuntu 20/22/24], EPAS[9.6/10/14/17]

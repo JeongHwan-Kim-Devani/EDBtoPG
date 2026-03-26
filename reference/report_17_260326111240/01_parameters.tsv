@@ -1,9 +1,0 @@
-parameter_name	default_value	current_value	check_required	description
-edb_audit		csv	O	EDB 전용 감사 기능 (PostgreSQL에서 사용 불가)
-db_dialect	redwood	redwood	O	오라클 호환 문법 비활성화 (표준 SQL 재작성 필요)
-edb_dynatune	66	60	O	자동 메모리 튜닝 상실 (수동 튜닝 필요)
-edb_dynatune_profile	oltp	oltp	O	동적 프로파일링 상실 (work_mem 등 수동 설정 필요)
-edb_redwood_date	on	on	O	DATE 시간 정보 유실 위험 (TIMESTAMP 권장)
-edb_redwood_greatest_least	on	on	O	GREATEST/LEAST의 NULL 처리 차이 주의
-edb_redwood_strings	on	on	O	빈 문자열과 NULL 처리 방식 변경 (앱 로직 수정 필요)
-enable_hints	on	on	O	EDB 힌트 기능 상실 (pg_hint_plan 검토 필요)

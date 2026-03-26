@@ -1,9 +1,0 @@
-schema_name	table_name	merged_columns	current_datatype
-public	clob_test	id	clob
-public	t11	c1	bfile
-public	t12	c2, c5	bfile, clob
-public	tb_datatype_test	test_bfile, test_clob	bfile, clob
-public	tb_employee_info	external_cert, resume_doc	bfile, clob
-public	test2	col4	clob
-public	tv	c3	bfile
-public	vw_clob_test	id	clob

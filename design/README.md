@@ -1,31 +1,28 @@
-# USER_CREATED 디자인 시안 (v2.0)
+# EPAS_PRECHECK Design Final (v2.0)
 
-- 기준 레퍼런스: `../reference/report_17_260326111240/ds1.html`
-- 프로토타입: `epas_precheck_v2.0_prototype.html` (`ds1.html` 기준 동기화)
+## Final Design
+- Reference: `../reference/report_17_260326111240/ds1.html`
+- Final prototype: `epas_precheck_v2.0_prototype.html`
+- Applied script: `../EPAS_PRECHECK/epas_precheck_v2.0.sh`
 
-## 열기
+## Scope
+- Summary and Details information architecture alignment
+- Detail chip navigation and section-specific content rendering
+- Status visualization normalization (`높음`, `중간`, `낮음`)
+- Donut legend expansion (`고영향도`, `중영향도`, `저영향도`, `영향없음`)
+- Description column Korean text output
 
+## How To Open
 ```powershell
 start design/epas_precheck_v2.0_prototype.html
 ```
 
-## 포함 내용
-
-- 객체 유형 선택 칩: `PACKAGE`, `FUNCTION`, `PROCEDURE`, `VIEW`, `TABLE`
-- 1) 객체 유형별 건수
-- 2) 키워드 상위 10개
-- 3) 영향도 퍼센트
-- 4) 리포트 임베드용 이미지 경로 미리보기
-- 5) USER_CREATED 객체 없음 예외 상태
-- Details 섹션(파라미터/호환성 객체/데이터타입/표현식/정책 등 전체 테이블)
-
-## 연동 스크립트
-
-- `../EPAS_PRECHECK/epas_precheck_v2.0.sh`
-- `../EPAS_PRECHECK/epas_precheck_v2.0.sql`
-
-## 실행
-
+## Run
 ```bash
 bash EPAS_PRECHECK/epas_precheck_v2.0.sh -d <DBNAME> -U <USER> -o ./out
 ```
+
+## Completion Notes
+- The final v2.0 wireframe is reflected in the single-file report generator.
+- SH/SQL responsibility was consolidated and component logic was refactored for maintainability.
+- Core rendering logic was simplified to reduce duplicated conditions and repeated scans.
