@@ -9,11 +9,11 @@
 호환성 이슈를 사전 진단하고, 결과를 HTML/TSV 리포트로 생성하는 도구입니다.
 
 ## 담당자
-|||역할||||담당자|
-|---|-|---|-|---|---|---|
-| 총괄 |/| 기획 |/| 설계 |:| 최영준 (yjchoi@rockplace.com)|
-| 디자인 |/| 개발 |/| 관리 |:| 김정환 (jeonghwan.kim@rockplace.com)|
-| 품질 |/| 인프라 |/| 지원 |:| 강홍용 (hykang@rockplace.com)|
+|역할|담당자|
+|---------|---|
+| 총괄 / 기획 / 설계 : 최영준 (yjchoi@rockplace.com)|
+| 디자인 / 개발 / 관리 : 김정환 (jeonghwan.kim@rockplace.com)|
+| 품질 / 인프라 / 지원 : 강홍용 (hykang@rockplace.com)|
 
 
 ## 주요 기능
