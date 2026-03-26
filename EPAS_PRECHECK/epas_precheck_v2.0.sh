@@ -334,7 +334,7 @@ for ot,s,t,tr,e in iter_fields(out/'03_detail_expr_raw.tsv', 5):
     raw[obj]=(full_type(ot),restore_text(e))
 for prf, detail, users in iter_fields(out/'04_policy_edb_profile.tsv', 3):
   obj=f'policy.profile.{prf}'
-  raw[obj]=('PROFILE', restore_text(detail) if detail else f'PROFILE: {prf}\nAPPLIED USERS: {users if users else "(no users)"}')
+  raw[obj]=('PROFILE', restore_text(detail) if detail else f'프로파일: {prf}\n적용 사용자: {users if users else "(사용자 없음)"}')
 for schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check in iter_fields(out/'02_summary_policies.tsv', 8):
   obj=f'policy.rls.{schemaname}.{tablename}.{policyname}'
   raw[obj]=('RLS POLICY', f'Schema: {schemaname}\nTable: {tablename}\nPolicy: {policyname}\nPermissive: {permissive}\nRoles: {roles}\nCommand: {cmd}\nUsing: {qual}\nWith check: {with_check}')
@@ -444,8 +444,8 @@ for obj in sorted(set(kw) | set(raw)):
     '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>'+html.escape(obj)+' source</title>'
     '<style>body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}.container{max-width:1300px;margin:0 auto;padding:22px 30px}.card{background:#fff;border:1px solid #ddd;border-radius:10px;padding:14px;margin-bottom:14px}pre{background:#111827;color:#e5e7eb;padding:12px;border-radius:8px;overflow:auto;white-space:pre;tab-size:4;line-height:1.4;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}.kw{color:#f59e0b;font-weight:700}.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700}.badge-none{color:#374151;background:#e5e7eb;border:1px solid #d1d5db}a{color:#1d4ed8}</style></head><body><div class="container">'
     '<h1><code>'+html.escape(obj)+'</code></h1>'
-    '<p><a href="../'+html.escape(target.name)+'">Back to source index</a> &nbsp;|&nbsp; <a href="../'+html.escape(precheck_name)+'">Back to precheck</a></p>'
-    '<div class="card"><h3>Object Summary</h3><p><b>Type</b> '+html.escape(full_type(typ))+'</p><p><b>Keywords</b> '+kw_badge+'</p></div>'
+    '<p><a href="../'+html.escape(target.name)+'">Back to source index</a> &nbsp;|&nbsp; <a href="../'+html.escape(precheck_name)+'">사전점검으로 돌아가기</a></p>'
+    '<div class="card"><h3>객체 요약</h3><p><b>Type</b> '+html.escape(full_type(typ))+'</p><p><b>Keywords</b> '+kw_badge+'</p></div>'
     '<div class="card"><h3>Source (keyword highlighted)</h3><pre>'+highlighted+'</pre></div>'
     '</div></body></html>'
   )
@@ -454,7 +454,7 @@ for obj in sorted(set(kw) | set(raw)):
 
 source_total=len(objects)
 parts=['<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Source Navigator</title><style>body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}.container{max-width:1300px;margin:0 auto;padding:24px 36px}.card{background:#fff;border:1px solid #ddd;border-radius:10px;padding:16px;margin-bottom:14px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #d1d5db;padding:8px}th{background:#f3f4f6}code{background:#f3f4f6;padding:2px 4px;border-radius:4px}a{color:#1d4ed8}.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700}.badge-none{color:#374151;background:#e5e7eb;border:1px solid #d1d5db}</style></head><body><div class="container"><h1>Source Navigator ('+str(source_total)+')</h1>']
-parts.append('<div class="card"><p><a href="'+html.escape(precheck_name)+'">Back to precheck</a></p><p>Object source pages generated from report outputs.</p><table><tr><th>Object</th><th>Type</th><th>Keywords</th></tr>')
+parts.append('<div class="card"><p><a href="'+html.escape(precheck_name)+'">사전점검으로 돌아가기</a></p><p>리포트 출력물을 기반으로 생성된 객체 소스 페이지입니다.</p><table><tr><th>객체</th><th>유형</th><th>키워드</th></tr>')
 if objects:
   for obj, typ, kws, file_name in objects:
     if kws and kws != ['(no keyword)']:
@@ -463,7 +463,7 @@ if objects:
       kw_cell='<span class="badge badge-none">no keyword</span>'
     parts.append('<tr><td><a href="'+html.escape(src_dir.name)+'/'+html.escape(file_name)+'"><code>'+html.escape(obj)+'</code></a></td><td>'+html.escape(typ)+'</td><td>'+kw_cell+'</td></tr>')
 else:
-  parts.append('<tr><td colspan="3">No rows</td></tr>')
+  parts.append('<tr><td colspan="3">데이터 없음</td></tr>')
 parts.append('</table></div></div></body></html>')
 target.write_text('\n'.join(parts),encoding='utf-8')
 PY
@@ -492,7 +492,7 @@ if [[ "$PY_RENDERED" -eq 0 ]]; then
   awk -F $'	' 'NR>1{obj=($1=="INDEX EXPRESSION"?$2"."$4:$2"."$3"."$4); print obj"	"$1"	"$5}' "$OUT_DIR/03_detail_expr_raw.tsv" >> "$RAW_MERGED"
   awk -F $'\t' 'NR>1{print $1"."$2"\tTABLE COLUMN\t"$3}' "$OUT_DIR/03_detail_table_objects_raw.tsv" >> "$RAW_MERGED"
 
-  awk -F $'	' 'NR>1{users=($3==""?"(no users)":$3); detail=($2==""?"PROFILE: "$1"\\nAPPLIED USERS: "users:$2); printf "policy.profile.%s\tPROFILE\t%s\n", $1, detail}' "$OUT_DIR/04_policy_edb_profile.tsv" >> "$RAW_MERGED"
+  awk -F $'	' 'NR>1{users=($3==""?"(사용자 없음)":$3); detail=($2==""?"프로파일: "$1"\\n적용 사용자: "users:$2); printf "policy.profile.%s\tPROFILE\t%s\n", $1, detail}' "$OUT_DIR/04_policy_edb_profile.tsv" >> "$RAW_MERGED"
   awk -F $'\t' 'NR>1{printf "policy.rls.%s.%s.%s\tRLS POLICY\tSchema: %s\\nTable: %s\\nPolicy: %s\\nPermissive: %s\\nRoles: %s\\nCommand: %s\\nUsing: %s\\nWith check: %s\n", $1,$2,$3,$1,$2,$3,$4,$5,$6,$7,$8}' "$OUT_DIR/02_summary_policies.tsv" >> "$RAW_MERGED"
   awk -F $'\t' '
     ARGIND==1 && FNR>1{
@@ -612,8 +612,8 @@ $src"
 <!doctype html><html lang="en"><head><meta charset="utf-8"><title>${esc_obj} source</title>
 <style>body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}.container{max-width:1300px;margin:0 auto;padding:22px 30px}.card{background:#fff;border:1px solid #ddd;border-radius:10px;padding:14px;margin-bottom:14px}pre{background:#111827;color:#e5e7eb;padding:12px;border-radius:8px;overflow:auto;white-space:pre;tab-size:4;line-height:1.4;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}.kw{color:#f59e0b;font-weight:700}a{color:#1d4ed8}code{background:#f3f4f6;padding:2px 4px;border-radius:4px}</style></head><body><div class="container">
 <h1><code>${esc_obj}</code></h1>
-<p><a href="../${SOURCE_HTML_BASENAME}">Back to source index</a> &nbsp;|&nbsp; <a href="../${HTML_BASENAME}">Back to precheck</a></p>
-<div class="card"><h3>Object Summary</h3><p><b>Type</b> ${esc_typ}</p><p><b>Keywords</b> ${esc_kws}</p></div>
+<p><a href="../${SOURCE_HTML_BASENAME}">Back to source index</a> &nbsp;|&nbsp; <a href="../${HTML_BASENAME}">사전점검으로 돌아가기</a></p>
+<div class="card"><h3>객체 요약</h3><p><b>Type</b> ${esc_typ}</p><p><b>Keywords</b> ${esc_kws}</p></div>
 <div class="card"><h3>Source (keyword highlighted)</h3><pre>${esc_src}</pre></div>
 </div></body></html>
 EOF
@@ -625,30 +625,30 @@ EOF
   cat > "$SOURCE_HTML_PATH" <<EOF
 <!doctype html><html lang="en"><head><meta charset="utf-8"><title>Source Navigator</title>
 <style>body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}.container{max-width:1300px;margin:0 auto;padding:24px 36px}.card{background:#fff;border:1px solid #ddd;border-radius:10px;padding:16px;margin-bottom:14px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #d1d5db;padding:8px}th{background:#f3f4f6}code{background:#f3f4f6;padding:2px 4px;border-radius:4px}a{color:#1d4ed8}</style></head><body><div class="container">
-<h1>Source Navigator (${SOURCE_TOTAL})</h1>
-<div class="card"><p><a href="${HTML_BASENAME}">Back to precheck</a></p><p>Object source pages generated from report outputs.</p>
-<table><tr><th>Object</th><th>Type</th><th>Keywords</th></tr>
-$( [ -s "$IDX_ROWS" ] && cat "$IDX_ROWS" || echo '<tr><td colspan="3">No rows</td></tr>' )
+<h1>소스 탐색기 (${SOURCE_TOTAL})</h1>
+<div class="card"><p><a href="${HTML_BASENAME}">사전점검으로 돌아가기</a></p><p>리포트 출력물을 기반으로 생성된 객체 소스 페이지입니다.</p>
+<table><tr><th>객체</th><th>유형</th><th>키워드</th></tr>
+$( [ -s "$IDX_ROWS" ] && cat "$IDX_ROWS" || echo '<tr><td colspan="3">데이터 없음</td></tr>' )
 </table></div></div></body></html>
 EOF
 
   purge_files "$RAW_MERGED" "$RAW_AGG" "$KW_MERGED" "$KW_AGG" "$TABLE_RAW_AGG" "$COLUMN_LIST_AGG" "$IDX_TABLE_MAP" "$IDX_ROWS"
 fi
-[[ -f "$SOURCE_HTML_PATH" ]] || echo '<!doctype html><html><body><h1>Source render skipped</h1><p>No source pages were generated.</p></body></html>' > "$SOURCE_HTML_PATH"
+[[ -f "$SOURCE_HTML_PATH" ]] || echo '<!doctype html><html><body><h1>소스 렌더링 건너뜀</h1><p>생성된 소스 페이지가 없습니다.</p></body></html>' > "$SOURCE_HTML_PATH"
 
-default_row_if_empty(){ [[ -s "$1" ]] && cat "$1" || printf '<tr><td colspan="%s">No rows</td></tr>' "$2"; }
-syn_rows_html=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s.%s</code></td><td><code>%s.%s</code></td><td><span class=\"badge badge-low\">Review required</span></td></tr>\n",$1,$2,$3,$4}' "$OUT_DIR/02_summary_synonyms.tsv")
-rls_pg_rows=$(awk -F $'\t' 'NR>1{obj="policy.rls."$1"."$2"."$3; id=obj; gsub(/[^[:alnum:]_.-]/,"_",id); printf "<tr><td><code>%s.%s</code></td><td><a href=\"%s/src-%s.html\"><code>%s</code></a></td><td>%s</td><td><span class=\"badge badge-low\">Review required</span></td></tr>\n",$1,$2,ENVIRON["SOURCE_DIR_BASENAME"],id,$3,$6}' "$OUT_DIR/02_summary_policies.tsv")
-rls_dbms_rows=$(awk -F $'\t' 'NR>1{obj="policy.rls."$2"."$3"."$5; id=obj; gsub(/[^[:alnum:]_.-]/,"_",id); printf "<tr><td><code>%s.%s</code></td><td><a href=\"%s/src-%s.html\"><code>%s</code></a></td><td>%s.%s</td><td><span class=\"badge badge-low\">Review required</span></td></tr>\n",$2,$3,ENVIRON["SOURCE_DIR_BASENAME"],id,$5,$7,$8}' "$OUT_DIR/02_summary_policies_dbms_rls.tsv")
+default_row_if_empty(){ [[ -s "$1" ]] && cat "$1" || printf '<tr><td colspan="%s">데이터 없음</td></tr>' "$2"; }
+syn_rows_html=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s.%s</code></td><td><code>%s.%s</code></td><td><span class=\"badge badge-low\">검토 필요</span></td></tr>\n",$1,$2,$3,$4}' "$OUT_DIR/02_summary_synonyms.tsv")
+rls_pg_rows=$(awk -F $'\t' 'NR>1{obj="policy.rls."$1"."$2"."$3; id=obj; gsub(/[^[:alnum:]_.-]/,"_",id); printf "<tr><td><code>%s.%s</code></td><td><a href=\"%s/src-%s.html\"><code>%s</code></a></td><td>%s</td><td><span class=\"badge badge-low\">검토 필요</span></td></tr>\n",$1,$2,ENVIRON["SOURCE_DIR_BASENAME"],id,$3,$6}' "$OUT_DIR/02_summary_policies.tsv")
+rls_dbms_rows=$(awk -F $'\t' 'NR>1{obj="policy.rls."$2"."$3"."$5; id=obj; gsub(/[^[:alnum:]_.-]/,"_",id); printf "<tr><td><code>%s.%s</code></td><td><a href=\"%s/src-%s.html\"><code>%s</code></a></td><td>%s.%s</td><td><span class=\"badge badge-low\">검토 필요</span></td></tr>\n",$2,$3,ENVIRON["SOURCE_DIR_BASENAME"],id,$5,$7,$8}' "$OUT_DIR/02_summary_policies_dbms_rls.tsv")
 rls_rows_html="${rls_pg_rows}${rls_dbms_rows}"
-redaction_rows_html=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s.%s</code></td><td><code>%s</code></td><td><code>%s</code></td><td><span class=\"badge badge-high\">Needs review</span></td></tr>\n",$1,$2,$3,$4}' "$OUT_DIR/02_summary_redaction.tsv")
-profile_rows_html=$(awk -F $'\t' 'NR>1{users=($3==""?"(no users)":$3); obj="policy.profile."$1; id=obj; gsub(/[^[:alnum:]_.-]/,"_",id); printf "<tr><td><a href=\"%s/src-%s.html\"><code>%s</code></a></td><td><code>%s</code></td><td><span class=\"badge badge-low\">Review required</span></td></tr>\n",ENVIRON["SOURCE_DIR_BASENAME"],id,$1,users}' "$OUT_DIR/04_policy_edb_profile.tsv")
-rg_rows_html=$(awk -F $'\t' 'NR>1{users=($4==""?"(no users)":$4); printf "<tr><td><code>%s</code></td><td>%s</td><td>%s</td><td><code>%s</code></td><td><span class=\"badge badge-low\">Review required</span></td></tr>\n",$1,$2,$3,users}' "$OUT_DIR/04_policy_edb_resource_group.tsv")
-dblink_rows_html=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s</code></td><td>%s</td><td><code>%s</code></td><td><span class=\"badge badge-low\">Review required</span></td></tr>\n",$1,$5,$6}' "$OUT_DIR/04_policy_edb_dblink.tsv")
+redaction_rows_html=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s.%s</code></td><td><code>%s</code></td><td><code>%s</code></td><td><span class=\"badge badge-high\">검토 필요</span></td></tr>\n",$1,$2,$3,$4}' "$OUT_DIR/02_summary_redaction.tsv")
+profile_rows_html=$(awk -F $'\t' 'NR>1{users=($3==""?"(사용자 없음)":$3); obj="policy.profile."$1; id=obj; gsub(/[^[:alnum:]_.-]/,"_",id); printf "<tr><td><a href=\"%s/src-%s.html\"><code>%s</code></a></td><td><code>%s</code></td><td><span class=\"badge badge-low\">검토 필요</span></td></tr>\n",ENVIRON["SOURCE_DIR_BASENAME"],id,$1,users}' "$OUT_DIR/04_policy_edb_profile.tsv")
+rg_rows_html=$(awk -F $'\t' 'NR>1{users=($4==""?"(사용자 없음)":$4); printf "<tr><td><code>%s</code></td><td>%s</td><td>%s</td><td><code>%s</code></td><td><span class=\"badge badge-low\">검토 필요</span></td></tr>\n",$1,$2,$3,users}' "$OUT_DIR/04_policy_edb_resource_group.tsv")
+dblink_rows_html=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s</code></td><td>%s</td><td><code>%s</code></td><td><span class=\"badge badge-low\">검토 필요</span></td></tr>\n",$1,$5,$6}' "$OUT_DIR/04_policy_edb_dblink.tsv")
 
 progress_step "Rendering prototype-based main report"
 cat > "$HTML_PATH" <<HTML
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>EPAS to PostgreSQL Precheck - ${DBNAME}</title>
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>EPAS PostgreSQL 사전점검 리포트 - ${DBNAME}</title>
 <style>
 :root{--bg-0:#f4f8ff;--bg-1:#e6f0ff;--ink-0:#0b1020;--ink-1:#22304a;--ink-2:#5f6f8f;--surface:rgba(255,255,255,.9);--stroke:rgba(17,31,62,.14);--shadow:0 20px 50px rgba(19,38,82,.12);--critical:#ef4444;--warning:#f59e0b;--safe:#10b981}
 *{box-sizing:border-box}
@@ -668,7 +668,7 @@ body{margin:0;color:var(--ink-0);font-family:"Pretendard","Noto Sans KR","Segoe 
 .bar-impact{position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:42px;border-radius:8px 8px 3px 3px;height:max(8px,calc(var(--ratio-impact)*126px));background:linear-gradient(180deg,#f97316,#ef4444)}
 .impact-label{position:absolute;left:50%;transform:translateX(-50%);bottom:max(12px,calc(var(--ratio-impact,0)*126px - 16px));white-space:nowrap;line-height:1;font-weight:900;font-size:11px;color:#143968;z-index:6;-webkit-text-stroke:.35px rgba(255,255,255,.92);text-shadow:0 0 1px rgba(255,255,255,.9),0 1px 1px rgba(15,23,42,.08)}
 .bar-label{margin-top:8px;font-size:11px;color:var(--ink-1);font-weight:800;letter-spacing:.02em}.bar-count{margin-top:2px;font-size:10px;color:var(--ink-2);font-weight:700}
-.keyword-list{margin-top:10px;display:grid;gap:9px}.keyword-row{display:grid;grid-template-columns:120px 1fr 46px;gap:8px;align-items:center;font-size:13px;color:var(--ink-1)}
+.keyword-list{margin-top:10px;display:grid;gap:9px}.keyword-row{display:grid;grid-template-columns:30px minmax(180px,2.2fr) minmax(120px,3fr) 46px;gap:8px;align-items:center;font-size:13px;color:var(--ink-1)}.keyword-rank{text-align:center;font-size:12px;font-weight:800;color:var(--ink-2)}.keyword-label{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}.keyword-value{text-align:right;font-weight:700;color:var(--ink-1)}
 .keyword-track{height:10px;border-radius:999px;background:rgba(203,218,242,.46);overflow:hidden}.keyword-fill{height:100%;border-radius:inherit;background:linear-gradient(90deg,#1e57ff,#31d2bd);width:calc(var(--ratio)*100%)}
 .impact-wrap{margin-top:10px;display:grid;grid-template-columns:180px 1fr;gap:12px;align-items:center}.donut{width:180px;aspect-ratio:1;border-radius:50%;position:relative}.donut::after{content:"";position:absolute;inset:25px;background:#fff;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(17,31,62,.08)}
 .donut-center{position:absolute;inset:0;display:grid;place-items:center;z-index:1;font-size:22px;font-weight:800;color:#0d3370}.legend{display:grid;gap:8px}.legend-item{display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,.65);border:1px solid var(--stroke);border-radius:12px;padding:8px 10px;font-size:13px}
@@ -679,33 +679,33 @@ table{width:100%;border-collapse:collapse;background:rgba(255,255,255,.92);borde
 th,td{border:1px solid #d7dfef;padding:8px 10px;font-size:14px;vertical-align:top}
 th{background:#eef3ff;text-align:left;color:#1f3356}.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:800}
 .badge-bad{color:#991b1b;background:#fee2e2;border:1px solid #fecaca}.badge-high{color:#92400e;background:#fef3c7;border:1px solid #fcd34d}.badge-low{color:#065f46;background:#d1fae5;border:1px solid #a7f3d0}.badge-none{color:#374151;background:#e5e7eb;border:1px solid #d1d5db}
-code{background:#f3f6ff;padding:2px 5px;border-radius:6px}a{color:#1b4fc7}.sub-link{margin:0 0 10px;font-size:14px;color:var(--ink-1)}
+code{background:#f3f6ff;padding:2px 5px;border-radius:6px}a{color:#1b4fc7}.sub-link{margin:0 0 10px;font-size:14px;color:var(--ink-1)}.detail-chip-title{margin:6px 0 8px;font-size:12px;color:var(--ink-2);font-weight:800;letter-spacing:.02em}.detail-sections{margin-top:10px}.detail-section{display:none}.detail-section.active{display:block}
 @media (max-width:900px){.container{padding:16px}.hero h1{font-size:24px}th,td{font-size:13px;padding:7px 8px}.span6{grid-column:span 12}.impact-wrap{grid-template-columns:1fr;justify-items:center}}
 </style></head><body><div class="container">
-<div class="hero"><h1>EPAS to PostgreSQL Precheck</h1><p>DB NAME: <strong>${DBNAME}</strong></p></div>
+<div class="hero"><h1>EPAS PostgreSQL 사전점검 리포트</h1><p>DB 이름: <strong>${DBNAME}</strong></p></div>
 <div class="card">
-  <h2 class="h2">1) Object Count by Type</h2>
+  <h2 class="h2">1) 객체 유형별 건수</h2>
   <div class="controls" id="type-chips"></div>
   <div class="grid" id="viz-grid">
     <div class="span12"><div class="bars" id="object-bars"></div></div>
-    <div class="span6"><h3 style="margin-top:0">2) Keyword Top 10</h3><div class="keyword-list" id="keyword-list"></div></div>
-    <div class="span6"><h3 style="margin-top:0">3) Impact Percent</h3><div class="impact-wrap"><div class="donut" id="impact-donut"><div class="donut-center" id="impact-total">0</div></div><div class="legend" id="impact-legend"></div></div></div>
-    <div class="span12"><h3 style="margin-top:0">Image Path Preview</h3><div class="paths" id="image-paths"></div></div>
+    <div class="span6"><h3 style="margin-top:0">2) 키워드 상위 10개</h3><div class="keyword-list" id="keyword-list"></div></div>
+    <div class="span6"><h3 style="margin-top:0">3) 영향도 퍼센트</h3><div class="impact-wrap"><div class="donut" id="impact-donut"><div class="donut-center" id="impact-total">0</div></div><div class="legend" id="impact-legend"></div></div></div>
+    <div class="span12"><h3 style="margin-top:0">이미지 경로 미리보기</h3><div class="paths" id="image-paths"></div></div>
   </div>
-  <div class="empty" id="empty-state"><h3>No USER_CREATED objects</h3><p>No visualization rows were detected. Report generation continues without failure.</p></div>
+  <div class="empty" id="empty-state"><h3>USER_CREATED 객체 없음</h3><p>시각화 대상 데이터가 없어도 리포트 생성은 정상적으로 계속됩니다.</p></div>
 </div>
-<div class="card"><h2>Details</h2><p class="sub-link">Source navigator: <a href="${SOURCE_HTML_BASENAME}">${SOURCE_HTML_BASENAME}</a></p>
-<h3>1-1. Parameters (${param_total})</h3><table><tr><th>Parameter</th><th>Default</th><th>Current</th><th>Description</th><th>Status</th></tr>$(default_row_if_empty "$PARAM_ROWS" 5)</table>
-<h3>2-1. Compatibility Objects (${feature_total})</h3><table><tr><th>Type</th><th>Category</th><th>Object</th><th>Detected</th><th>Status</th></tr>$(default_row_if_empty "$FEATURE_ROWS" 5)</table>
-<h3>2-2. Datatypes (${dtype_total})</h3><table><tr><th>Type</th><th>Object</th><th>Datatype</th></tr>$(default_row_if_empty "$DTYPE_ROWS" 3)</table>
-<h3>2-3. Expressions (${expr_total})</h3><table><tr><th>Object</th><th>Type</th><th>Keyword</th><th>Status</th></tr>$(default_row_if_empty "$EXPR_ROWS" 4)</table>
-<h3>2-4. Synonyms (${syn_total})</h3><table><tr><th>Synonym</th><th>Target Object</th><th>Status</th></tr>$( [ -n "$syn_rows_html" ] && echo "$syn_rows_html" || echo '<tr><td colspan="3">No rows</td></tr>' )</table>
-<h3>3-1. RLS (${rls_total})</h3><table><tr><th>Target</th><th>Policy</th><th>Command</th><th>Status</th></tr>$( [ -n "$rls_rows_html" ] && echo "$rls_rows_html" || echo '<tr><td colspan="4">No rows</td></tr>' )</table>
-<h3>3-2. Redaction (${redaction_total})</h3><table><tr><th>Target</th><th>Policy</th><th>Column</th><th>Status</th></tr>$( [ -n "$redaction_rows_html" ] && echo "$redaction_rows_html" || echo '<tr><td colspan="4">No rows</td></tr>' )</table>
-<h3>3-3. Profiles (${profile_total})</h3><table><tr><th>Profile</th><th>Users</th><th>Status</th></tr>$( [ -n "$profile_rows_html" ] && echo "$profile_rows_html" || echo '<tr><td colspan="3">No rows</td></tr>' )</table>
-<h3>3-4. Resource Groups (${rg_total})</h3><table><tr><th>Group</th><th>CPU rate</th><th>dirtyratelimit</th><th>Users</th><th>Status</th></tr>$( [ -n "$rg_rows_html" ] && echo "$rg_rows_html" || echo '<tr><td colspan="5">No rows</td></tr>' )</table>
-<h3>4-1. DBLINK (${dblink_total})</h3><table><tr><th>DBLINK</th><th>User</th><th>Connection</th><th>Status</th></tr>$( [ -n "$dblink_rows_html" ] && echo "$dblink_rows_html" || echo '<tr><td colspan="4">No rows</td></tr>' )</table>
-</div>
+<div class="card"><h2>상세 결과</h2><p class="sub-link">소스 탐색: <a href="${SOURCE_HTML_BASENAME}">${SOURCE_HTML_BASENAME}</a></p><p class="detail-chip-title">상세 항목 분류 칩</p><div class="controls" id="detail-chips"></div><div class="detail-sections">
+<section class="detail-section" id="detail-parameters"><h3>1-1. 파라미터 (${param_total})</h3><table><tr><th>파라미터</th><th>기본값</th><th>현재값</th><th>설명</th><th>상태</th></tr>$(default_row_if_empty "$PARAM_ROWS" 5)</table></section>
+<section class="detail-section" id="detail-compatibility"><h3>2-1. 호환성 객체 (${feature_total})</h3><table><tr><th>유형</th><th>분류</th><th>객체</th><th>검출 항목</th><th>상태</th></tr>$(default_row_if_empty "$FEATURE_ROWS" 5)</table></section>
+<section class="detail-section" id="detail-datatypes"><h3>2-2. 데이터 타입 (${dtype_total})</h3><table><tr><th>유형</th><th>객체</th><th>데이터 타입</th></tr>$(default_row_if_empty "$DTYPE_ROWS" 3)</table></section>
+<section class="detail-section" id="detail-expressions"><h3>2-3. 표현식 (${expr_total})</h3><table><tr><th>객체</th><th>유형</th><th>키워드</th><th>상태</th></tr>$(default_row_if_empty "$EXPR_ROWS" 4)</table></section>
+<section class="detail-section" id="detail-synonyms"><h3>2-4. 시노님 (${syn_total})</h3><table><tr><th>시노님</th><th>대상 객체</th><th>상태</th></tr>$( [ -n "$syn_rows_html" ] && echo "$syn_rows_html" || echo '<tr><td colspan="3">데이터 없음</td></tr>' )</table></section>
+<section class="detail-section" id="detail-rls"><h3>3-1. RLS (${rls_total})</h3><table><tr><th>대상</th><th>정책</th><th>명령</th><th>상태</th></tr>$( [ -n "$rls_rows_html" ] && echo "$rls_rows_html" || echo '<tr><td colspan="4">데이터 없음</td></tr>' )</table></section>
+<section class="detail-section" id="detail-redaction"><h3>3-2. 레드액션 (${redaction_total})</h3><table><tr><th>대상</th><th>정책</th><th>컬럼</th><th>상태</th></tr>$( [ -n "$redaction_rows_html" ] && echo "$redaction_rows_html" || echo '<tr><td colspan="4">데이터 없음</td></tr>' )</table></section>
+<section class="detail-section" id="detail-profiles"><h3>3-3. 프로파일 (${profile_total})</h3><table><tr><th>프로파일</th><th>사용자</th><th>상태</th></tr>$( [ -n "$profile_rows_html" ] && echo "$profile_rows_html" || echo '<tr><td colspan="3">데이터 없음</td></tr>' )</table></section>
+<section class="detail-section" id="detail-resource-groups"><h3>3-4. 리소스 그룹 (${rg_total})</h3><table><tr><th>그룹</th><th>CPU 비율</th><th>dirtyratelimit</th><th>사용자</th><th>상태</th></tr>$( [ -n "$rg_rows_html" ] && echo "$rg_rows_html" || echo '<tr><td colspan="5">데이터 없음</td></tr>' )</table></section>
+<section class="detail-section" id="detail-dblink"><h3>4-1. DBLINK (${dblink_total})</h3><table><tr><th>DBLINK</th><th>사용자</th><th>연결 정보</th><th>상태</th></tr>$( [ -n "$dblink_rows_html" ] && echo "$dblink_rows_html" || echo '<tr><td colspan="4">데이터 없음</td></tr>' )</table></section>
+</div></div>
 <script>
 function splitImpact(total, impacted){if(total<=0){return {critical:0,warning:0,safe:100};}const r=impacted/total;const critical=Math.round(r*45);const warning=Math.round(r*35);const safe=Math.max(0,100-critical-warning);return {critical,warning,safe};}
 const objectTypes=["PACKAGE","FUNCTION","PROCEDURE","VIEW","TABLE"];
@@ -716,14 +716,17 @@ const dataset={
   VIEW:{total:${viw_total},impacted:${viw_imp},keywords:[${viw_kw_js}],impact:splitImpact(${viw_total},${viw_imp})},
   TABLE:{total:${tbl_total},impacted:${tbl_imp},keywords:[${tbl_kw_js}],impact:splitImpact(${tbl_total},${tbl_imp})}
 };
-const state={selectedType:"PACKAGE"};
-const chipsRoot=document.getElementById("type-chips");const barsRoot=document.getElementById("object-bars");const keywordRoot=document.getElementById("keyword-list");const donut=document.getElementById("impact-donut");const impactTotal=document.getElementById("impact-total");const legendRoot=document.getElementById("impact-legend");const pathsRoot=document.getElementById("image-paths");const vizGrid=document.getElementById("viz-grid");const empty=document.getElementById("empty-state");
+const state={selectedType:"PACKAGE",selectedDetail:"detail-parameters"};
+const chipsRoot=document.getElementById("type-chips");const barsRoot=document.getElementById("object-bars");const keywordRoot=document.getElementById("keyword-list");const donut=document.getElementById("impact-donut");const impactTotal=document.getElementById("impact-total");const legendRoot=document.getElementById("impact-legend");const pathsRoot=document.getElementById("image-paths");const vizGrid=document.getElementById("viz-grid");const empty=document.getElementById("empty-state");const detailChipsRoot=document.getElementById("detail-chips");
+const detailSections=[["detail-parameters","1-1 파라미터"],["detail-compatibility","2-1 호환성 객체"],["detail-datatypes","2-2 데이터 타입"],["detail-expressions","2-3 표현식"],["detail-synonyms","2-4 시노님"],["detail-rls","3-1 RLS"],["detail-redaction","3-2 레드액션"],["detail-profiles","3-3 프로파일"],["detail-resource-groups","3-4 리소스 그룹"],["detail-dblink","4-1 DBLINK"]];
 function renderChips(){chipsRoot.innerHTML="";objectTypes.forEach((t)=>{const b=document.createElement("button");b.className="chip "+(state.selectedType===t?"active":"");b.textContent=t;b.addEventListener("click",()=>{state.selectedType=t;render();});chipsRoot.appendChild(b);});}
+function renderDetailChips(){if(!detailChipsRoot)return;detailChipsRoot.innerHTML="";detailSections.forEach(([id,label])=>{const b=document.createElement("button");b.className="chip "+(state.selectedDetail===id?"active":"");b.textContent=label;b.addEventListener("click",()=>{state.selectedDetail=id;renderDetails();renderDetailChips();});detailChipsRoot.appendChild(b);});}
+function renderDetails(){detailSections.forEach(([id])=>{const n=document.getElementById(id);if(!n)return;n.classList.toggle("active",state.selectedDetail===id);});}
 function renderBars(){barsRoot.innerHTML="";objectTypes.forEach((t)=>{const d=dataset[t];const ratio=d.total>0?(d.impacted/d.total):0;const pct=Math.round(ratio*100);const item=document.createElement("button");item.className="bar-item "+(state.selectedType===t?"active":"");item.innerHTML='<div class="bar-wrap"><div class="bar-stack"><div class="bar-total"></div><div class="bar-impact" style="--ratio-impact:'+ratio.toFixed(3)+'"></div><span class="impact-label" style="--ratio-impact:'+ratio.toFixed(3)+'">'+pct+'%</span></div></div><div class="bar-label">'+t+'</div><div class="bar-count">'+d.impacted+' / '+d.total+'</div>';item.addEventListener("click",()=>{state.selectedType=t;render();});barsRoot.appendChild(item);});}
-function renderKeywords(){keywordRoot.innerHTML="";const items=[...(dataset[state.selectedType].keywords||[])].sort((a,b)=>b[1]-a[1]).slice(0,10);const max=Math.max(1,...items.map(i=>i[1]||0));if(items.length===0){keywordRoot.innerHTML='<div class="keyword-row"><strong>(none)</strong><div class="keyword-track"><div class="keyword-fill" style="--ratio:0"></div></div><span>0</span></div>';return;}items.forEach(([k,v])=>{const r=(v||0)/max;const row=document.createElement("div");row.className="keyword-row";row.innerHTML='<strong>'+k+'</strong><div class="keyword-track"><div class="keyword-fill" style="--ratio:'+r.toFixed(3)+'"></div></div><span>'+v+'</span>';keywordRoot.appendChild(row);});}
-function renderImpact(){const i=dataset[state.selectedType].impact;const c=i.critical;const w=i.warning;const s=i.safe;donut.style.background='conic-gradient(var(--critical) 0% '+c+'%,var(--warning) '+c+'% '+(c+w)+'%,var(--safe) '+(c+w)+'% 100%)';impactTotal.textContent=String(dataset[state.selectedType].total);legendRoot.innerHTML='<div class="legend-item"><span class="tag"><span class="dot" style="background:var(--critical)"></span>High</span><strong>'+c+'%</strong></div><div class="legend-item"><span class="tag"><span class="dot" style="background:var(--warning)"></span>Medium</span><strong>'+w+'%</strong></div><div class="legend-item"><span class="tag"><span class="dot" style="background:var(--safe)"></span>Low</span><strong>'+s+'%</strong></div>';}
+function renderKeywords(){keywordRoot.innerHTML="";const items=[...(dataset[state.selectedType].keywords||[])].sort((a,b)=>b[1]-a[1]).slice(0,10);const max=Math.max(1,...items.map(i=>i[1]||0));if(items.length===0){keywordRoot.innerHTML='<div class="keyword-row"><span class="keyword-rank">-</span><strong class="keyword-label">(없음)</strong><div class="keyword-track"><div class="keyword-fill" style="--ratio:0"></div></div><span class="keyword-value">0</span></div>';return;}items.forEach(([k,v],idx)=>{const r=(v||0)/max;const row=document.createElement("div");row.className="keyword-row";row.innerHTML='<span class="keyword-rank">'+(idx+1)+'</span><strong class="keyword-label" title="'+k+'">'+k+'</strong><div class="keyword-track"><div class="keyword-fill" style="--ratio:'+r.toFixed(3)+'"></div></div><span class="keyword-value">'+v+'</span>';keywordRoot.appendChild(row);});}
+function renderImpact(){const i=dataset[state.selectedType].impact;const c=i.critical;const w=i.warning;const s=i.safe;donut.style.background='conic-gradient(var(--critical) 0% '+c+'%,var(--warning) '+c+'% '+(c+w)+'%,var(--safe) '+(c+w)+'% 100%)';impactTotal.textContent=String(dataset[state.selectedType].total);legendRoot.innerHTML='<div class="legend-item"><span class="tag"><span class="dot" style="background:var(--critical)"></span>고영향도</span><strong>'+c+'%</strong></div><div class="legend-item"><span class="tag"><span class="dot" style="background:var(--warning)"></span>중영향도</span><strong>'+w+'%</strong></div><div class="legend-item"><span class="tag"><span class="dot" style="background:var(--safe)"></span>저영향도</span><strong>'+s+'%</strong></div>';}
 function renderPaths(){const k=state.selectedType.toLowerCase();pathsRoot.innerHTML='<div class="path">images/user_created/'+k+'_overview.png</div><div class="path">images/user_created/'+k+'_keywords.png</div><div class="path">images/user_created/'+k+'_impact_percent.png</div>';}
-function render(){renderChips();const grand=objectTypes.reduce((a,t)=>a+(dataset[t].total||0),0);if(grand===0){vizGrid.style.display="none";empty.classList.add("show");return;}vizGrid.style.display="grid";empty.classList.remove("show");renderBars();renderKeywords();renderImpact();renderPaths();}
+function render(){renderChips();renderDetailChips();renderDetails();const grand=objectTypes.reduce((a,t)=>a+(dataset[t].total||0),0);if(grand===0){vizGrid.style.display="none";empty.classList.add("show");return;}vizGrid.style.display="grid";empty.classList.remove("show");renderBars();renderKeywords();renderImpact();renderPaths();}
 render();
 </script>
 </div></body></html>
@@ -732,22 +735,22 @@ HTML
 # remove helper artifacts from output dir
 purge_files "$OUT_DIR"/.f.tsv "$OUT_DIR"/.d.tsv "$OUT_DIR"/.param_rows.html "$OUT_DIR"/.feature_rows.html "$OUT_DIR"/.dtype_rows.html "$OUT_DIR"/.expr_rows.html
 
-progress_step "Writing report index"
+progress_step "리포트 인덱스 작성"
 cat > "$OUT_DIR/REPORT_INDEX.txt" <<TXT
-[EPAS to PostgreSQL Precheck]
-Output directory : $OUT_DIR
-Connection hints : host=${HOST:-N/A}, port=${PORT:-N/A}, db=${DBNAME:-N/A}, user=${DBUSER:-N/A}
-HTML report      : ${HTML_BASENAME}
-Source HTML      : ${SOURCE_HTML_BASENAME}
-Source directory : ${SOURCE_DIR_BASENAME}/
-Compatibility   : OS[RHEL 7/8/9, Ubuntu 20/22/24], EPAS[9.6/10/14/17]
+[EPAS PostgreSQL 사전점검]
+출력 디렉터리 : $OUT_DIR
+접속 정보 힌트 : host=${HOST:-N/A}, port=${PORT:-N/A}, db=${DBNAME:-N/A}, user=${DBUSER:-N/A}
+HTML 리포트     : ${HTML_BASENAME}
+소스 HTML       : ${SOURCE_HTML_BASENAME}
+소스 디렉터리   : ${SOURCE_DIR_BASENAME}/
+호환성          : OS[RHEL 7/8/9, Ubuntu 20/22/24], EPAS[9.6/10/14/17]
 TXT
 
-progress_step "Finalizing report"
-echo "[DONE] Report generated at: $OUT_DIR"
-echo "       Open HTML: $OUT_DIR/$HTML_BASENAME"
-echo "       Source   : $OUT_DIR/$SOURCE_HTML_BASENAME"
-echo "       Objects  : $OUT_DIR/$SOURCE_DIR_BASENAME/"
+progress_step "리포트 마무리"
+echo "[완료] 리포트 생성 위치: $OUT_DIR"
+echo "       HTML 열기 : $OUT_DIR/$HTML_BASENAME"
+echo "       소스 보기 : $OUT_DIR/$SOURCE_HTML_BASENAME"
+echo "       객체 경로 : $OUT_DIR/$SOURCE_DIR_BASENAME/"
 
 if [[ -n "$COMPRESS" ]]; then
   if ! command -v tar >/dev/null 2>&1; then

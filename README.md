@@ -22,14 +22,14 @@
 ## 사용 방법
 ### 기본 실행 (`-o` 옵션 필수)
 ```bash
-# EPAS_PRECHECK 디렉터리 내부의 스크립트를 실행합니다.
-bash EPAS_PRECHECK/generate_epas_migration_report.sh -d <DBNAME> -U <USER> -o ./out
+# EPAS_PRECHECK 디렉터리 내부의 v2.0 스크립트를 실행합니다.
+bash EPAS_PRECHECK/epas_precheck_v2.0.sh -d <DBNAME> -U <USER> -o ./out
 ```
 
 ### 압축 옵션 사용 (tar/gz)
 ```bash
 # 점검 결과물을 즉시 압축 파일로 생성할 수 있습니다.
-bash EPAS_PRECHECK/generate_epas_migration_report.sh -d <DBNAME> -U <USER> -o ./out -c gz
+bash EPAS_PRECHECK/epas_precheck_v2.0.sh -d <DBNAME> -U <USER> -o ./out -c gz
 ```
 
 ## 옵션 가이드
@@ -65,5 +65,5 @@ bash EPAS_PRECHECK/epas_precheck_v2.0.sh -d <DBNAME> -U <USER> -o ./out
 
 ### Notes
 
-- The new script defaults to the new SQL file automatically.
-- Keep old file names for legacy runs, and use new names for Issue #23 integrated output.
+- The v2.0 script defaults to `EPAS_PRECHECK/epas_precheck_v2.0.sql` automatically.
+- Legacy files are archived under `EPAS_PRECHECK/.dummy/`.

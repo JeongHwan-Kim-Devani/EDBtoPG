@@ -1,0 +1,66 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>dbms_redact._get_redact_func_call source</title>
+<style>body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}.container{max-width:1300px;margin:0 auto;padding:22px 30px}.card{background:#fff;border:1px solid #ddd;border-radius:10px;padding:14px;margin-bottom:14px}pre{background:#111827;color:#e5e7eb;padding:12px;border-radius:8px;overflow:auto;white-space:pre;tab-size:4;line-height:1.4;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}.kw{color:#f59e0b;font-weight:700}a{color:#1d4ed8}code{background:#f3f4f6;padding:2px 4px;border-radius:4px}</style></head><body><div class="container">
+<h1><code>dbms_redact._get_redact_func_call</code></h1>
+<p><a href="../ds1_source.html">Back to source index</a> &nbsp;|&nbsp; <a href="../ds1.html">Back to precheck</a></p>
+<div class="card"><h3>Object Summary</h3><p><b>Type</b> FUNCTION</p><p><b>Keywords</b> no keyword</p></div>
+<div class="card"><h3>Source (keyword highlighted)</h3><pre>Schema: dbms_redact
+Name: _get_redact_func_call
+Result data type: character varying
+Argument data types: table_name character varying, column_name character varying, function_type integer, function_parameters character varying, regexp_pattern character varying, regexp_replace_string character varying, regexp_position integer, regexp_occurrence integer, regexp_match_parameter character varying, custom_function_expression character varying
+Type: func
+Volatility: volatile
+Parallel: unsafe
+Owner: enterprisedb
+Security: invoker
+Language: edbspl
+Source code:
+$__EDBwrapped__$$PROTOCOL2$
+UTF8
+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
+$__EDBwrapped__$</pre></div>
+</div></body></html>

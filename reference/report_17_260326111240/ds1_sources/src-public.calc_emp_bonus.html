@@ -1,0 +1,43 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>public.calc_emp_bonus source</title>
+<style>body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}.container{max-width:1300px;margin:0 auto;padding:22px 30px}.card{background:#fff;border:1px solid #ddd;border-radius:10px;padding:14px;margin-bottom:14px}pre{background:#111827;color:#e5e7eb;padding:12px;border-radius:8px;overflow:auto;white-space:pre;tab-size:4;line-height:1.4;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}.kw{color:#f59e0b;font-weight:700}a{color:#1d4ed8}code{background:#f3f4f6;padding:2px 4px;border-radius:4px}</style></head><body><div class="container">
+<h1><code>public.calc_emp_bonus</code></h1>
+<p><a href="../ds1_source.html">Back to source index</a> &nbsp;|&nbsp; <a href="../ds1.html">Back to precheck</a></p>
+<div class="card"><h3>Object Summary</h3><p><b>Type</b> PROCEDURE</p><p><b>Keywords</b> dbms_output, sqlerrm, edbspl</p></div>
+<div class="card"><h3>Source (keyword highlighted)</h3><pre>Schema: public
+Name: calc_emp_bonus
+Result data type: 
+Argument data types: IN p_contract_id numeric, IN p_bonus_rate numeric, OUT p_new_salary numeric
+Type: proc
+Volatility: volatile
+Parallel: unsafe
+Owner: enterprisedb
+Security: definer
+Language: <span class="kw">edbspl</span>
+Source code:
+    -- 변수 선언부 (Oracle 데이터 타입인 VARCHAR2 사용 가능)
+    v_emp_name    VARCHAR2(50);
+    v_base_salary NUMERIC;
+BEGIN
+    -- 1. 직원 정보 조회 (암시적 커서)
+    SELECT emp_name, base_salary 
+    INTO v_emp_name, v_base_salary
+    FROM epas_emp_contracts
+    WHERE contract_id = p_contract_id;
+    -- 2. 새로운 급여 계산
+    p_new_salary := v_base_salary + (v_base_salary * p_bonus_rate / 100);
+    -- 3. 결과 로그 출력 (Oracle 호환 내장 패키지 사용)
+    <span class="kw">DBMS_OUTPUT</span>.PUT_LINE('====================================');
+    <span class="kw">DBMS_OUTPUT</span>.PUT_LINE('직원명: ' || v_emp_name);
+    <span class="kw">DBMS_OUTPUT</span>.PUT_LINE('기존 급여: ' || v_base_salary);
+    <span class="kw">DBMS_OUTPUT</span>.PUT_LINE('보너스 적용 급여: ' || p_new_salary);
+    <span class="kw">DBMS_OUTPUT</span>.PUT_LINE('====================================');
+EXCEPTION
+    -- 예외 처리부 (Oracle 호환 예외 코드)
+    WHEN NO_DATA_FOUND THEN
+        <span class="kw">DBMS_OUTPUT</span>.PUT_LINE('오류: 사번 ' || p_contract_id || '에 해당하는 직원이 없습니다.');
+        p_new_salary := 0;
+    WHEN OTHERS THEN
+        <span class="kw">DBMS_OUTPUT</span>.PUT_LINE('알 수 없는 오류 발생: ' || <span class="kw">SQLERRM</span>);
+        p_new_salary := -1;
+END</pre></div>
+</div></body></html>

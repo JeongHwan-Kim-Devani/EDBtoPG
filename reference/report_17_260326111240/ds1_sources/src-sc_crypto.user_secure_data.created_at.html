@@ -1,0 +1,27 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>sc_crypto.user_secure_data.created_at source</title>
+<style>body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}.container{max-width:1300px;margin:0 auto;padding:22px 30px}.card{background:#fff;border:1px solid #ddd;border-radius:10px;padding:14px;margin-bottom:14px}pre{background:#111827;color:#e5e7eb;padding:12px;border-radius:8px;overflow:auto;white-space:pre;tab-size:4;line-height:1.4;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}.kw{color:#f59e0b;font-weight:700}a{color:#1d4ed8}code{background:#f3f4f6;padding:2px 4px;border-radius:4px}</style></head><body><div class="container">
+<h1><code>sc_crypto.user_secure_data.created_at</code></h1>
+<p><a href="../ds1_source.html">Back to source index</a> &nbsp;|&nbsp; <a href="../ds1.html">Back to precheck</a></p>
+<div class="card"><h3>Object Summary</h3><p><b>Type</b> DEFAULT VALUE</p><p><b>Keywords</b> sysdate</p></div>
+<div class="card"><h3>Source (keyword highlighted)</h3><pre>Table "sc_crypto.user_secure_data"
+
+Columns:
+  user_id | integer | not null | 
+  username | character varying(50) |  | 
+  pwd_hash | bytea(64) |  | 
+  encryption_key | bytea(32) |  | 
+  secure_message | bytea(2000) |  | 
+  created_at | timestamp without time zone |  | <span class="kw">sysdate</span>
+
+Indexes:
+  CREATE UNIQUE INDEX user_secure_data_pkey ON sc_crypto.user_secure_data USING btree (user_id)
+
+Foreign-key constraints:
+  (none)
+
+Policies:
+  (none)
+
+[Detected Expression Target: sc_crypto.user_secure_data.created_at]
+<span class="kw">sysdate</span></pre></div>
+</div></body></html>

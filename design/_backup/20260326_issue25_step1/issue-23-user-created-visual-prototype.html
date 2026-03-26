@@ -1,0 +1,835 @@
+﻿<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>이슈 #23 USER_CREATED 시각화 프로토타입</title>
+  <style>
+    :root {
+      --bg-0: #f4f8ff;
+      --bg-1: #e6f0ff;
+      --ink-0: #0b1020;
+      --ink-1: #22304a;
+      --ink-2: #5f6f8f;
+      --surface: rgba(255, 255, 255, 0.88);
+      --stroke: rgba(17, 31, 62, 0.12);
+      --accent: #0f6fff;
+      --accent-2: #00b3a4;
+      --critical: #ef4444;
+      --warning: #f59e0b;
+      --safe: #10b981;
+      --shadow: 0 24px 60px rgba(19, 38, 82, 0.16);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Space Grotesk", "Pretendard", "Noto Sans KR", "Segoe UI", sans-serif;
+      color: var(--ink-0);
+      background:
+        radial-gradient(circle at 10% 0%, #dceeff 0%, rgba(220, 238, 255, 0) 35%),
+        radial-gradient(circle at 100% 10%, #ddfff4 0%, rgba(221, 255, 244, 0) 38%),
+        linear-gradient(180deg, var(--bg-0), var(--bg-1));
+      min-height: 100vh;
+    }
+
+    .page {
+      max-width: 1160px;
+      margin: 0 auto;
+      padding: 36px 18px 56px;
+    }
+
+    .hero {
+      border: 1px solid var(--stroke);
+      background: var(--surface);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      padding: 22px;
+      backdrop-filter: blur(6px);
+    }
+
+    .eyebrow {
+      font-size: 12px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--ink-2);
+      margin: 0 0 10px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(22px, 4vw, 34px);
+      line-height: 1.2;
+    }
+
+    .subtitle {
+      margin: 12px 0 0;
+      color: var(--ink-1);
+      line-height: 1.55;
+      font-size: 15px;
+    }
+
+    .status-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .pill {
+      border: 1px solid var(--stroke);
+      background: #fff;
+      color: var(--ink-1);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .controls {
+      margin-top: 18px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .controls-heading {
+      margin: 14px 0 0;
+      font-size: 12px;
+      color: var(--ink-2);
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .chip,
+    .ghost {
+      border: 1px solid var(--stroke);
+      background: #fff;
+      color: var(--ink-1);
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+    }
+
+    .chip:hover,
+    .ghost:hover {
+      transform: translateY(-1px);
+      border-color: rgba(15, 111, 255, 0.4);
+    }
+
+    .chip.active {
+      background: linear-gradient(120deg, rgba(15, 111, 255, 0.14), rgba(0, 179, 164, 0.14));
+      border-color: rgba(15, 111, 255, 0.55);
+      color: #0e3f86;
+    }
+
+    .detail-chip {
+      font-size: 12px;
+      padding: 7px 12px;
+    }
+
+    .grid {
+      margin-top: 18px;
+      display: grid;
+      gap: 14px;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+    }
+
+    .card {
+      border: 1px solid var(--stroke);
+      background: var(--surface);
+      border-radius: 20px;
+      padding: 16px;
+      box-shadow: 0 10px 30px rgba(19, 38, 82, 0.08);
+      backdrop-filter: blur(4px);
+      transition: box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+
+    .card.focus {
+      border-color: rgba(15, 111, 255, 0.48);
+      box-shadow: 0 14px 32px rgba(15, 111, 255, 0.16);
+    }
+
+    .card-number {
+      margin: 0 0 8px;
+      font-size: 12px;
+      color: var(--ink-2);
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .card h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .card p {
+      margin: 8px 0 0;
+      color: var(--ink-1);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .card-wide {
+      grid-column: span 12;
+    }
+
+    .card-half {
+      grid-column: span 6;
+    }
+
+    .bars {
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(182px, 1fr));
+      gap: 12px;
+      align-items: end;
+      min-height: 182px;
+    }
+
+    .bar-item {
+      border: 0;
+      background: transparent;
+      padding: 0;
+      text-align: center;
+      cursor: pointer;
+    }
+
+    .bar-wrap {
+      height: 148px;
+      display: flex;
+      align-items: end;
+      justify-content: center;
+      border-radius: 14px;
+      background: linear-gradient(180deg, rgba(203, 218, 242, 0.52), rgba(203, 218, 242, 0.38));
+      border: 1px solid rgba(99, 122, 162, 0.22);
+      padding: 8px;
+      transition: outline-color 0.18s ease;
+      outline: 2px solid transparent;
+      position: relative;
+    }
+
+    .bar-item.active .bar-wrap {
+      outline-color: rgba(15, 111, 255, 0.55);
+    }
+
+    .bar-stack {
+      width: 60px;
+      height: 126px;
+      position: relative;
+      display: flex;
+      align-items: end;
+      justify-content: center;
+    }
+
+    .bar-total {
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 56px;
+      border-radius: 10px 10px 4px 4px;
+      height: 126px;
+      background: linear-gradient(180deg, rgba(15, 111, 255, 0.38), rgba(0, 179, 164, 0.38));
+      transition: height 0.3s ease;
+    }
+
+    .bar-impact {
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 42px;
+      border-radius: 8px 8px 3px 3px;
+      height: max(8px, calc(var(--ratio-impact) * 126px));
+      background: linear-gradient(180deg, #f97316, #ef4444);
+      transition: height 0.3s ease;
+    }
+
+    .impact-label {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: max(12px, calc(var(--ratio-impact, 0) * 126px - 16px));
+      white-space: nowrap;
+      line-height: 1;
+      font-weight: 900;
+      font-size: 11px;
+      color: #143968;
+      z-index: 6;
+      -webkit-text-stroke: 0.35px rgba(255, 255, 255, 0.92);
+      text-shadow: 0 0 1px rgba(255, 255, 255, 0.9), 0 1px 1px rgba(15, 23, 42, 0.08);
+    }
+
+    .bar-label {
+      margin-top: 8px;
+      font-size: 11px;
+      color: var(--ink-1);
+      font-weight: 800;
+      letter-spacing: 0.02em;
+    }
+
+    .bar-count {
+      margin-top: 2px;
+      font-size: 10px;
+      color: var(--ink-2);
+      font-weight: 700;
+    }
+
+    .keyword-list {
+      margin-top: 14px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .keyword-row {
+      display: grid;
+      grid-template-columns: 34px minmax(190px, 2.2fr) minmax(120px, 3fr) 42px;
+      gap: 10px;
+      align-items: center;
+      font-size: 13px;
+      color: var(--ink-1);
+    }
+
+    .keyword-rank {
+      text-align: center;
+      font-weight: 800;
+      color: var(--ink-2);
+      font-size: 12px;
+    }
+
+    .keyword-label {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      min-width: 0;
+    }
+
+    .keyword-value {
+      text-align: right;
+      font-weight: 700;
+      color: var(--ink-1);
+    }
+
+    .keyword-track {
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(203, 218, 242, 0.46);
+      overflow: hidden;
+    }
+
+    .keyword-fill {
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #1e57ff, #31d2bd);
+      width: calc(var(--ratio) * 100%);
+      transition: width 0.3s ease;
+    }
+
+    .impact-wrap {
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: 180px 1fr;
+      gap: 14px;
+      align-items: center;
+    }
+
+    .donut {
+      width: 180px;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      position: relative;
+      background: conic-gradient(
+        var(--critical) 0% 20%,
+        var(--warning) 20% 60%,
+        var(--safe) 60% 100%
+      );
+    }
+
+    .donut::after {
+      content: "";
+      position: absolute;
+      inset: 25px;
+      background: #fff;
+      border-radius: 50%;
+      box-shadow: inset 0 0 0 1px rgba(17, 31, 62, 0.08);
+    }
+
+    .donut-center {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      z-index: 1;
+      font-size: 22px;
+      font-weight: 800;
+      color: #0d3370;
+    }
+
+    .legend {
+      display: grid;
+      gap: 8px;
+    }
+
+    .legend-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.65);
+      border: 1px solid var(--stroke);
+      border-radius: 12px;
+      padding: 8px 10px;
+      font-size: 13px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 700;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .paths {
+      margin-top: 14px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .path {
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 12px;
+      padding: 9px 10px;
+      border: 1px dashed rgba(17, 31, 62, 0.24);
+      border-radius: 10px;
+      background: #fff;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+
+    .empty {
+      display: none;
+      margin-top: 18px;
+      border: 1px dashed rgba(17, 31, 62, 0.32);
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.82);
+      padding: 18px;
+    }
+
+    .empty.show {
+      display: block;
+    }
+
+    .empty.focus {
+      border-color: rgba(15, 111, 255, 0.48);
+      box-shadow: 0 14px 32px rgba(15, 111, 255, 0.16);
+    }
+
+    .empty h3 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .empty p {
+      margin: 8px 0 0;
+      color: var(--ink-1);
+      font-size: 14px;
+    }
+
+    @media (max-width: 860px) {
+      .card-half {
+        grid-column: span 12;
+      }
+
+      .impact-wrap {
+        grid-template-columns: 1fr;
+        justify-items: center;
+      }
+
+      .keyword-row {
+        grid-template-columns: 28px minmax(130px, 2fr) minmax(90px, 3fr) 38px;
+      }
+
+      .bars {
+        min-height: 170px;
+      }
+
+      .impact-label {
+        font-size: 10px;
+        bottom: max(10px, calc(var(--ratio-impact, 0) * 126px - 14px));
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <p class="eyebrow">이슈 #23 프로토타입</p>
+      <h1>EPAS_PRECHECK USER_CREATED 시각화 디자인 시안</h1>
+      <p class="subtitle">
+        이 프로토타입은 이슈 #23의 디자인 범위를 기준으로 구성되었습니다. 실제 집계 로직 없이도 리포트 HTML에 들어갈
+        핵심 시각화 영역(전체 그래프/검출 키워드/영향도 퍼센트/이미지 경로/예외 상태)을 UI 수준에서 미리 검증합니다.
+      </p>
+      <div class="status-row">
+        <span class="pill">대상: USER_CREATED</span>
+        <span class="pill">유형: PACKAGE/FUNCTION/PROCEDURE/VIEW/TABLE</span>
+        <span class="pill">목적: 리포트 내 이미지 임베드 구조 확인</span>
+      </div>
+      <p class="controls-heading">객체 유형 선택 칩</p>
+      <div class="controls" id="type-chips"></div>
+      <p class="controls-heading">상세 항목 분류 칩</p>
+      <div class="controls" id="detail-chips"></div>
+      <div class="controls">
+        <button class="ghost" id="toggle-empty">5번 예외 상태 토글</button>
+      </div>
+    </section>
+
+    <section class="grid" id="dashboard">
+      <article class="card card-wide" id="card-overview">
+        <p class="card-number">섹션 1</p>
+        <h2>1) 전체 그래프: 객체 유형별 건수</h2>
+        <div class="bars" id="object-bars"></div>
+      </article>
+
+      <article class="card card-half" id="card-keyword">
+        <p class="card-number">섹션 2</p>
+        <h2>2) 키워드 상위 10개 (선택 유형 기준)</h2>
+        <p>선택된 객체 유형에서 많이 발견된 키워드 상위 10개를 보여줍니다.</p>
+        <div class="keyword-list" id="keyword-list"></div>
+      </article>
+
+      <article class="card card-half" id="card-impact">
+        <p class="card-number">섹션 3</p>
+        <h2>3) 영향도 퍼센트</h2>
+        <p>선택된 객체 유형의 마이그레이션 영향도 비율입니다.</p>
+        <div class="impact-wrap">
+          <div class="donut" id="impact-donut">
+            <div class="donut-center" id="impact-total">0</div>
+          </div>
+          <div class="legend" id="impact-legend"></div>
+        </div>
+      </article>
+
+      <article class="card card-wide" id="card-paths">
+        <p class="card-number">섹션 4</p>
+        <h2>4) 리포트 임베드용 이미지 경로 프리뷰</h2>
+        <p>최종 HTML 리포트에서 `<img>`로 연결될 파일 이름 규칙 예시입니다.</p>
+        <div class="paths" id="image-paths"></div>
+      </article>
+    </section>
+
+    <section class="empty" id="empty-state">
+      <h3>5) USER_CREATED 객체 없음</h3>
+      <p>집계 데이터가 0건이어도 리포트는 실패하지 않고 안내 메시지를 출력합니다.</p>
+      <p>예시 경로: <code>images/no_user_created.png</code> 또는 HTML 내 텍스트 폴백.</p>
+    </section>
+  </main>
+
+  <script>
+    const objectTypes = ["PACKAGE", "FUNCTION", "PROCEDURE", "VIEW", "TABLE"];
+
+    const dataset = {
+      PACKAGE: {
+        total: 38,
+        impacted: 27,
+        keywords: [
+          ["dbms_sql", 12],
+          ["bulk collect", 10],
+          ["rownum", 7],
+          ["sysdate", 6],
+          ["merge", 6],
+          ["decode", 4],
+          ["connect by", 4],
+          ["listagg", 3],
+          ["pragma", 2],
+          ["autonomous_transaction", 2],
+          ["returning into", 2]
+        ],
+        impact: { critical: 22, warning: 43, safe: 35 }
+      },
+      FUNCTION: {
+        total: 64,
+        impacted: 49,
+        keywords: [
+          ["nvl", 18],
+          ["rowid", 14],
+          ["wm_concat", 12],
+          ["decode", 11],
+          ["minus", 8],
+          ["dbms_lob", 7],
+          ["sysdate", 6],
+          ["connect_by_root", 4],
+          ["dual", 3],
+          ["instrb", 3],
+          ["months_between", 2]
+        ],
+        impact: { critical: 28, warning: 39, safe: 33 }
+      },
+      PROCEDURE: {
+        total: 41,
+        impacted: 29,
+        keywords: [
+          ["utl_file", 11],
+          ["raise_application_error", 7],
+          ["dbms_output", 6],
+          ["dbms_scheduler", 6],
+          ["add_months", 4],
+          ["sys_connect_by_path", 3],
+          ["instrb", 2],
+          ["rownum", 2],
+          ["pragma", 2],
+          ["nvl2", 1]
+        ],
+        impact: { critical: 31, warning: 41, safe: 28 }
+      },
+      VIEW: {
+        total: 27,
+        impacted: 17,
+        keywords: [
+          ["decode", 9],
+          ["nvl2", 8],
+          ["dual", 5],
+          ["rownum", 4],
+          ["last_day", 3],
+          ["greatest", 2],
+          ["least", 2],
+          ["minus", 2],
+          ["add_months", 1],
+          ["sysdate", 1]
+        ],
+        impact: { critical: 12, warning: 36, safe: 52 }
+      },
+      TABLE: {
+        total: 73,
+        impacted: 46,
+        keywords: [
+          ["clob", 16],
+          ["raw", 12],
+          ["bfile", 10],
+          ["default_expr", 8],
+          ["check_expr", 6],
+          ["virtual_column", 4],
+          ["generated always", 4],
+          ["identity", 3],
+          ["lob storage", 2],
+          ["subpartition", 2]
+        ],
+        impact: { critical: 19, warning: 33, safe: 48 }
+      }
+    };
+
+    const detailSections = [
+      { id: "overview", label: "1) 전체 그래프", targetId: "card-overview" },
+      { id: "keyword", label: "2) 키워드 상위 10개", targetId: "card-keyword" },
+      { id: "impact", label: "3) 영향도 퍼센트", targetId: "card-impact" },
+      { id: "paths", label: "4) 이미지 경로", targetId: "card-paths" },
+      { id: "empty", label: "5) 예외 상태", targetId: "empty-state" }
+    ];
+
+    const state = {
+      selectedType: "PACKAGE",
+      selectedDetail: "overview",
+      emptyMode: false
+    };
+
+    const chipsRoot = document.getElementById("type-chips");
+    const detailChipsRoot = document.getElementById("detail-chips");
+    const barsRoot = document.getElementById("object-bars");
+    const keywordRoot = document.getElementById("keyword-list");
+    const donut = document.getElementById("impact-donut");
+    const impactTotal = document.getElementById("impact-total");
+    const legendRoot = document.getElementById("impact-legend");
+    const pathsRoot = document.getElementById("image-paths");
+    const dashboard = document.getElementById("dashboard");
+    const emptyState = document.getElementById("empty-state");
+    const toggleEmptyButton = document.getElementById("toggle-empty");
+
+    toggleEmptyButton.addEventListener("click", () => {
+      state.emptyMode = !state.emptyMode;
+      if (state.emptyMode) {
+        state.selectedDetail = "empty";
+      } else if (state.selectedDetail === "empty") {
+        state.selectedDetail = "overview";
+      }
+      render();
+    });
+
+    function renderChips() {
+      chipsRoot.innerHTML = "";
+      objectTypes.forEach((type) => {
+        const btn = document.createElement("button");
+        btn.className = `chip ${state.selectedType === type ? "active" : ""}`;
+        btn.textContent = type;
+        btn.addEventListener("click", () => {
+          state.selectedType = type;
+          render();
+        });
+        chipsRoot.appendChild(btn);
+      });
+    }
+
+    function renderDetailChips() {
+      detailChipsRoot.innerHTML = "";
+      detailSections.forEach((section) => {
+        const btn = document.createElement("button");
+        btn.className = `chip detail-chip ${state.selectedDetail === section.id ? "active" : ""}`;
+        btn.textContent = section.label;
+        btn.addEventListener("click", () => {
+          state.selectedDetail = section.id;
+          if (section.id === "empty") {
+            state.emptyMode = true;
+          } else if (state.emptyMode) {
+            state.emptyMode = false;
+          }
+          render();
+          focusSelectedDetail(true);
+        });
+        detailChipsRoot.appendChild(btn);
+      });
+    }
+
+    function focusSelectedDetail(scrollIntoView = false) {
+      detailSections.forEach((section) => {
+        const node = document.getElementById(section.targetId);
+        if (node) {
+          node.classList.remove("focus");
+        }
+      });
+      const selected = detailSections.find((section) => section.id === state.selectedDetail);
+      if (!selected) {
+        return;
+      }
+      const node = document.getElementById(selected.targetId);
+      if (!node) {
+        return;
+      }
+      node.classList.add("focus");
+      if (scrollIntoView) {
+        node.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }
+
+    function renderBars() {
+      barsRoot.innerHTML = "";
+
+      objectTypes.forEach((type) => {
+        const count = dataset[type].total;
+        const impacted = dataset[type].impacted;
+        const ratioImpact = count > 0 ? impacted / count : 0;
+        const impactPercent = Math.round(ratioImpact * 100);
+
+        const item = document.createElement("button");
+        item.className = `bar-item ${state.selectedType === type ? "active" : ""}`;
+        item.innerHTML = `
+          <div class="bar-wrap">
+            <div class="bar-stack">
+              <div class="bar-total"></div>
+              <div class="bar-impact" style="--ratio-impact:${ratioImpact.toFixed(3)}"></div>
+              <span class="impact-label" style="--ratio-impact:${ratioImpact.toFixed(3)}">${impactPercent}%</span>
+            </div>
+          </div>
+          <div class="bar-label">${type}</div>
+          <div class="bar-count">${impacted} / ${count}</div>
+        `;
+        item.addEventListener("click", () => {
+          state.selectedType = type;
+          render();
+        });
+        barsRoot.appendChild(item);
+      });
+    }
+
+    function renderKeywords() {
+      keywordRoot.innerHTML = "";
+      const items = [...dataset[state.selectedType].keywords]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10);
+      const max = Math.max(...items.map((item) => item[1]));
+
+      items.forEach(([label, value], index) => {
+        const ratio = value / max;
+        const row = document.createElement("div");
+        row.className = "keyword-row";
+        row.innerHTML = `
+          <span class="keyword-rank">${index + 1}</span>
+          <strong class="keyword-label" title="${label}">${label}</strong>
+          <div class="keyword-track"><div class="keyword-fill" style="--ratio:${ratio.toFixed(3)}"></div></div>
+          <span class="keyword-value">${value}</span>
+        `;
+        keywordRoot.appendChild(row);
+      });
+    }
+
+    function renderImpact() {
+      const impact = dataset[state.selectedType].impact;
+      const { critical, warning, safe } = impact;
+      const criticalEnd = critical;
+      const warningEnd = critical + warning;
+
+      donut.style.background = `conic-gradient(
+        var(--critical) 0% ${criticalEnd}%,
+        var(--warning) ${criticalEnd}% ${warningEnd}%,
+        var(--safe) ${warningEnd}% 100%
+      )`;
+
+      impactTotal.textContent = `${dataset[state.selectedType].total}`;
+
+      legendRoot.innerHTML = `
+        <div class="legend-item"><span class="tag"><span class="dot" style="background:var(--critical)"></span>고영향도</span><strong>${critical}%</strong></div>
+        <div class="legend-item"><span class="tag"><span class="dot" style="background:var(--warning)"></span>중영향도</span><strong>${warning}%</strong></div>
+        <div class="legend-item"><span class="tag"><span class="dot" style="background:var(--safe)"></span>저영향도</span><strong>${safe}%</strong></div>
+      `;
+    }
+
+    function renderPaths() {
+      const key = state.selectedType.toLowerCase();
+      const paths = [
+        `images/user_created/${key}_overview.png`,
+        `images/user_created/${key}_keywords.png`,
+        `images/user_created/${key}_impact_percent.png`
+      ];
+
+      pathsRoot.innerHTML = paths
+        .map((path) => `<div class="path">${path}</div>`)
+        .join("");
+    }
+
+    function render() {
+      renderChips();
+      renderDetailChips();
+      toggleEmptyButton.textContent = state.emptyMode ? "대시보드 보기로 전환" : "5번 예외 상태 토글";
+
+      if (state.emptyMode) {
+        dashboard.style.display = "none";
+        emptyState.classList.add("show");
+        focusSelectedDetail();
+        return;
+      }
+
+      dashboard.style.display = "grid";
+      emptyState.classList.remove("show");
+      renderBars();
+      renderKeywords();
+      renderImpact();
+      renderPaths();
+      focusSelectedDetail();
+    }
+
+    render();
+  </script>
+</body>
+</html>

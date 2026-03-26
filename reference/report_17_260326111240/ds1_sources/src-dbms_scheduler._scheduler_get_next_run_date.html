@@ -1,0 +1,70 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>dbms_scheduler._scheduler_get_next_run_date source</title>
+<style>body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}.container{max-width:1300px;margin:0 auto;padding:22px 30px}.card{background:#fff;border:1px solid #ddd;border-radius:10px;padding:14px;margin-bottom:14px}pre{background:#111827;color:#e5e7eb;padding:12px;border-radius:8px;overflow:auto;white-space:pre;tab-size:4;line-height:1.4;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}.kw{color:#f59e0b;font-weight:700}a{color:#1d4ed8}code{background:#f3f4f6;padding:2px 4px;border-radius:4px}</style></head><body><div class="container">
+<h1><code>dbms_scheduler._scheduler_get_next_run_date</code></h1>
+<p><a href="../ds1_source.html">Back to source index</a> &nbsp;|&nbsp; <a href="../ds1.html">Back to precheck</a></p>
+<div class="card"><h3>Object Summary</h3><p><b>Type</b> FUNCTION</p><p><b>Keywords</b> no keyword</p></div>
+<div class="card"><h3>Source (keyword highlighted)</h3><pre>Schema: dbms_scheduler
+Name: _scheduler_get_next_run_date
+Result data type: timestamp with time zone
+Argument data types: start_date timestamp with time zone, end_date timestamp with time zone, return_date_after timestamp with time zone, freq dss_freq_enum, bymonth boolean[], bymonthday boolean[], byday boolean[], byhour boolean[], byminute boolean[], bydate timestamp without time zone[]
+Type: func
+Volatility: volatile
+Parallel: unsafe
+Owner: enterprisedb
+Security: invoker
+Language: edbspl
+Source code:
+$__EDBwrapped__$$PROTOCOL2$
+UTF8
+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
+$__EDBwrapped__$</pre></div>
+</div></body></html>

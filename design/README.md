@@ -1,31 +1,30 @@
-﻿# Issue #23 Design Prototype
+# USER_CREATED 디자인 시안 (v2.0)
 
-- File: `issue-23-user-created-visual-prototype.html`
-- Purpose: USER_CREATED 객체 시각화(전체/키워드/영향도) 디자인 시안
+- 기준 레퍼런스: `../reference/report_17_260326111240/ds1.html`
+- 프로토타입: `epas_precheck_v2.0_prototype.html` (`ds1.html` 기준 동기화)
 
-## Open
+## 열기
 
 ```powershell
-start design/issue-23-user-created-visual-prototype.html
+start design/epas_precheck_v2.0_prototype.html
 ```
 
-## Included
+## 포함 내용
 
 - 객체 유형 선택 칩: `PACKAGE`, `FUNCTION`, `PROCEDURE`, `VIEW`, `TABLE`
-- 전체 그래프 프로토타입(막대 전체=100% 전체 count, 주황 막대=n% 영향 count, 좌측 %/우측 개수 눈금)
-- 검출 키워드 TOP 10 그래프 프로토타입
-- 영향도 퍼센트 도넛 그래프 프로토타입
-- 이미지 파일명 규칙 프리뷰
-- `No USER_CREATED objects` 예외 상태 토글
+- 1) 객체 유형별 건수
+- 2) 키워드 상위 10개
+- 3) 영향도 퍼센트
+- 4) 리포트 임베드용 이미지 경로 미리보기
+- 5) USER_CREATED 객체 없음 예외 상태
+- Details 섹션(파라미터/호환성 객체/데이터타입/표현식/정책 등 전체 테이블)
 
-## Issue #23 Integration Status
+## 연동 스크립트
 
-- Prototype baseline is now connected in runtime report generation.
-- Runtime script file: `../EPAS_PRECHECK/epas_precheck_v2.0.sh`
-- SQL file: `../EPAS_PRECHECK/epas_precheck_v2.0.sql`
-- Added progress logs and encoding-safe text outputs.
+- `../EPAS_PRECHECK/epas_precheck_v2.0.sh`
+- `../EPAS_PRECHECK/epas_precheck_v2.0.sql`
 
-## Execute
+## 실행
 
 ```bash
 bash EPAS_PRECHECK/epas_precheck_v2.0.sh -d <DBNAME> -U <USER> -o ./out
