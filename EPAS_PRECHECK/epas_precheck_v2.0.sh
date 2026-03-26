@@ -464,7 +464,7 @@ SELECT
       COALESCE(common_value, '-'),
       E'\n' ORDER BY resource_name
     ) || E'\n\n' ||
-    'APPLIED USERS: ' || CASE WHEN applied_users = '' THEN '(???遺븍き?寃밸윿???' ELSE applied_users END,
+    'APPLIED USERS: ' || CASE WHEN applied_users = '' THEN '(not applied)' ELSE applied_users END,
     E'[\r\n]+', E'\\n', 'g'
   ) AS profile_detail,
   applied_users
@@ -513,7 +513,7 @@ SELECT
     'PROFILE           | RESOURCE_NAME               | RESOURCE_TYPE | LIMIT                    | COMMON' || E'\n' ||
     '--------------------------------------------------------------------------------------------------------' || E'\n' ||
     COALESCE(d.body_lines, '(none)') || E'\n\n' ||
-    'APPLIED USERS: ' || CASE WHEN u.applied_users = '' THEN '(???遺븍き?寃밸윿???' ELSE u.applied_users END,
+    'APPLIED USERS: ' || CASE WHEN u.applied_users = '' THEN '(not applied)' ELSE u.applied_users END,
     E'[\r\n]+', E'\\n', 'g'
   ) AS profile_detail,
   u.applied_users
@@ -1292,7 +1292,7 @@ for ot,s,t,tr,e in iter_fields(out/'03_detail_expr_raw.tsv', 5):
     raw[obj]=(full_type(ot),restore_text(e))
 for prf, detail, users in iter_fields(out/'04_policy_edb_profile.tsv', 3):
   obj=f'policy.profile.{prf}'
-  raw[obj]=('PROFILE', restore_text(detail) if detail else f'?????밸븶?ⓥ뮧?????? {prf}\n?????⑤뜪??????? {users if users else "(??????????쇨덧??"}')
+  raw[obj]=('PROFILE', restore_text(detail) if detail else f'PROFILE: {prf}\nAPPLIED USERS: {users if users else "(not applied)"}')
 for schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check in iter_fields(out/'02_summary_policies.tsv', 8):
   obj=f'policy.rls.{schemaname}.{tablename}.{policyname}'
   raw[obj]=('RLS POLICY', f'Schema: {schemaname}\nTable: {tablename}\nPolicy: {policyname}\nPermissive: {permissive}\nRoles: {roles}\nCommand: {cmd}\nUsing: {qual}\nWith check: {with_check}')
@@ -1402,8 +1402,8 @@ for obj in sorted(set(kw) | set(raw)):
     '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>'+html.escape(obj)+' source</title>'
     '<style>body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}.container{max-width:1300px;margin:0 auto;padding:22px 30px}.card{background:#fff;border:1px solid #ddd;border-radius:10px;padding:14px;margin-bottom:14px}pre{background:#111827;color:#e5e7eb;padding:12px;border-radius:8px;overflow:auto;white-space:pre;tab-size:4;line-height:1.4;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}.kw{color:#f59e0b;font-weight:700}.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700}.badge-none{color:#374151;background:#e5e7eb;border:1px solid #d1d5db}a{color:#1d4ed8}</style></head><body><div class="container">'
     '<h1><code>'+html.escape(obj)+'</code></h1>'
-    '<p><a href="../'+html.escape(target.name)+'">Back to source index</a> &nbsp;|&nbsp; <a href="../'+html.escape(precheck_name)+'">???????????????????沃섃뫗쨘????쎛??/a></p>'
-    '<div class="card"><h3>???ル봿??????????거???/h3><p><b>Type</b> '+html.escape(full_type(typ))+'</p><p><b>Keywords</b> '+kw_badge+'</p></div>'
+    '<p><a href="../'+html.escape(target.name)+'">Back to source index</a> &nbsp;|&nbsp; <a href="../'+html.escape(precheck_name)+'">Back to precheck</a></p>'
+    '<div class="card"><h3>Object Info</h3><p><b>Type:</b> '+html.escape(full_type(typ))+'</p><p><b>Keywords:</b> '+kw_badge+'</p></div>'
     '<div class="card"><h3>Source (keyword highlighted)</h3><pre>'+highlighted+'</pre></div>'
     '<script>(function(){const N="epas_report_popup",F="width=1280,height=900,resizable=yes,scrollbars=yes";function H(a){const h=(a.getAttribute("href")||"").trim().toLowerCase();if(!h||h.startsWith("#")||h.startsWith("javascript:"))return false;return h.endsWith(".html")||h.includes(".html?")||h.includes(".html#")}document.addEventListener("click",function(e){const a=e.target.closest("a[href]");if(!a||a.dataset.popup==="off")return;if(e.defaultPrevented||e.button!==0||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;if(!H(a))return;e.preventDefault();window.open(a.href,N,F);});})();</script>'
     '</div></body></html>'
@@ -1413,7 +1413,7 @@ for obj in sorted(set(kw) | set(raw)):
 
 source_total=len(objects)
 parts=['<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Source Navigator</title><style>body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}.container{max-width:1300px;margin:0 auto;padding:24px 36px}.card{background:#fff;border:1px solid #ddd;border-radius:10px;padding:16px;margin-bottom:14px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #d1d5db;padding:8px}th{background:#f3f4f6}code{background:#f3f4f6;padding:2px 4px;border-radius:4px}a{color:#1d4ed8}.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700}.badge-none{color:#374151;background:#e5e7eb;border:1px solid #d1d5db}</style></head><body><div class="container"><h1>Source Navigator ('+str(source_total)+')</h1>']
-parts.append('<div class="card"><p><a href="'+html.escape(precheck_name)+'">???????????????????沃섃뫗쨘????쎛??/a></p><p>???숆강???κ뭬??????????????節뚮쳥??嚥싲갭큔?琉몃쨨????????泳?뿀????????????袁⑸즴???????ル봿???????????????蹂κ텤?熬곎逾??????????뽯쨦??</p><table><tr><th>???ル봿??????/th><th>?????援??/th><th>???濚밸Ŧ援욑쭕??/th></tr>')
+parts.append('<div class="card"><p><a href="'+html.escape(precheck_name)+'">Back to precheck</a></p><p>Click an object name to open the full source page.</p><table><tr><th>Object</th><th>Type</th><th>Detected Keywords</th></tr>')
 if objects:
   for obj, typ, kws, file_name in objects:
     if kws and kws != ['(no keyword)']:
@@ -1422,7 +1422,7 @@ if objects:
       kw_cell='<span class="badge badge-none">no keyword</span>'
     parts.append('<tr><td><a href="'+html.escape(src_dir.name)+'/'+html.escape(file_name)+'"><code>'+html.escape(obj)+'</code></a></td><td>'+html.escape(typ)+'</td><td>'+kw_cell+'</td></tr>')
 else:
-  parts.append('<tr><td colspan="3">??????????????쇨덧??/td></tr>')
+  parts.append('<tr><td colspan="3">No source</td></tr>')
 parts.append('</table></div><script>(function(){const N="epas_report_popup",F="width=1280,height=900,resizable=yes,scrollbars=yes";function H(a){const h=(a.getAttribute("href")||"").trim().toLowerCase();if(!h||h.startsWith("#")||h.startsWith("javascript:"))return false;return h.endsWith(".html")||h.includes(".html?")||h.includes(".html#")}document.addEventListener("click",function(e){const a=e.target.closest("a[href]");if(!a||a.dataset.popup==="off")return;if(e.defaultPrevented||e.button!==0||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;if(!H(a))return;e.preventDefault();window.open(a.href,N,F);});})();</script></div></body></html>')
 target.write_text('\n'.join(parts),encoding='utf-8')
 PY
@@ -1451,7 +1451,7 @@ if [[ "$PY_RENDERED" -eq 0 ]]; then
   awk -F $'	' 'NR>1{obj=($1=="INDEX EXPRESSION"?$2"."$4:$2"."$3"."$4); print obj"	"$1"	"$5}' "$OUT_DIR/03_detail_expr_raw.tsv" >> "$RAW_MERGED"
   awk -F $'\t' 'NR>1{print $1"."$2"\tTABLE COLUMN\t"$3}' "$OUT_DIR/03_detail_table_objects_raw.tsv" >> "$RAW_MERGED"
 
-  awk -F $'	' 'NR>1{users=($3==""?"(??????????쇨덧??":$3); detail=($2==""?"?????밸븶?ⓥ뮧?????? "$1"\\n?????⑤뜪??????? "users:$2); printf "policy.profile.%s\tPROFILE\t%s\n", $1, detail}' "$OUT_DIR/04_policy_edb_profile.tsv" >> "$RAW_MERGED"
+  awk -F $'	' 'NR>1{users=($3==""?"(not applied)":$3); detail=($2==""?"PROFILE: "$1"\\nAPPLIED USERS: "users:$2); printf "policy.profile.%s\tPROFILE\t%s\n", $1, detail}' "$OUT_DIR/04_policy_edb_profile.tsv" >> "$RAW_MERGED"
   awk -F $'\t' 'NR>1{printf "policy.rls.%s.%s.%s\tRLS POLICY\tSchema: %s\\nTable: %s\\nPolicy: %s\\nPermissive: %s\\nRoles: %s\\nCommand: %s\\nUsing: %s\\nWith check: %s\n", $1,$2,$3,$1,$2,$3,$4,$5,$6,$7,$8}' "$OUT_DIR/02_summary_policies.tsv" >> "$RAW_MERGED"
   awk -F $'\t' '
     ARGIND==1 && FNR>1{
@@ -1571,8 +1571,8 @@ $src"
 <!doctype html><html lang="en"><head><meta charset="utf-8"><title>${esc_obj} source</title>
 <style>body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}.container{max-width:1300px;margin:0 auto;padding:22px 30px}.card{background:#fff;border:1px solid #ddd;border-radius:10px;padding:14px;margin-bottom:14px}pre{background:#111827;color:#e5e7eb;padding:12px;border-radius:8px;overflow:auto;white-space:pre;tab-size:4;line-height:1.4;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}.kw{color:#f59e0b;font-weight:700}a{color:#1d4ed8}code{background:#f3f4f6;padding:2px 4px;border-radius:4px}</style></head><body><div class="container">
 <h1><code>${esc_obj}</code></h1>
-<p><a href="../${SOURCE_HTML_BASENAME}">Back to source index</a> &nbsp;|&nbsp; <a href="../${HTML_BASENAME}">???????????????????沃섃뫗쨘????쎛??/a></p>
-<div class="card"><h3>???ル봿??????????거???/h3><p><b>Type</b> ${esc_typ}</p><p><b>Keywords</b> ${esc_kws}</p></div>
+<p><a href="../${SOURCE_HTML_BASENAME}">Back to source index</a> &nbsp;|&nbsp; <a href="../${HTML_BASENAME}">Back to precheck</a></p>
+<div class="card"><h3>Object Info</h3><p><b>Type:</b> ${esc_typ}</p><p><b>Keywords:</b> ${esc_kws}</p></div>
 <div class="card"><h3>Source (keyword highlighted)</h3><pre>${esc_src}</pre></div>
 <script>(function(){const N="epas_report_popup",F="width=1280,height=900,resizable=yes,scrollbars=yes";function H(a){const h=(a.getAttribute("href")||"").trim().toLowerCase();if(!h||h.startsWith("#")||h.startsWith("javascript:"))return false;return h.endsWith(".html")||h.includes(".html?")||h.includes(".html#")}document.addEventListener("click",function(e){const a=e.target.closest("a[href]");if(!a||a.dataset.popup==="off")return;if(e.defaultPrevented||e.button!==0||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;if(!H(a))return;e.preventDefault();window.open(a.href,N,F);});})();</script>
 </div></body></html>
@@ -1585,10 +1585,10 @@ EOF
   cat > "$SOURCE_HTML_PATH" <<EOF
 <!doctype html><html lang="en"><head><meta charset="utf-8"><title>Source Navigator</title>
 <style>body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}.container{max-width:1300px;margin:0 auto;padding:24px 36px}.card{background:#fff;border:1px solid #ddd;border-radius:10px;padding:16px;margin-bottom:14px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #d1d5db;padding:8px}th{background:#f3f4f6}code{background:#f3f4f6;padding:2px 4px;border-radius:4px}a{color:#1d4ed8}</style></head><body><div class="container">
-<h1>??????????筌먲퐣??(${SOURCE_TOTAL})</h1>
-<div class="card"><p><a href="${HTML_BASENAME}">???????????????????沃섃뫗쨘????쎛??/a></p><p>???숆강???κ뭬??????????????節뚮쳥??嚥싲갭큔?琉몃쨨????????泳?뿀????????????袁⑸즴???????ル봿???????????????蹂κ텤?熬곎逾??????????뽯쨦??</p>
-<table><tr><th>???ル봿??????/th><th>?????援??/th><th>???濚밸Ŧ援욑쭕??/th></tr>
-$( [ -s "$IDX_ROWS" ] && cat "$IDX_ROWS" || echo '<tr><td colspan="3">??????????????쇨덧??/td></tr>' )
+<h1>Source Navigator (${SOURCE_TOTAL})</h1>
+<div class="card"><p><a href="${HTML_BASENAME}">Back to precheck</a></p><p>Click an object name to open the full source page.</p>
+<table><tr><th>Object</th><th>Type</th><th>Detected Keywords</th></tr>
+$( [ -s "$IDX_ROWS" ] && cat "$IDX_ROWS" || echo '<tr><td colspan="3">No source</td></tr>' )
 </table></div><script>(function(){const N="epas_report_popup",F="width=1280,height=900,resizable=yes,scrollbars=yes";function H(a){const h=(a.getAttribute("href")||"").trim().toLowerCase();if(!h||h.startsWith("#")||h.startsWith("javascript:"))return false;return h.endsWith(".html")||h.includes(".html?")||h.includes(".html#")}document.addEventListener("click",function(e){const a=e.target.closest("a[href]");if(!a||a.dataset.popup==="off")return;if(e.defaultPrevented||e.button!==0||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;if(!H(a))return;e.preventDefault();window.open(a.href,N,F);});})();</script></div></body></html>
 EOF
 
