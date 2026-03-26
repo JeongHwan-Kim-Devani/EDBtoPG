@@ -89,7 +89,7 @@ run_scalar(){ "$PSQL_BIN" -v ON_ERROR_STOP=1 -X -A -t -c "$1" | xargs; }
 table_exists(){ [[ "$(run_scalar "SELECT to_regclass('$1') IS NOT NULL;")" == "t" ]]; }
 row_count_tsv(){ [[ -s "$1" ]] && awk 'END{print (NR>0?NR-1:0)}' "$1" || echo 0; }
 count_rows(){ [[ -s "$1" ]] && wc -l < "$1" | xargs || echo 0; }
-count_bad(){ [[ -s "$1" ]] && awk '/?븍뜃?/{c++} END{print c+0}' "$1" || echo 0; }
+count_bad(){ [[ -s "$1" ]] && awk '/badge-bad/{c++} END{print c+0}' "$1" || echo 0; }
 purge_files(){
   local f
   for f in "$@"; do
@@ -125,7 +125,17 @@ safe_remove_dir(){
   fi
 }
 
+PROGRESS_TOTAL=7
+PROGRESS_CUR=0
+progress_step(){
+  local msg="$1"
+  PROGRESS_CUR=$((PROGRESS_CUR+1))
+  local pct=$((PROGRESS_CUR*100/PROGRESS_TOTAL))
+  echo "[PROGRESS ${pct}%] ${msg}"
+}
+
 # data exports
+progress_step "Exporting base TSV datasets"
 run_tsv "$OUT_DIR/01_parameters.tsv" "$(read_sql parameters)"
 run_tsv "$OUT_DIR/02_summary_packages.tsv" "$(read_sql summary_packages)"
 run_tsv "$OUT_DIR/02_summary_synonyms.tsv" "$(read_sql summary_synonyms)" || true
@@ -150,6 +160,7 @@ run_tsv "$OUT_DIR/03_detail_keywords_raw.tsv" "$(read_sql detail_keywords_raw)"
 run_tsv "$OUT_DIR/03_detail_expr_raw.tsv" "$(read_sql detail_expr_raw)"
 run_tsv "$OUT_DIR/03_detail_table_columns_raw.tsv" "$(read_sql detail_table_columns_raw)"
 run_tsv "$OUT_DIR/03_detail_table_objects_raw.tsv" "$(read_sql detail_table_objects_raw)"
+progress_step "Building intermediate report rows"
 
 PARAM_ROWS="$OUT_DIR/.param_rows.html"; FEATURE_ROWS="$OUT_DIR/.feature_rows.html"; DTYPE_ROWS="$OUT_DIR/.dtype_rows.html"; EXPR_ROWS="$OUT_DIR/.expr_rows.html"
 
@@ -159,8 +170,8 @@ awk -F $'\t' 'NR>1{print $1 "\t" $2 "\t" $3 "\t" $4 "\tPACKAGE"}' "$OUT_DIR/02_s
 awk -F $'\t' 'NR>1{print $1 "\t" $2 "\t" $3 "\t" $4 "\tKEYWORD"}' "$OUT_DIR/03_detail_keywords.tsv" >> "$OUT_DIR/.f.tsv"
 awk -F $'	' '{
   t=$1; s=$2; o=$3; token=tolower($4); k=t SUBSEP s SUBSEP o
-  if(token=="") token="(野꺜????쇱뜖????곸벉)"
-  ph=(token=="(野꺜????쇱뜖????곸벉)")
+  if(token=="") token="(no keyword)"
+  ph=(token=="(no keyword)")
   if(!ph && !((k SUBSEP token) in seen)){seen[k SUBSEP token]=1; toks[k]=(toks[k]?toks[k]", " :"")token}
   cat=($5=="PACKAGE"?"PACKAGE":"KEYWORD")
   if(!ph && !((k SUBSEP cat SUBSEP token) in seen_cat)){seen_cat[k SUBSEP cat SUBSEP token]=1; cat_cnt[k SUBSEP cat]++}
@@ -180,7 +191,7 @@ awk -F $'	' '{
     role=(pkg>0?"PACKAGE(" pkg ")":"")
     if(kw>0) role=(role?role"+":"")"KEYWORD(" kw ")"
     if(role=="") role="KEYWORD(0)"
-    detail=(toks[k]!=""?toks[k]:"(野꺜????쇱뜖????곸벉)")
+    detail=(toks[k]!=""?toks[k]:"(no keyword)")
     print ord"	"a[2]"	"tn"	"role"	"a[2]"."a[3]"	"detail"	"op"	"a[2]"."a[3]
   }
 }' "$OUT_DIR/.f.tsv" | sort -t $'	' -k1,1n -k2,2 -k5,5 | awk -F $'\t' '{  id=$8; gsub(/[^[:alnum:]_.-]/,"_",id);  gsub("&","&amp;",$6);gsub("<","&lt;",$6);gsub(">","&gt;",$6);  b=($7=="HIGH"?"badge-bad":($7=="MEDIUM"?"badge-high":"badge-low"));  printf "<tr><td><code>%s</code></td><td>%s</td><td><a href=\"%s/src-%s.html\"><code>%s</code></a></td><td><code>%s</code></td><td><span class=\"badge %s\">%s</span></td></tr>\n",$3,$4,ENVIRON["SOURCE_DIR_BASENAME"],id,$5,$6,b,$7}' > "$FEATURE_ROWS"
@@ -204,8 +215,46 @@ redaction_total=$(row_count_tsv "$OUT_DIR/02_summary_redaction.tsv"); redaction_
 profile_total=$(row_count_tsv "$OUT_DIR/04_policy_edb_profile.tsv"); profile_ok=$profile_total; profile_bad=0
 rg_total=$(row_count_tsv "$OUT_DIR/04_policy_edb_resource_group.tsv"); rg_ok=$rg_total; rg_bad=0
 dblink_total=$(row_count_tsv "$OUT_DIR/04_policy_edb_dblink.tsv"); dblink_ok=$dblink_total; dblink_bad=0
+progress_step "Preparing visualization dataset"
+
+pkg_total=$(awk -F $'\t' 'NR>1{print $2"."$3}' "$OUT_DIR/02_summary_packages.tsv" | sort -u | wc -l | xargs)
+fun_total=$(awk -F $'\t' 'NR>1 && $1=="F"{print $2"."$3}' "$OUT_DIR/03_detail_keywords.tsv" | sort -u | wc -l | xargs)
+prc_total=$(awk -F $'\t' 'NR>1 && $1=="P"{print $2"."$3}' "$OUT_DIR/03_detail_keywords.tsv" | sort -u | wc -l | xargs)
+viw_total=$(awk -F $'\t' 'NR>1 && $1=="V"{print $2"."$3}' "$OUT_DIR/03_detail_keywords.tsv" | sort -u | wc -l | xargs)
+tbl_total=$(awk -F $'\t' 'NR>1{print $1"."$2}' "$OUT_DIR/03_detail_datatypes_tables.tsv" | sort -u | wc -l | xargs)
+
+pkg_imp=$pkg_total
+fun_imp=$fun_total
+prc_imp=$prc_total
+viw_imp=$viw_total
+tbl_imp=$(awk -F $'\t' 'NR>1 && $3!=""{print $2"."$3}' "$OUT_DIR/03_detail_expr_keywords.tsv" | sort -u | wc -l | xargs)
+if [[ "$tbl_imp" -gt "$tbl_total" ]]; then tbl_imp="$tbl_total"; fi
+
+: > "$OUT_DIR/.vis_keywords.tsv"
+awk -F $'\t' 'NR>1{k=tolower($4); if(k!="") c[k]++} END{for(k in c) print "PACKAGE\t"k"\t"c[k]}' "$OUT_DIR/02_summary_packages.tsv" >> "$OUT_DIR/.vis_keywords.tsv"
+awk -F $'\t' 'NR>1{t=($1=="F"?"FUNCTION":($1=="P"?"PROCEDURE":($1=="V"?"VIEW":""))); if(t!=""){k=tolower($4); if(k!="") c[t SUBSEP k]++}} END{for(x in c){split(x,a,SUBSEP); print a[1]"\t"a[2]"\t"c[x]}}' "$OUT_DIR/03_detail_keywords.tsv" >> "$OUT_DIR/.vis_keywords.tsv"
+awk -F $'\t' 'NR>1{k=tolower($4); if(k!="") c[k]++} END{for(k in c) print "TABLE\t"k"\t"c[k]}' "$OUT_DIR/03_detail_datatypes_tables.tsv" >> "$OUT_DIR/.vis_keywords.tsv"
+awk -F $'\t' 'NR>1{k=tolower($5); if(k!="") c[k]++} END{for(k in c) print "TABLE\t"k"\t"c[k]}' "$OUT_DIR/03_detail_expr_keywords.tsv" >> "$OUT_DIR/.vis_keywords.tsv"
+
+build_kw_js(){
+  local t="$1"
+  local out
+  out=$(awk -F $'\t' -v T="$t" '$1==T{c[$2]+=$3} END{for(k in c) print c[k]"\t"k}' "$OUT_DIR/.vis_keywords.tsv" | sort -rn | head -10 | awk -F $'\t' '{gsub(/\\/,"\\\\",$2); gsub(/"/,"\\\"",$2); printf "[\"%s\",%d],",$2,$1}')
+  if [[ -z "$out" ]]; then
+    printf '["(none)",0]'
+  else
+    printf '%s' "${out%,}"
+  fi
+}
+
+pkg_kw_js="$(build_kw_js PACKAGE)"
+fun_kw_js="$(build_kw_js FUNCTION)"
+prc_kw_js="$(build_kw_js PROCEDURE)"
+viw_kw_js="$(build_kw_js VIEW)"
+tbl_kw_js="$(build_kw_js TABLE)"
 
 # source html best-effort
+progress_step "Generating source navigator pages"
 PY_RENDERED=0
 if command -v python3 >/dev/null 2>&1 || command -v python >/dev/null 2>&1; then
   PYBIN=$(command -v python3 || command -v python)
@@ -253,21 +302,21 @@ def restore_text(s):
 
 def highlight_text(src, kws):
   esc=html.escape(src)
-  for k in sorted([x for x in kws if x and x != '(野꺜????쇱뜖????곸벉)'], key=len, reverse=True):
+  for k in sorted([x for x in kws if x and x != '(no keyword)'], key=len, reverse=True):
     esc=re.sub(rf'(?i)({re.escape(k)})', r'<span class="kw">\1</span>', esc)
   return esc
 
 kw={}
 for t,s,o,k in iter_fields(out/'03_detail_keywords.tsv', 4):
   obj=f'{s}.{o}'
-  kw.setdefault(obj,set()).add(k.lower() if k else '(野꺜????쇱뜖????곸벉)')
+  kw.setdefault(obj,set()).add(k.lower() if k else '(no keyword)')
 for ot,s,t,tr,k in iter_fields(out/'03_detail_expr_keywords.tsv', 5):
   obj = f'{s}.{tr}' if ot=='INDEX EXPRESSION' else f'{s}.{t}.{tr}'
-  kw.setdefault(obj,set()).add(k.lower() if k else '(野꺜????쇱뜖????곸벉)')
+  kw.setdefault(obj,set()).add(k.lower() if k else '(no keyword)')
 for t,s,o,k in iter_fields(out/'02_summary_packages.tsv', 4):
-  kw.setdefault(f'{s}.{o}',set()).add(k.lower() if k else '(野꺜????쇱뜖????곸벉)')
+  kw.setdefault(f'{s}.{o}',set()).add(k.lower() if k else '(no keyword)')
 for s,t,c,d in iter_fields(out/'03_detail_datatypes_tables.tsv', 4):
-  kw.setdefault(f'{s}.{t}',set()).add(d.lower() if d else '(野꺜????쇱뜖????곸벉)')
+  kw.setdefault(f'{s}.{t}',set()).add(d.lower() if d else '(no keyword)')
 for object_owner, schema_name, object_name, policy_group, policy_name, pf_owner, package, function_name in iter_fields(out/'02_summary_policies_dbms_rls.tsv', 8):
   obj=f'policy.rls.{schema_name}.{object_name}.{policy_name}'
   if function_name:
@@ -285,7 +334,7 @@ for ot,s,t,tr,e in iter_fields(out/'03_detail_expr_raw.tsv', 5):
     raw[obj]=(full_type(ot),restore_text(e))
 for prf, detail, users in iter_fields(out/'04_policy_edb_profile.tsv', 3):
   obj=f'policy.profile.{prf}'
-  raw[obj]=('PROFILE', restore_text(detail) if detail else f'PROFILE: {prf}\nAPPLIED USERS: {users if users else "(沃섎챷???"}')
+  raw[obj]=('PROFILE', restore_text(detail) if detail else f'PROFILE: {prf}\nAPPLIED USERS: {users if users else "(no users)"}')
 for schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check in iter_fields(out/'02_summary_policies.tsv', 8):
   obj=f'policy.rls.{schemaname}.{tablename}.{policyname}'
   raw[obj]=('RLS POLICY', f'Schema: {schemaname}\nTable: {tablename}\nPolicy: {policyname}\nPermissive: {permissive}\nRoles: {roles}\nCommand: {cmd}\nUsing: {qual}\nWith check: {with_check}')
@@ -385,36 +434,36 @@ for obj in list(kw.keys()):
 objects=[]
 for obj in sorted(set(kw) | set(raw)):
   kws=sorted(kw.get(obj,[]), key=len, reverse=True)
-  typ,src = raw.get(obj, ('UNKNOWN','(?癒???筌≪뼚? 筌륁궢六??щ빍??)'))
+  typ,src = raw.get(obj, ('UNKNOWN','(source not available)'))
   sid=slug(obj)
   file_name=f'src-{sid}.html'
-  kw_label=', '.join(kws) if kws else '??쇱뜖????곸벉'
-  kw_badge = '<span class="badge badge-none">??쇱뜖????곸벉</span>' if (not kws or kws==['(野꺜????쇱뜖????곸벉)']) else html.escape(kw_label)
+  kw_label=', '.join(kws) if kws else 'no keyword'
+  kw_badge = '<span class="badge badge-none">no keyword</span>' if (not kws or kws==['(no keyword)']) else html.escape(kw_label)
   highlighted = highlight_text(src, kws)
   obj_html = (
-    '<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>'+html.escape(obj)+' ?癒??/title>'
+    '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>'+html.escape(obj)+' source</title>'
     '<style>body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}.container{max-width:1300px;margin:0 auto;padding:22px 30px}.card{background:#fff;border:1px solid #ddd;border-radius:10px;padding:14px;margin-bottom:14px}pre{background:#111827;color:#e5e7eb;padding:12px;border-radius:8px;overflow:auto;white-space:pre;tab-size:4;line-height:1.4;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}.kw{color:#f59e0b;font-weight:700}.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700}.badge-none{color:#374151;background:#e5e7eb;border:1px solid #d1d5db}a{color:#1d4ed8}</style></head><body><div class="container">'
     '<h1><code>'+html.escape(obj)+'</code></h1>'
     '<p><a href="../'+html.escape(target.name)+'">Back to source index</a> &nbsp;|&nbsp; <a href="../'+html.escape(precheck_name)+'">Back to precheck</a></p>'
-    '<div class="card"><h3>揶쏆빘猿??類ｋ궖</h3><p><b>????</b> '+html.escape(full_type(typ))+'</p><p><b>野꺜????쇱뜖??</b> '+kw_badge+'</p></div>'
-    '<div class="card"><h3>?癒???袁⑷퍥 (??쇱뜖????깃맒 揶쏅벡??</h3><pre>'+highlighted+'</pre></div>'
+    '<div class="card"><h3>Object Summary</h3><p><b>Type</b> '+html.escape(full_type(typ))+'</p><p><b>Keywords</b> '+kw_badge+'</p></div>'
+    '<div class="card"><h3>Source (keyword highlighted)</h3><pre>'+highlighted+'</pre></div>'
     '</div></body></html>'
   )
   (src_dir/file_name).write_text(obj_html, encoding='utf-8')
   objects.append((obj, full_type(typ), kws, file_name))
 
 source_total=len(objects)
-parts=['<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>?癒???紐껊쑔??/title><style>body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}.container{max-width:1300px;margin:0 auto;padding:24px 36px}.card{background:#fff;border:1px solid #ddd;border-radius:10px;padding:16px;margin-bottom:14px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #d1d5db;padding:8px}th{background:#f3f4f6}code{background:#f3f4f6;padding:2px 4px;border-radius:4px}a{color:#1d4ed8}.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700}.badge-none{color:#374151;background:#e5e7eb;border:1px solid #d1d5db}</style></head><body><div class="container"><h1>?癒???紐껊쑔??(??'+str(source_total)+'椰?</h1>']
-parts.append('<div class="card"><p><a href="'+html.escape(precheck_name)+'">Back to precheck</a></p><p>揶쏆빘猿쒙쭗?놁뱽 ?????롢늺 ?袁⑷퍥 ?癒????륁뵠筌왖嚥???猷??몃빍??</p><table><tr><th>揶쏆빘猿?/th><th>????/th><th>野꺜????쇱뜖??/th></tr>')
+parts=['<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Source Navigator</title><style>body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}.container{max-width:1300px;margin:0 auto;padding:24px 36px}.card{background:#fff;border:1px solid #ddd;border-radius:10px;padding:16px;margin-bottom:14px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #d1d5db;padding:8px}th{background:#f3f4f6}code{background:#f3f4f6;padding:2px 4px;border-radius:4px}a{color:#1d4ed8}.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700}.badge-none{color:#374151;background:#e5e7eb;border:1px solid #d1d5db}</style></head><body><div class="container"><h1>Source Navigator ('+str(source_total)+')</h1>']
+parts.append('<div class="card"><p><a href="'+html.escape(precheck_name)+'">Back to precheck</a></p><p>Object source pages generated from report outputs.</p><table><tr><th>Object</th><th>Type</th><th>Keywords</th></tr>')
 if objects:
   for obj, typ, kws, file_name in objects:
-    if kws and kws != ['(野꺜????쇱뜖????곸벉)']:
+    if kws and kws != ['(no keyword)']:
       kw_cell=html.escape(', '.join(kws))
     else:
-      kw_cell='<span class="badge badge-none">??쇱뜖????곸벉</span>'
+      kw_cell='<span class="badge badge-none">no keyword</span>'
     parts.append('<tr><td><a href="'+html.escape(src_dir.name)+'/'+html.escape(file_name)+'"><code>'+html.escape(obj)+'</code></a></td><td>'+html.escape(typ)+'</td><td>'+kw_cell+'</td></tr>')
 else:
-  parts.append('<tr><td colspan="3">?癒????곸벉</td></tr>')
+  parts.append('<tr><td colspan="3">No rows</td></tr>')
 parts.append('</table></div></div></body></html>')
 target.write_text('\n'.join(parts),encoding='utf-8')
 PY
@@ -443,7 +492,7 @@ if [[ "$PY_RENDERED" -eq 0 ]]; then
   awk -F $'	' 'NR>1{obj=($1=="INDEX EXPRESSION"?$2"."$4:$2"."$3"."$4); print obj"	"$1"	"$5}' "$OUT_DIR/03_detail_expr_raw.tsv" >> "$RAW_MERGED"
   awk -F $'\t' 'NR>1{print $1"."$2"\tTABLE COLUMN\t"$3}' "$OUT_DIR/03_detail_table_objects_raw.tsv" >> "$RAW_MERGED"
 
-  awk -F $'	' 'NR>1{users=($3==""?"(沃섎챷???":$3); detail=($2==""?"PROFILE: "$1"\\nAPPLIED USERS: "users:$2); printf "policy.profile.%s\tPROFILE\t%s\n", $1, detail}' "$OUT_DIR/04_policy_edb_profile.tsv" >> "$RAW_MERGED"
+  awk -F $'	' 'NR>1{users=($3==""?"(no users)":$3); detail=($2==""?"PROFILE: "$1"\\nAPPLIED USERS: "users:$2); printf "policy.profile.%s\tPROFILE\t%s\n", $1, detail}' "$OUT_DIR/04_policy_edb_profile.tsv" >> "$RAW_MERGED"
   awk -F $'\t' 'NR>1{printf "policy.rls.%s.%s.%s\tRLS POLICY\tSchema: %s\\nTable: %s\\nPolicy: %s\\nPermissive: %s\\nRoles: %s\\nCommand: %s\\nUsing: %s\\nWith check: %s\n", $1,$2,$3,$1,$2,$3,$4,$5,$6,$7,$8}' "$OUT_DIR/02_summary_policies.tsv" >> "$RAW_MERGED"
   awk -F $'\t' '
     ARGIND==1 && FNR>1{
@@ -476,7 +525,7 @@ if [[ "$PY_RENDERED" -eq 0 ]]; then
   awk -F $'\t' 'NR>1{obj="policy.rls."$2"."$3"."$5; fn=tolower($8); pkg=tolower($7); if(fn!="") print obj"\t"fn; if(pkg!=""&&fn!="") print obj"\t"pkg"."fn}' "$OUT_DIR/02_summary_policies_dbms_rls.tsv" >> "$KW_MERGED"
 
   awk -F $'	' '!seen[$1]++{print $1"	"$2"	"$3}' "$RAW_MERGED" > "$RAW_AGG"
-  awk -F $'	' '{k=$1; t=tolower($2); if(t=="") t="(野꺜????쇱뜖????곸벉)"; if(!seen[k SUBSEP t]++){a[k]=(a[k]?a[k]", ":"")t}} END{for(k in a) print k"	"a[k]}' "$KW_MERGED" > "$KW_AGG"
+  awk -F $'	' '{k=$1; t=tolower($2); if(t=="") t="(no keyword)"; if(!seen[k SUBSEP t]++){a[k]=(a[k]?a[k]", ":"")t}} END{for(k in a) print k"	"a[k]}' "$KW_MERGED" > "$KW_AGG"
   awk -F $'\t' 'NR>1{print $1"."$2"\t"$3}' "$OUT_DIR/03_detail_table_objects_raw.tsv" > "$TABLE_RAW_AGG"
   awk -F $'	' 'NR>1{k=$1"."$2; line=$3" | "$4" | "(($5 ~ /^(NO|no)$/)?"not null":"")" | "$6; a[k]=(a[k]?a[k]"\n":"")line} END{for(k in a) print k"\t""Object \""k"\"\nColumn | Type | Nullable | Default\n--------------------------------------------------------------------------------\n"a[k]}' "$OUT_DIR/03_detail_table_columns_raw.tsv" > "$COLUMN_LIST_AGG"
   awk -F $'\t' 'NR>1 && $1=="INDEX EXPRESSION"{print $2"."$4"\t"$2"."$3}' "$OUT_DIR/03_detail_expr_raw.tsv" > "$IDX_TABLE_MAP"
@@ -500,9 +549,9 @@ if [[ "$PY_RENDERED" -eq 0 ]]; then
     typ=$(awk -F $'	' -v o="$obj" '$1==o{print $2; exit}' "$RAW_AGG")
     [ -n "$typ" ] || typ="UNKNOWN"
     src=$(awk -F $'	' -v o="$obj" '$1==o{print $3; exit}' "$RAW_AGG")
-    [ -n "$src" ] || src='(?癒???筌≪뼚? 筌륁궢六??щ빍??)'
+    [ -n "$src" ] || src='(source not available)'
     kws=$(awk -F $'	' -v o="$obj" '$1==o{print $2; exit}' "$KW_AGG")
-    [ -n "$kws" ] || kws='??쇱뜖????곸벉'
+    [ -n "$kws" ] || kws='no keyword'
 
     # TABLE/VIEW COLUMN + EXPRESSION fallback enrichment
     table_key=$(printf '%s' "$obj" | awk -F'.' 'NF>=3{print $1"."$2}')
@@ -549,23 +598,23 @@ $src"
     esc_kws=$(printf '%s' "$kws" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g')
     esc_src=$(printf '%s' "$src" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g')
     esc_src=$(printf '%s' "$esc_src" | awk '{gsub(/\\n/,"\n"); print}')
-    if [[ -n "$kws" && "$kws" != "??쇱뜖????곸벉" ]]; then
+    if [[ -n "$kws" && "$kws" != "no keyword" ]]; then
       IFS=',' read -r -a _kw_arr <<< "$kws"
       for _kw in "${_kw_arr[@]}"; do
         _kw=$(printf '%s' "$_kw" | sed -e 's/^ *//' -e 's/ *$//')
         _kw=$(printf '%s' "$_kw" | tr '[:upper:]' '[:lower:]')
-        [[ -n "$_kw" && "$_kw" != "(野꺜????쇱뜖????곸벉)" ]] || continue
+        [[ -n "$_kw" && "$_kw" != "(no keyword)" ]] || continue
         esc_src=$(awk -v src="$esc_src" -v kw="$_kw" 'BEGIN{if(kw==""){print src; exit} lsrc=tolower(src); lkw=tolower(kw); out=""; pos=1; klen=length(kw); while(1){tmp=substr(lsrc,pos); idx=index(tmp,lkw); if(idx==0) break; abs=pos+idx-1; out=out substr(src,pos,abs-pos) "<span class=\"kw\">" substr(src,abs,klen) "</span>"; pos=abs+klen;} out=out substr(src,pos); print out}')
       done
     fi
 
     cat > "$page" <<EOF
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${esc_obj} ?癒??/title>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${esc_obj} source</title>
 <style>body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}.container{max-width:1300px;margin:0 auto;padding:22px 30px}.card{background:#fff;border:1px solid #ddd;border-radius:10px;padding:14px;margin-bottom:14px}pre{background:#111827;color:#e5e7eb;padding:12px;border-radius:8px;overflow:auto;white-space:pre;tab-size:4;line-height:1.4;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}.kw{color:#f59e0b;font-weight:700}a{color:#1d4ed8}code{background:#f3f4f6;padding:2px 4px;border-radius:4px}</style></head><body><div class="container">
 <h1><code>${esc_obj}</code></h1>
 <p><a href="../${SOURCE_HTML_BASENAME}">Back to source index</a> &nbsp;|&nbsp; <a href="../${HTML_BASENAME}">Back to precheck</a></p>
-<div class="card"><h3>揶쏆빘猿??類ｋ궖</h3><p><b>????</b> ${esc_typ}</p><p><b>野꺜????쇱뜖??</b> ${esc_kws}</p></div>
-<div class="card"><h3>?癒???袁⑷퍥</h3><pre>${esc_src}</pre></div>
+<div class="card"><h3>Object Summary</h3><p><b>Type</b> ${esc_typ}</p><p><b>Keywords</b> ${esc_kws}</p></div>
+<div class="card"><h3>Source (keyword highlighted)</h3><pre>${esc_src}</pre></div>
 </div></body></html>
 EOF
 
@@ -574,75 +623,76 @@ EOF
   done < <((cut -f1 "$RAW_AGG"; cut -f1 "$KW_AGG") | sort -u)
 
   cat > "$SOURCE_HTML_PATH" <<EOF
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>?癒???紐껊쑔??/title>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Source Navigator</title>
 <style>body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}.container{max-width:1300px;margin:0 auto;padding:24px 36px}.card{background:#fff;border:1px solid #ddd;border-radius:10px;padding:16px;margin-bottom:14px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #d1d5db;padding:8px}th{background:#f3f4f6}code{background:#f3f4f6;padding:2px 4px;border-radius:4px}a{color:#1d4ed8}</style></head><body><div class="container">
-<h1>?癒???紐껊쑔??(??${SOURCE_TOTAL}椰?</h1>
-<div class="card"><p><a href="${HTML_BASENAME}">Back to precheck</a></p><p>揶쏆빘猿쒙쭗?놁뱽 ?????롢늺 ?袁⑷퍥 ?癒????륁뵠筌왖嚥???猷??몃빍??</p>
-<table><tr><th>揶쏆빘猿?/th><th>????/th><th>野꺜????쇱뜖??/th></tr>
-$( [ -s "$IDX_ROWS" ] && cat "$IDX_ROWS" || echo '<tr><td colspan="3">?癒????곸벉</td></tr>' )
+<h1>Source Navigator (${SOURCE_TOTAL})</h1>
+<div class="card"><p><a href="${HTML_BASENAME}">Back to precheck</a></p><p>Object source pages generated from report outputs.</p>
+<table><tr><th>Object</th><th>Type</th><th>Keywords</th></tr>
+$( [ -s "$IDX_ROWS" ] && cat "$IDX_ROWS" || echo '<tr><td colspan="3">No rows</td></tr>' )
 </table></div></div></body></html>
 EOF
 
   purge_files "$RAW_MERGED" "$RAW_AGG" "$KW_MERGED" "$KW_AGG" "$TABLE_RAW_AGG" "$COLUMN_LIST_AGG" "$IDX_TABLE_MAP" "$IDX_ROWS"
 fi
-[[ -f "$SOURCE_HTML_PATH" ]] || echo '<!doctype html><html><body><h1>?癒???怨멸쉭</h1><p>?癒????륁뵠筌왖????밴쉐??? 筌륁궢六??щ빍??</p></body></html>' > "$SOURCE_HTML_PATH"
+[[ -f "$SOURCE_HTML_PATH" ]] || echo '<!doctype html><html><body><h1>Source render skipped</h1><p>No source pages were generated.</p></body></html>' > "$SOURCE_HTML_PATH"
 
 default_row_if_empty(){ [[ -s "$1" ]] && cat "$1" || printf '<tr><td colspan="%s">No rows</td></tr>' "$2"; }
-syn_rows_html=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s.%s</code></td><td><code>%s.%s</code></td><td><span class=\"badge badge-low\">揶쎛????뽰뵠??????</span></td></tr>\n",$1,$2,$3,$4}' "$OUT_DIR/02_summary_synonyms.tsv")
-rls_pg_rows=$(awk -F $'\t' 'NR>1{obj="policy.rls."$1"."$2"."$3; id=obj; gsub(/[^[:alnum:]_.-]/,"_",id); printf "<tr><td><code>%s.%s</code></td><td><a href=\"%s/src-%s.html\"><code>%s</code></a></td><td>%s</td><td><span class=\"badge badge-low\">揶쎛????뽰뵠??????</span></td></tr>\n",$1,$2,ENVIRON["SOURCE_DIR_BASENAME"],id,$3,$6}' "$OUT_DIR/02_summary_policies.tsv")
-rls_dbms_rows=$(awk -F $'\t' 'NR>1{obj="policy.rls."$2"."$3"."$5; id=obj; gsub(/[^[:alnum:]_.-]/,"_",id); printf "<tr><td><code>%s.%s</code></td><td><a href=\"%s/src-%s.html\"><code>%s</code></a></td><td>%s.%s</td><td><span class=\"badge badge-low\">揶쎛????뽰뵠??????</span></td></tr>\n",$2,$3,ENVIRON["SOURCE_DIR_BASENAME"],id,$5,$7,$8}' "$OUT_DIR/02_summary_policies_dbms_rls.tsv")
+syn_rows_html=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s.%s</code></td><td><code>%s.%s</code></td><td><span class=\"badge badge-low\">Review required</span></td></tr>\n",$1,$2,$3,$4}' "$OUT_DIR/02_summary_synonyms.tsv")
+rls_pg_rows=$(awk -F $'\t' 'NR>1{obj="policy.rls."$1"."$2"."$3; id=obj; gsub(/[^[:alnum:]_.-]/,"_",id); printf "<tr><td><code>%s.%s</code></td><td><a href=\"%s/src-%s.html\"><code>%s</code></a></td><td>%s</td><td><span class=\"badge badge-low\">Review required</span></td></tr>\n",$1,$2,ENVIRON["SOURCE_DIR_BASENAME"],id,$3,$6}' "$OUT_DIR/02_summary_policies.tsv")
+rls_dbms_rows=$(awk -F $'\t' 'NR>1{obj="policy.rls."$2"."$3"."$5; id=obj; gsub(/[^[:alnum:]_.-]/,"_",id); printf "<tr><td><code>%s.%s</code></td><td><a href=\"%s/src-%s.html\"><code>%s</code></a></td><td>%s.%s</td><td><span class=\"badge badge-low\">Review required</span></td></tr>\n",$2,$3,ENVIRON["SOURCE_DIR_BASENAME"],id,$5,$7,$8}' "$OUT_DIR/02_summary_policies_dbms_rls.tsv")
 rls_rows_html="${rls_pg_rows}${rls_dbms_rows}"
-redaction_rows_html=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s.%s</code></td><td><code>%s</code></td><td><code>%s</code></td><td><span class=\"badge badge-high\">揶쎛????뽰뵠???誘れ벉)</span></td></tr>\n",$1,$2,$3,$4}' "$OUT_DIR/02_summary_redaction.tsv")
-profile_rows_html=$(awk -F $'\t' 'NR>1{users=($3==""?"(沃섎챷???":$3); obj="policy.profile."$1; id=obj; gsub(/[^[:alnum:]_.-]/,"_",id); printf "<tr><td><a href=\"%s/src-%s.html\"><code>%s</code></a></td><td><code>%s</code></td><td><span class=\"badge badge-low\">揶쎛????뽰뵠??????</span></td></tr>\n",ENVIRON["SOURCE_DIR_BASENAME"],id,$1,users}' "$OUT_DIR/04_policy_edb_profile.tsv")
-rg_rows_html=$(awk -F $'\t' 'NR>1{users=($4==""?"(沃섎챷???":$4); printf "<tr><td><code>%s</code></td><td>%s</td><td>%s</td><td><code>%s</code></td><td><span class=\"badge badge-low\">揶쎛????뽰뵠??????</span></td></tr>\n",$1,$2,$3,users}' "$OUT_DIR/04_policy_edb_resource_group.tsv")
-dblink_rows_html=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s</code></td><td>%s</td><td><code>%s</code></td><td><span class=\"badge badge-low\">揶쎛????뽰뵠??????</span></td></tr>\n",$1,$5,$6}' "$OUT_DIR/04_policy_edb_dblink.tsv")
+redaction_rows_html=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s.%s</code></td><td><code>%s</code></td><td><code>%s</code></td><td><span class=\"badge badge-high\">Needs review</span></td></tr>\n",$1,$2,$3,$4}' "$OUT_DIR/02_summary_redaction.tsv")
+profile_rows_html=$(awk -F $'\t' 'NR>1{users=($3==""?"(no users)":$3); obj="policy.profile."$1; id=obj; gsub(/[^[:alnum:]_.-]/,"_",id); printf "<tr><td><a href=\"%s/src-%s.html\"><code>%s</code></a></td><td><code>%s</code></td><td><span class=\"badge badge-low\">Review required</span></td></tr>\n",ENVIRON["SOURCE_DIR_BASENAME"],id,$1,users}' "$OUT_DIR/04_policy_edb_profile.tsv")
+rg_rows_html=$(awk -F $'\t' 'NR>1{users=($4==""?"(no users)":$4); printf "<tr><td><code>%s</code></td><td>%s</td><td>%s</td><td><code>%s</code></td><td><span class=\"badge badge-low\">Review required</span></td></tr>\n",$1,$2,$3,users}' "$OUT_DIR/04_policy_edb_resource_group.tsv")
+dblink_rows_html=$(awk -F $'\t' 'NR>1{printf "<tr><td><code>%s</code></td><td>%s</td><td><code>%s</code></td><td><span class=\"badge badge-low\">Review required</span></td></tr>\n",$1,$5,$6}' "$OUT_DIR/04_policy_edb_dblink.tsv")
 
+progress_step "Rendering prototype-based main report"
 cat > "$HTML_PATH" <<HTML
-<!doctype html><html lang="en"><head><meta charset="utf-8"><title>EPAS to PostgreSQL Precheck - ${DBNAME}</title>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>EPAS to PostgreSQL Precheck - ${DBNAME}</title>
 <style>
-:root{--bg-0:#f4f8ff;--bg-1:#e6f0ff;--ink-0:#0b1020;--ink-1:#22304a;--ink-2:#5f6f8f;--surface:rgba(255,255,255,.9);--stroke:rgba(17,31,62,.14);--shadow:0 20px 50px rgba(19,38,82,.12)}
+:root{--bg-0:#f4f8ff;--bg-1:#e6f0ff;--ink-0:#0b1020;--ink-1:#22304a;--ink-2:#5f6f8f;--surface:rgba(255,255,255,.9);--stroke:rgba(17,31,62,.14);--shadow:0 20px 50px rgba(19,38,82,.12);--critical:#ef4444;--warning:#f59e0b;--safe:#10b981}
 *{box-sizing:border-box}
 body{margin:0;color:var(--ink-0);font-family:"Pretendard","Noto Sans KR","Segoe UI",Arial,sans-serif;background:radial-gradient(circle at 10% 0,#dceeff 0,rgba(220,238,255,0) 35%),radial-gradient(circle at 100% 10%,#ddfff4 0,rgba(221,255,244,0) 38%),linear-gradient(180deg,var(--bg-0),var(--bg-1))}
 .container{max-width:1320px;margin:0 auto;padding:28px 28px 42px}
 .hero{border:1px solid var(--stroke);background:var(--surface);border-radius:22px;padding:20px 22px;box-shadow:var(--shadow);margin-bottom:14px}
-.hero h1{margin:0;font-size:30px;line-height:1.2}
-.hero p{margin:8px 0 0;color:var(--ink-1);font-size:14px}
+.hero h1{margin:0;font-size:30px;line-height:1.2}.hero p{margin:8px 0 0;color:var(--ink-1);font-size:14px}
 .card{border:1px solid var(--stroke);background:var(--surface);border-radius:20px;padding:16px;box-shadow:0 10px 24px rgba(19,38,82,.08);margin-bottom:14px}
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:12px}
-.kpi{border:1px solid #d7dfef;background:#fff;border-radius:14px;padding:10px}
-.kpi .name{font-size:12px;color:var(--ink-2);font-weight:700;text-transform:uppercase;letter-spacing:.03em}
-.kpi .value{font-size:24px;font-weight:900;color:#1e3360;line-height:1.1;margin-top:4px}
-.kpi .meta{font-size:12px;color:#4e6389;margin-top:4px}
-h2{margin:0 0 10px;font-size:20px}
-h3{margin:16px 0 8px;font-size:17px;color:var(--ink-1)}
+.h2{margin:0;font-size:20px}.muted{margin:8px 0 0;color:var(--ink-1);font-size:14px}
+.controls{margin-top:12px;display:flex;flex-wrap:wrap;gap:8px}.chip{border:1px solid #cfd9f0;background:#fff;border-radius:999px;padding:8px 14px;font-size:12px;font-weight:800;color:#2b3f67;cursor:pointer}
+.chip.active{background:linear-gradient(120deg,rgba(15,111,255,.14),rgba(0,179,164,.14));border-color:rgba(15,111,255,.55);color:#0e3f86}
+.grid{margin-top:14px;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:12px}.span12{grid-column:span 12}.span6{grid-column:span 6}
+.bars{margin-top:10px;display:grid;grid-template-columns:repeat(auto-fit,minmax(182px,1fr));gap:12px;align-items:end;min-height:182px}
+.bar-item{border:0;background:transparent;padding:0;text-align:center;cursor:pointer}.bar-wrap{height:148px;display:flex;align-items:end;justify-content:center;border-radius:14px;background:linear-gradient(180deg,rgba(203,218,242,.52),rgba(203,218,242,.38));border:1px solid rgba(99,122,162,.22);padding:8px;outline:2px solid transparent;position:relative}
+.bar-item.active .bar-wrap{outline-color:rgba(15,111,255,.55)}.bar-stack{width:60px;height:126px;position:relative;display:flex;align-items:end;justify-content:center}
+.bar-total{position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:56px;border-radius:10px 10px 4px 4px;height:126px;background:linear-gradient(180deg,rgba(15,111,255,.38),rgba(0,179,164,.38))}
+.bar-impact{position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:42px;border-radius:8px 8px 3px 3px;height:max(8px,calc(var(--ratio-impact)*126px));background:linear-gradient(180deg,#f97316,#ef4444)}
+.impact-label{position:absolute;left:50%;transform:translateX(-50%);bottom:max(12px,calc(var(--ratio-impact,0)*126px - 16px));white-space:nowrap;line-height:1;font-weight:900;font-size:11px;color:#143968;z-index:6;-webkit-text-stroke:.35px rgba(255,255,255,.92);text-shadow:0 0 1px rgba(255,255,255,.9),0 1px 1px rgba(15,23,42,.08)}
+.bar-label{margin-top:8px;font-size:11px;color:var(--ink-1);font-weight:800;letter-spacing:.02em}.bar-count{margin-top:2px;font-size:10px;color:var(--ink-2);font-weight:700}
+.keyword-list{margin-top:10px;display:grid;gap:9px}.keyword-row{display:grid;grid-template-columns:120px 1fr 46px;gap:8px;align-items:center;font-size:13px;color:var(--ink-1)}
+.keyword-track{height:10px;border-radius:999px;background:rgba(203,218,242,.46);overflow:hidden}.keyword-fill{height:100%;border-radius:inherit;background:linear-gradient(90deg,#1e57ff,#31d2bd);width:calc(var(--ratio)*100%)}
+.impact-wrap{margin-top:10px;display:grid;grid-template-columns:180px 1fr;gap:12px;align-items:center}.donut{width:180px;aspect-ratio:1;border-radius:50%;position:relative}.donut::after{content:"";position:absolute;inset:25px;background:#fff;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(17,31,62,.08)}
+.donut-center{position:absolute;inset:0;display:grid;place-items:center;z-index:1;font-size:22px;font-weight:800;color:#0d3370}.legend{display:grid;gap:8px}.legend-item{display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,.65);border:1px solid var(--stroke);border-radius:12px;padding:8px 10px;font-size:13px}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block}.tag{display:inline-flex;align-items:center;gap:6px;font-weight:700}.paths{margin-top:10px;display:grid;gap:8px}.path{font-family:Consolas,"Courier New",monospace;font-size:12px;padding:9px 10px;border:1px dashed rgba(17,31,62,.24);border-radius:10px;background:#fff;overflow-x:auto;white-space:nowrap}
+.empty{display:none;margin-top:12px;border:1px dashed rgba(17,31,62,.32);border-radius:20px;background:rgba(255,255,255,.82);padding:18px}.empty.show{display:block}
+h2{margin:0 0 10px;font-size:20px}h3{margin:16px 0 8px;font-size:17px;color:var(--ink-1)}
 table{width:100%;border-collapse:collapse;background:rgba(255,255,255,.92);border-radius:12px;overflow:hidden}
 th,td{border:1px solid #d7dfef;padding:8px 10px;font-size:14px;vertical-align:top}
-th{background:#eef3ff;text-align:left;color:#1f3356}
-.group-title td{background:#dfe9ff;font-weight:800;color:#1e3360}
-.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:800}
-.badge-bad{color:#991b1b;background:#fee2e2;border:1px solid #fecaca}
-.badge-high{color:#92400e;background:#fef3c7;border:1px solid #fcd34d}
-.badge-low{color:#065f46;background:#d1fae5;border:1px solid #a7f3d0}
-.badge-none{color:#374151;background:#e5e7eb;border:1px solid #d1d5db}
-code{background:#f3f6ff;padding:2px 5px;border-radius:6px}
-a{color:#1b4fc7}
-.sub-link{margin:0 0 10px;font-size:14px;color:var(--ink-1)}
-@media (max-width:900px){.container{padding:16px}.hero h1{font-size:24px}th,td{font-size:13px;padding:7px 8px}}
+th{background:#eef3ff;text-align:left;color:#1f3356}.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:800}
+.badge-bad{color:#991b1b;background:#fee2e2;border:1px solid #fecaca}.badge-high{color:#92400e;background:#fef3c7;border:1px solid #fcd34d}.badge-low{color:#065f46;background:#d1fae5;border:1px solid #a7f3d0}.badge-none{color:#374151;background:#e5e7eb;border:1px solid #d1d5db}
+code{background:#f3f6ff;padding:2px 5px;border-radius:6px}a{color:#1b4fc7}.sub-link{margin:0 0 10px;font-size:14px;color:var(--ink-1)}
+@media (max-width:900px){.container{padding:16px}.hero h1{font-size:24px}th,td{font-size:13px;padding:7px 8px}.span6{grid-column:span 12}.impact-wrap{grid-template-columns:1fr;justify-items:center}}
 </style></head><body><div class="container">
 <div class="hero"><h1>EPAS to PostgreSQL Precheck</h1><p>DB NAME: <strong>${DBNAME}</strong></p></div>
-<div class="card"><h2>Overview</h2>
-<div class="kpis">
-  <div class="kpi"><div class="name">Parameters</div><div class="value">${param_total}</div><div class="meta">ok ${param_ok} / risk ${param_bad}</div></div>
-  <div class="kpi"><div class="name">Compatibility</div><div class="value">${feature_total}</div><div class="meta">ok ${feature_ok} / risk ${feature_bad}</div></div>
-  <div class="kpi"><div class="name">Datatypes</div><div class="value">${dtype_total}</div><div class="meta">checked ${dtype_ok}</div></div>
-  <div class="kpi"><div class="name">Expressions</div><div class="value">${expr_total}</div><div class="meta">ok ${expr_ok} / risk ${expr_bad}</div></div>
-  <div class="kpi"><div class="name">Synonyms</div><div class="value">${syn_total}</div><div class="meta">found ${syn_total}</div></div>
-  <div class="kpi"><div class="name">RLS</div><div class="value">${rls_total}</div><div class="meta">policy objects</div></div>
-  <div class="kpi"><div class="name">Redaction</div><div class="value">${redaction_total}</div><div class="meta">masking rules</div></div>
-  <div class="kpi"><div class="name">Profiles</div><div class="value">${profile_total}</div><div class="meta">non-default</div></div>
-  <div class="kpi"><div class="name">Resource Group</div><div class="value">${rg_total}</div><div class="meta">configured groups</div></div>
-  <div class="kpi"><div class="name">DBLINK</div><div class="value">${dblink_total}</div><div class="meta">link objects</div></div>
-</div>
+<div class="card">
+  <h2 class="h2">1) Object Count by Type</h2>
+  <div class="controls" id="type-chips"></div>
+  <div class="grid" id="viz-grid">
+    <div class="span12"><div class="bars" id="object-bars"></div></div>
+    <div class="span6"><h3 style="margin-top:0">2) Keyword Top 10</h3><div class="keyword-list" id="keyword-list"></div></div>
+    <div class="span6"><h3 style="margin-top:0">3) Impact Percent</h3><div class="impact-wrap"><div class="donut" id="impact-donut"><div class="donut-center" id="impact-total">0</div></div><div class="legend" id="impact-legend"></div></div></div>
+    <div class="span12"><h3 style="margin-top:0">Image Path Preview</h3><div class="paths" id="image-paths"></div></div>
+  </div>
+  <div class="empty" id="empty-state"><h3>No USER_CREATED objects</h3><p>No visualization rows were detected. Report generation continues without failure.</p></div>
 </div>
 <div class="card"><h2>Details</h2><p class="sub-link">Source navigator: <a href="${SOURCE_HTML_BASENAME}">${SOURCE_HTML_BASENAME}</a></p>
 <h3>1-1. Parameters (${param_total})</h3><table><tr><th>Parameter</th><th>Default</th><th>Current</th><th>Description</th><th>Status</th></tr>$(default_row_if_empty "$PARAM_ROWS" 5)</table>
@@ -655,12 +705,34 @@ a{color:#1b4fc7}
 <h3>3-3. Profiles (${profile_total})</h3><table><tr><th>Profile</th><th>Users</th><th>Status</th></tr>$( [ -n "$profile_rows_html" ] && echo "$profile_rows_html" || echo '<tr><td colspan="3">No rows</td></tr>' )</table>
 <h3>3-4. Resource Groups (${rg_total})</h3><table><tr><th>Group</th><th>CPU rate</th><th>dirtyratelimit</th><th>Users</th><th>Status</th></tr>$( [ -n "$rg_rows_html" ] && echo "$rg_rows_html" || echo '<tr><td colspan="5">No rows</td></tr>' )</table>
 <h3>4-1. DBLINK (${dblink_total})</h3><table><tr><th>DBLINK</th><th>User</th><th>Connection</th><th>Status</th></tr>$( [ -n "$dblink_rows_html" ] && echo "$dblink_rows_html" || echo '<tr><td colspan="4">No rows</td></tr>' )</table>
-</div></div></body></html>
+</div>
+<script>
+function splitImpact(total, impacted){if(total<=0){return {critical:0,warning:0,safe:100};}const r=impacted/total;const critical=Math.round(r*45);const warning=Math.round(r*35);const safe=Math.max(0,100-critical-warning);return {critical,warning,safe};}
+const objectTypes=["PACKAGE","FUNCTION","PROCEDURE","VIEW","TABLE"];
+const dataset={
+  PACKAGE:{total:${pkg_total},impacted:${pkg_imp},keywords:[${pkg_kw_js}],impact:splitImpact(${pkg_total},${pkg_imp})},
+  FUNCTION:{total:${fun_total},impacted:${fun_imp},keywords:[${fun_kw_js}],impact:splitImpact(${fun_total},${fun_imp})},
+  PROCEDURE:{total:${prc_total},impacted:${prc_imp},keywords:[${prc_kw_js}],impact:splitImpact(${prc_total},${prc_imp})},
+  VIEW:{total:${viw_total},impacted:${viw_imp},keywords:[${viw_kw_js}],impact:splitImpact(${viw_total},${viw_imp})},
+  TABLE:{total:${tbl_total},impacted:${tbl_imp},keywords:[${tbl_kw_js}],impact:splitImpact(${tbl_total},${tbl_imp})}
+};
+const state={selectedType:"PACKAGE"};
+const chipsRoot=document.getElementById("type-chips");const barsRoot=document.getElementById("object-bars");const keywordRoot=document.getElementById("keyword-list");const donut=document.getElementById("impact-donut");const impactTotal=document.getElementById("impact-total");const legendRoot=document.getElementById("impact-legend");const pathsRoot=document.getElementById("image-paths");const vizGrid=document.getElementById("viz-grid");const empty=document.getElementById("empty-state");
+function renderChips(){chipsRoot.innerHTML="";objectTypes.forEach((t)=>{const b=document.createElement("button");b.className=`chip ${state.selectedType===t?"active":""}`;b.textContent=t;b.addEventListener("click",()=>{state.selectedType=t;render();});chipsRoot.appendChild(b);});}
+function renderBars(){barsRoot.innerHTML="";objectTypes.forEach((t)=>{const d=dataset[t];const ratio=d.total>0?(d.impacted/d.total):0;const pct=Math.round(ratio*100);const item=document.createElement("button");item.className=`bar-item ${state.selectedType===t?"active":""}`;item.innerHTML=`<div class="bar-wrap"><div class="bar-stack"><div class="bar-total"></div><div class="bar-impact" style="--ratio-impact:${ratio.toFixed(3)}"></div><span class="impact-label" style="--ratio-impact:${ratio.toFixed(3)}">${pct}%</span></div></div><div class="bar-label">${t}</div><div class="bar-count">${d.impacted} / ${d.total}</div>`;item.addEventListener("click",()=>{state.selectedType=t;render();});barsRoot.appendChild(item);});}
+function renderKeywords(){keywordRoot.innerHTML="";const items=[...(dataset[state.selectedType].keywords||[])].sort((a,b)=>b[1]-a[1]).slice(0,10);const max=Math.max(1,...items.map(i=>i[1]||0));if(items.length===0){keywordRoot.innerHTML='<div class="keyword-row"><strong>(none)</strong><div class="keyword-track"><div class="keyword-fill" style="--ratio:0"></div></div><span>0</span></div>';return;}items.forEach(([k,v])=>{const r=(v||0)/max;const row=document.createElement("div");row.className="keyword-row";row.innerHTML=`<strong>${k}</strong><div class="keyword-track"><div class="keyword-fill" style="--ratio:${r.toFixed(3)}"></div></div><span>${v}</span>`;keywordRoot.appendChild(row);});}
+function renderImpact(){const i=dataset[state.selectedType].impact;const c=i.critical;const w=i.warning;const s=i.safe;donut.style.background=`conic-gradient(var(--critical) 0% ${c}%,var(--warning) ${c}% ${c+w}%,var(--safe) ${c+w}% 100%)`;impactTotal.textContent=`${dataset[state.selectedType].total}`;legendRoot.innerHTML=`<div class="legend-item"><span class="tag"><span class="dot" style="background:var(--critical)"></span>High</span><strong>${c}%</strong></div><div class="legend-item"><span class="tag"><span class="dot" style="background:var(--warning)"></span>Medium</span><strong>${w}%</strong></div><div class="legend-item"><span class="tag"><span class="dot" style="background:var(--safe)"></span>Low</span><strong>${s}%</strong></div>`;}
+function renderPaths(){const k=state.selectedType.toLowerCase();pathsRoot.innerHTML=`<div class="path">images/user_created/${k}_overview.png</div><div class="path">images/user_created/${k}_keywords.png</div><div class="path">images/user_created/${k}_impact_percent.png</div>`;}
+function render(){renderChips();const grand=objectTypes.reduce((a,t)=>a+(dataset[t].total||0),0);if(grand===0){vizGrid.style.display="none";empty.classList.add("show");return;}vizGrid.style.display="grid";empty.classList.remove("show");renderBars();renderKeywords();renderImpact();renderPaths();}
+render();
+</script>
+</div></body></html>
 HTML
 
 # remove helper artifacts from output dir
 purge_files "$OUT_DIR"/.f.tsv "$OUT_DIR"/.d.tsv "$OUT_DIR"/.param_rows.html "$OUT_DIR"/.feature_rows.html "$OUT_DIR"/.dtype_rows.html "$OUT_DIR"/.expr_rows.html
 
+progress_step "Writing report index"
 cat > "$OUT_DIR/REPORT_INDEX.txt" <<TXT
 [EPAS to PostgreSQL Precheck]
 Output directory : $OUT_DIR
@@ -671,6 +743,7 @@ Source directory : ${SOURCE_DIR_BASENAME}/
 Compatibility   : OS[RHEL 7/8/9, Ubuntu 20/22/24], EPAS[9.6/10/14/17]
 TXT
 
+progress_step "Finalizing report"
 echo "[DONE] Report generated at: $OUT_DIR"
 echo "       Open HTML: $OUT_DIR/$HTML_BASENAME"
 echo "       Source   : $OUT_DIR/$SOURCE_HTML_BASENAME"
