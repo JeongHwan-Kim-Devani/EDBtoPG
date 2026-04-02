@@ -1,0 +1,43 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>sc_crypto.proc_generate_crypto_data source</title><style>body{font-family:Arial,sans-serif;background:#f8fafc;margin:0;color:#111827}.container{max-width:1300px;margin:0 auto;padding:18px}.card{background:#fff;border:1px solid #ddd;border-radius:10px;padding:14px}h3{margin:0 0 8px}.source-keywords{margin:0 0 10px;font-size:14px;color:#1f2937}.source-keywords b{font-weight:800}pre{margin:0;background:#111827;color:#e5e7eb;padding:12px;border-radius:8px;overflow:auto;white-space:pre;tab-size:4;line-height:1.4;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}.kw{color:#f59e0b;font-weight:700}.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700}.badge-none{color:#374151;background:#e5e7eb;border:1px solid #d1d5db}</style></head><body><div class="container"><div class="card"><h3>Source (keyword highlighted)</h3><p class="source-keywords"><b>Keywords:</b> dbms_crypto.randombytes, dbms_crypto.encrypt, dbms_crypto.hash, utl_raw, edbspl, raw</p><pre>Schema: sc_crypto
+Name: proc_generate_crypto_data
+Result data type: 
+Argument data types: 
+Type: proc
+Volatility: volatile
+Parallel: unsafe
+Owner: enterprisedb
+Security: definer
+Language: <span class="kw">edbspl</span>
+Source code:
+DECLARE
+    v_plain_text    VARCHAR2(200);
+    v_plain_<span class="kw">raw</span>     <span class="kw">RAW</span>(2000);
+    v_enc_<span class="kw">raw</span>       <span class="kw">RAW</span>(2000);
+    v_hash_<span class="kw">raw</span>      <span class="kw">RAW</span>(64);
+    v_key_<span class="kw">raw</span>       <span class="kw">RAW</span>(32);
+BEGIN
+    FOR i IN 1..10 LOOP
+        v_key_<span class="kw">raw</span> := <span class="kw">DBMS_CRYPTO.RANDOMBYTES</span>(8);
+        
+        v_hash_<span class="kw">raw</span> := <span class="kw">DBMS_CRYPTO.HASH</span>(
+            <span class="kw">UTL_<span class="kw">RAW</span></span>.CAST_TO_<span class="kw">RAW</span>(&#x27;my_secret_pwd_&#x27; || i),
+            2
+        );
+        
+        v_plain_text := &#x27;이것은 user_&#x27; || i || &#x27;의 1급 비밀 메시지입니다.&#x27;;
+        v_plain_<span class="kw">raw</span>  := <span class="kw">UTL_<span class="kw">RAW</span></span>.CAST_TO_<span class="kw">RAW</span>(v_plain_text);
+        
+        v_enc_<span class="kw">raw</span> := <span class="kw">DBMS_CRYPTO.ENCRYPT</span>(
+            v_plain_<span class="kw">raw</span>,
+            4353,
+            v_key_<span class="kw">raw</span>
+        );
+        
+        INSERT INTO sc_crypto.user_secure_data (
+            username, pwd_hash, encryption_key, secure_message
+        ) VALUES (
+            &#x27;user_&#x27; || i, v_hash_<span class="kw">raw</span>, v_key_<span class="kw">raw</span>, v_enc_<span class="kw">raw</span>
+        );
+    END LOOP;
+    COMMIT;
+END</pre></div></div></body></html>

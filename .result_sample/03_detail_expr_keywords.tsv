@@ -1,0 +1,8 @@
+object_type	schema_name	table_name	target_name	detected_keyword
+DEFAULT VALUE	public	a5	reg_date	sysdate
+DEFAULT VALUE	public	epas_emp_contracts	contract_date	systimestamp
+CHECK CONSTRAINT	public	tb_ddl_migration_test	chk_emp_id_valid	nvl
+CHECK CONSTRAINT	public	tb_ddl_migration_test	chk_emp_status	decode
+DEFAULT VALUE	public	tb_ddl_migration_test	created_at	sysdate
+INDEX EXPRESSION	public	tb_ddl_migration_test	idx_created_at_add_months	add_months
+DEFAULT VALUE	sc_crypto	user_secure_data	created_at	sysdate
