@@ -30,7 +30,7 @@
 
 ## 실행 방법
 ```bash
-bash EPAS_PRECHECK/epas_precheck_v2.0.sh -d <DBNAME> -U <USER> -o ./out
+bash EPAS_PRECHECK/epas_precheck_v4.1.sh -d <DBNAME> -U <USER> -o ./out
 ```
 
 ### 자주 쓰는 옵션
@@ -39,6 +39,12 @@ bash EPAS_PRECHECK/epas_precheck_v2.0.sh -d <DBNAME> -U <USER> -o ./out
 - `-W, --password`: DB 비밀번호 (권장: 환경변수 `PGPASSWORD`)
 - `-c, --compress`: `tar` 또는 `gz`
 - `--connect-timeout`: 연결 타임아웃(초)
+
+### v4.1 Update Notes
+- v4.1 is the current recommended script: `EPAS_PRECHECK/epas_precheck_v4.1.sh`
+- Added EPAS 13 and below compatibility handling for function source extraction
+- Added report header metadata lines for DB name, O/S info, and EPAS version
+- O/S display now prefers `/etc/os-release` (`PRETTY_NAME`) when DB-side file read is permitted, and falls back to previous parsing logic when not permitted
 
 ## 출력물 안내
 출력 디렉터리에는 아래 파일이 생성됩니다.
