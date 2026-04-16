@@ -1,0 +1,5 @@
+# Normalize text files in the repository
+* text=auto
+
+# Shell scripts must be LF for Linux shebang compatibility
+*.sh text eol=lf

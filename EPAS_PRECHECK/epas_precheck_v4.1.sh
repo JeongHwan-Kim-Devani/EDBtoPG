@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env bash
+#!/usr/bin/env bash
 if [ -z "${BASH_VERSION:-}" ]; then
   exec bash "$0" "$@"
 fi
@@ -65,7 +65,26 @@ fi
 command -v "$PSQL_BIN" >/dev/null 2>&1 || { echo "[ERROR] psql not found" >&2; exit 1; }
 
 export PGHOST="$HOST" PGPORT="$PORT" PGDATABASE="$DBNAME" PGUSER="$DBUSER" PGCONNECT_TIMEOUT="$CONNECT_TIMEOUT"
-[[ -n "$DBPASSWORD" ]] && export PGPASSWORD="$DBPASSWORD"
+
+# Ensure password is available for all psql invocations (including non-interactive ones).
+if [[ -n "$DBPASSWORD" ]]; then
+  export PGPASSWORD="$DBPASSWORD"
+elif [[ -z "${PGPASSWORD:-}" ]]; then
+  has_pgpass=0
+  if [[ -n "${PGPASSFILE:-}" && -f "${PGPASSFILE}" ]]; then
+    has_pgpass=1
+  elif [[ -f "${HOME}/.pgpass" ]]; then
+    has_pgpass=1
+  fi
+
+  if [[ "$has_pgpass" -eq 0 && -t 0 ]]; then
+    read -r -s -p "Password for user ${DBUSER}: " DBPASSWORD
+    echo
+    if [[ -n "$DBPASSWORD" ]]; then
+      export PGPASSWORD="$DBPASSWORD"
+    fi
+  fi
+fi
 
 mkdir -p "$OUT_DIR"
 DBNAME_SAFE="$(printf '%s' "$DBNAME" | tr -cs '[:alnum:]_.-' '_')"
