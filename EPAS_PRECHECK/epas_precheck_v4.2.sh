@@ -252,10 +252,18 @@ ORDER BY ns.nspname, s.synname;
 
 -- == SECTION 3-1: RLS (pg_policies) ==
 --@@ sec_3_1_policies_pg
-SELECT schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check
-FROM pg_policies
-WHERE schemaname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb', 'htf', 'htp', 'xmltype')
-ORDER BY schemaname, tablename, policyname;
+SELECT
+    p.schemaname,
+    p.tablename,
+    p.policyname,
+    COALESCE(to_jsonb(p)->>'permissive', '') AS permissive,
+    p.roles,
+    p.cmd,
+    p.qual,
+    p.with_check
+FROM pg_policies p
+WHERE p.schemaname NOT IN ('pg_catalog', 'information_schema', 'sys', 'dbo', 'sys_catalog', 'enterprisedb', 'htf', 'htp', 'xmltype')
+ORDER BY p.schemaname, p.tablename, p.policyname;
 
 
 -- == SECTION 3-1: RLS (sys.all_policies) ==
@@ -1005,7 +1013,11 @@ export_wireframe_tsvs(){
   run_tsv "$OUT_DIR/01_parameters.tsv" "$(read_sql sec_1_1_parameters)"
   run_tsv "$OUT_DIR/02_summary_packages.tsv" "$(read_sql sec_2_1_packages_summary)"
   run_tsv "$OUT_DIR/02_summary_synonyms.tsv" "$(read_sql sec_2_4_synonyms)" || true
-  run_tsv "$OUT_DIR/02_summary_policies.tsv" "$(read_sql sec_3_1_policies_pg)"
+  if table_exists pg_catalog.pg_policies; then
+    run_tsv "$OUT_DIR/02_summary_policies.tsv" "$(read_sql sec_3_1_policies_pg)"
+  else
+    : > "$OUT_DIR/02_summary_policies.tsv"
+  fi
   if table_exists sys.all_policies; then
     run_tsv "$OUT_DIR/02_summary_policies_dbms_rls.tsv" "$(read_sql sec_3_1_policies_dbms)"
   else
@@ -1060,33 +1072,33 @@ PARAM_ROWS="$OUT_DIR/.param_rows.html"; FEATURE_ROWS="$OUT_DIR/.feature_rows.htm
 
 awk -F $'\t' '
 function status_label(op){
-  return (op=="HIGH"?"?�음":(op=="MEDIUM"?"중간":"??��"))
+  return (op=="HIGH"?"높음":(op=="MEDIUM"?"중간":"낮음"))
 }
 function desc_ko(param, raw){
-  if(param=="edb_audit") return "EDB 감사 기능?�로 PostgreSQL ?�환 ???��?검?��? ?�요?�니??"
-  if(param=="edb_audit_archiver") return "EDB 감사 ?�카?�브 기능?�로 PostgreSQL?�서 ?�일 ?�작 검?��? ?�요?�니??"
-  if(param=="edb_early_lock_release") return "?�금 ?�제 ?�작 차이�??�한 ?�랜??�� ?�향 검?��? ?�요?�니??"
-  if(param=="edb_max_capture_privileges_policies") return "권한 캡처 ?�책 관??EDB ?�용 기능 ?�용 ?��?�??��??�야 ?�니??"
-  if(param=="qreplace_function") return "쿼리 ?��??�수 ?�용 ?��? �??��?구현 검?��? ?�요?�니??"
-  if(param=="edb_stmt_level_tx") return "문장 ?�위 ?�랜??�� 처리 차이�??�류 ?�작 ?��????�요?�니??"
-  if(param=="data_encryption_key_unwrap_command") return "TDE ???�제 명령?� PostgreSQL ?��?방식 검?��? ?�요?�니??"
-  if(param=="edb_max_resource_groups") return "리소??그룹 ?�한 ?�정?� PostgreSQL ?�책�?매핑 검?��? ?�요?�니??"
-  if(param=="edb_resource_group") return "?�션 리소??그룹 ?�정???�영 ?�책 ?�환 검?��? ?�요?�니??"
-  if(param=="edb_redwood_strings") return "문자??NULL 처리 방식 차이�??�플리�??�션 로직 검?��? ?�요?�니??"
-  if(param=="db_dialect") return "?�라???�환 문법 모드가 SQL ?�작???�향??�????�습?�다."
-  if(param=="datestyle") return "?�짜 ?�싱 �?출력 ?�식 차이�??�이??처리 검?��? ?�요?�니??"
-  if(param=="edb_redwood_greatest_least") return "GREATEST/LEAST??NULL 처리 방식 차이�??�인?�야 ?�니??"
-  if(param=="edb_redwood_date") return "DATE/TIMESTAMP 처리 방식 차이 존재 ?��?�??�인?�야 ?�니??"
-  if(param=="edb_dynatune") return "?�동 메모�??�닝 ?�로?�일??PostgreSQL 기본값과 ?��? ???�습?�다."
-  if(param=="edb_dynatune_profile") return "?�적 ?�닝 ?�로?�일 값의 ?�동 조정 검?��? ?�요?�니??"
-  if(param=="optimizer_mode") return "?�티마이?� 모드 ?�정 차이�??�행 계획 검?��? ?�요?�니??"
-  if(param=="default_with_rowids") return "ROWID ?�존 SQL?� PostgreSQL?�서 ?�작??검?��? ?�요?�니??"
-  if(param=="enable_hints") return "?�트 기능 ?�존 ??pg_hint_plan ?�용 ?��? 검?��? ?�요?�니??"
-  if(param=="oracle_home") return "Oracle DBLink ?�계 경로 ?�보 ?��????�요?�니??"
-  if(param=="extension_control_path") return "?�장 ?�어 경로 ?�정???�영 ?�경 반영 ?��?�??�인?�야 ?�니??"
-  if(param=="edb_redwood_raw_names") return "?�?�문???�용 객체�?처리 방식 차이�??�인?�야 ?�니??"
-  if(param=="timed_statistics") return "I/O ?�?�밍 ?�계 ?�집 ?�책 차이�??��??�야 ?�니??"
-  if(param=="max_generic_plan_partition_size") return "?�네�??�랜 ?�티??관???�정 ?�향??검?��? ?�요?�니??"
+  if(param=="edb_audit") return "EDB 감사 기능으로 PostgreSQL 전환 시 대체 검토가 필요합니다."
+  if(param=="edb_audit_archiver") return "EDB 감사 아카이브 기능으로 PostgreSQL에서 동일 동작 검토가 필요합니다."
+  if(param=="edb_early_lock_release") return "잠금 해제 동작 차이로 인한 트랜잭션 영향 검토가 필요합니다."
+  if(param=="edb_max_capture_privileges_policies") return "권한 캡처 정책 관련 EDB 전용 기능 사용 여부를 점검해야 합니다."
+  if(param=="qreplace_function") return "쿼리 대체 함수 사용 여부 및 대체 구현 검토가 필요합니다."
+  if(param=="edb_stmt_level_tx") return "문장 단위 트랜잭션 처리 차이로 오류 동작 점검이 필요합니다."
+  if(param=="data_encryption_key_unwrap_command") return "TDE 키 해제 명령은 PostgreSQL 대체 방식 검토가 필요합니다."
+  if(param=="edb_max_resource_groups") return "리소스 그룹 제한 설정은 PostgreSQL 정책과 매핑 검토가 필요합니다."
+  if(param=="edb_resource_group") return "세션 리소스 그룹 설정의 운영 정책 전환 검토가 필요합니다."
+  if(param=="edb_redwood_strings") return "문자열/NULL 처리 방식 차이로 애플리케이션 로직 검토가 필요합니다."
+  if(param=="db_dialect") return "오라클 호환 문법 모드가 SQL 동작에 영향을 줄 수 있습니다."
+  if(param=="datestyle") return "날짜 파싱 및 출력 형식 차이로 데이터 처리 검토가 필요합니다."
+  if(param=="edb_redwood_greatest_least") return "GREATEST/LEAST의 NULL 처리 방식 차이를 확인해야 합니다."
+  if(param=="edb_redwood_date") return "DATE/TIMESTAMP 처리 방식 차이 존재 여부를 확인해야 합니다."
+  if(param=="edb_dynatune") return "자동 메모리 튜닝 프로파일이 PostgreSQL 기본값과 다를 수 있습니다."
+  if(param=="edb_dynatune_profile") return "동적 튜닝 프로파일 값의 수동 조정 검토가 필요합니다."
+  if(param=="optimizer_mode") return "옵티마이저 모드 설정 차이로 실행 계획 검토가 필요합니다."
+  if(param=="default_with_rowids") return "ROWID 의존 SQL은 PostgreSQL에서 재작성 검토가 필요합니다."
+  if(param=="enable_hints") return "힌트 기능 의존 시 pg_hint_plan 적용 여부 검토가 필요합니다."
+  if(param=="oracle_home") return "Oracle DBLink 연계 경로 정보 점검이 필요합니다."
+  if(param=="extension_control_path") return "확장 제어 경로 설정의 운영 환경 반영 여부를 확인해야 합니다."
+  if(param=="edb_redwood_raw_names") return "대소문자/인용 객체명 처리 방식 차이를 확인해야 합니다."
+  if(param=="timed_statistics") return "I/O 타이밍 통계 수집 정책 차이를 점검해야 합니다."
+  if(param=="max_generic_plan_partition_size") return "제네릭 플랜 파티션 관련 설정 영향도 검토가 필요합니다."
   return raw
 }
 NR>1{
