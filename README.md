@@ -30,7 +30,7 @@
 
 ## 실행 방법
 ```bash
-bash EPAS_PRECHECK/epas_precheck_v4.1.sh -d <DBNAME> -U <USER> -o ./out
+bash EPAS_PRECHECK/epas_precheck_v4.5.sh -d <DBNAME> -U <USER> -o ./out
 ```
 
 ### 자주 쓰는 옵션
@@ -40,11 +40,16 @@ bash EPAS_PRECHECK/epas_precheck_v4.1.sh -d <DBNAME> -U <USER> -o ./out
 - `-c, --compress`: `tar` 또는 `gz`
 - `--connect-timeout`: 연결 타임아웃(초)
 
-### v4.1 Update Notes
-- v4.1 is the current recommended script: `EPAS_PRECHECK/epas_precheck_v4.1.sh`
-- Added EPAS 13 and below compatibility handling for function source extraction
-- Added report header metadata lines for DB name, O/S info, and EPAS version
-- O/S display now prefers `/etc/os-release` (`PRETTY_NAME`) when DB-side file read is permitted, and falls back to previous parsing logic when not permitted
+### v4.5 Update Notes
+- 현재 권장 스크립트: `EPAS_PRECHECK/epas_precheck_v4.5.sh`
+- EPAS 9.4/9.5 호환성 개선:
+  - `to_jsonb(...)`/`jsonb_each_text(...)` 의존 구문을 `row_to_json(...)`/`json_each_text(...)` 기반으로 변경
+  - `pg_proc.proparallel` 미존재 환경에서 안전하게 동작하도록 처리
+- EPAS 11+ 호환성 개선:
+  - `prokind` 탐지 분기 안정화로 `proisagg` 미존재 오류 방지
+- 유지보수성 개선:
+  - 반복 하드코딩된 시스템 스키마 제외 목록을 단일 변수(`SYSTEM_SCHEMA_LIST`)로 통합
+  - SQL 템플릿 치환(`__SYSTEM_SCHEMA_LIST__`)으로 일관성 강화
 
 ## 출력물 안내
 출력 디렉터리에는 아래 파일이 생성됩니다.
