@@ -1754,7 +1754,7 @@ body{margin:0;color:var(--ink-0);font-family:"Pretendard","Noto Sans KR","Segoe 
 h2{margin:0 0 10px;font-size:20px}h3{margin:16px 0 8px;font-size:17px;color:var(--ink-1)}
 table{width:100%;border-collapse:collapse;background:rgba(255,255,255,.92);border-radius:12px;overflow:hidden}
 th,td{border:1px solid #d7dfef;padding:8px 10px;font-size:14px;vertical-align:top}
-th{background:#eef3ff;text-align:left;color:#1f3356}.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:800}
+th{background:#eef3ff;text-align:left;color:#1f3356;position:sticky;top:0;z-index:2}.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:800}
 .badge-bad{color:#991b1b;background:#fee2e2;border:1px solid #fecaca}.badge-high{color:#92400e;background:#fef3c7;border:1px solid #fcd34d}.badge-low{color:#065f46;background:#d1fae5;border:1px solid #a7f3d0}.badge-none{color:#374151;background:#e5e7eb;border:1px solid #d1d5db}
 code{background:#f3f6ff;padding:2px 5px;border-radius:6px}a{color:#1b4fc7}.sub-link{margin:0 0 10px;font-size:14px;color:var(--ink-1)}
 .detail-guide{margin:2px 0 0;color:#4f648e;font-size:13px;font-weight:800}
@@ -1762,6 +1762,7 @@ code{background:#f3f6ff;padding:2px 5px;border-radius:6px}a{color:#1b4fc7}.sub-l
 .detail-shell{background:rgba(255,255,255,.88);border:1px solid var(--stroke);border-radius:16px;padding:12px;box-shadow:0 8px 18px rgba(19,38,82,.07)}
 .detail-chip-col{display:flex;flex-direction:column;gap:8px}
 .detail-chip-col .chip{width:100%;text-align:left}
+.detail-content{max-height:min(640px,calc(100vh - 220px));overflow:auto;padding-right:2px}
 .detail-content h3{margin-top:0}
 .modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.62);display:none;align-items:center;justify-content:center;padding:18px;z-index:9999}
 .modal-backdrop.show{display:flex}
