@@ -1,4 +1,0 @@
-resource_group_name	cpurate	dirtyratelimit	applied_users
-rg_mig_10	100	10240	kim
-rg_mig_test	100	20480	
-rg_test_50	50	20480	dsg_user

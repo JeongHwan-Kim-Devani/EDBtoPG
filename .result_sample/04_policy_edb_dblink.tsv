@@ -1,5 +1,0 @@
-lnkname	lnkowner	lnktype	lnkispublic	lnkuser	lnkconnstr	oid
-demo_loopback	10	0	f		localhost	434058
-oralink	793250	0	f	test	//192.168.56.11:1521/ORACLE19	793276
-pg16_link	793250	0	f	postgres	host=192.168.56.216 port=5432 dbname=postgres	793278
-testlink	793250	0	f	postgres	host=192.168.56.216 port=5432 dbname=postgres	793280

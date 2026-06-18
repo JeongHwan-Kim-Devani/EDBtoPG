@@ -1,5 +1,0 @@
-schema_name	table_name	policy_name	column_name	mask_function
-public	tb_redaction_test	mask_phone_policy	phone_number	redact_full_str(phone_number)
-sc_redact	tb_redaction_test	policy_mask_phone	phone_number	redact_full_str(phone_number)
-sc_redact	tb_redaction_test	policy_mask_salary	salary	redact_full_num(salary)
-sc_redact	tb_redaction_test	policy_mask_ssn	ssn	redact_random_str(ssn)
