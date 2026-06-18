@@ -1,4 +1,5 @@
 parameter_name	default_value	current_value	check_required	description
+edb_audit		csv	O	EDB audit option (not supported in PostgreSQL)
 db_dialect	redwood	redwood	O	Oracle-compatible dialect mode may affect SQL behavior
 edb_dynatune	66	66	O	Automatic memory tuning profile differs from PostgreSQL defaults
 edb_dynatune_profile	oltp	oltp	O	Dynamic tuning profile may require manual adjustment

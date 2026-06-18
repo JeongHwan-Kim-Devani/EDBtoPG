@@ -1,1 +1,2 @@
 schemaname	tablename	policyname	permissive	roles	cmd	qual	with_check
+public	test2	test2_policy	PERMISSIVE	{dsadmin}	SELECT	((owner)::text = SESSION_USER)	

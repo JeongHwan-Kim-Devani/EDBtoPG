@@ -30,7 +30,7 @@
 
 ## 실행 방법
 ```bash
-bash EPAS_PRECHECK/epas_precheck_v4.5.sh -d <DBNAME> -U <USER> -o ./out
+bash EPAS_PRECHECK/epas_precheck_v4.6.sh -d <DBNAME> -U <USER> -o ./out
 ```
 
 ### 자주 쓰는 옵션
@@ -40,8 +40,9 @@ bash EPAS_PRECHECK/epas_precheck_v4.5.sh -d <DBNAME> -U <USER> -o ./out
 - `-c, --compress`: `tar` 또는 `gz`
 - `--connect-timeout`: 연결 타임아웃(초)
 
-### v4.5 Update Notes
-- 현재 권장 스크립트: `EPAS_PRECHECK/epas_precheck_v4.5.sh`
+### v4.6 Update Notes
+- 현재 권장 스크립트: `EPAS_PRECHECK/epas_precheck_v4.6.sh`
+- `pg_policy` 카탈로그가 없는 환경에서도 정책 요약 분석이 안전하게 동작하도록 개선
 - EPAS 9.4/9.5 호환성 개선:
   - `to_jsonb(...)`/`jsonb_each_text(...)` 의존 구문을 `row_to_json(...)`/`json_each_text(...)` 기반으로 변경
   - `pg_proc.proparallel` 미존재 환경에서 안전하게 동작하도록 처리

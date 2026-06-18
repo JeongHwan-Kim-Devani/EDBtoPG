@@ -1,4 +1,13 @@
 object_type	schema_name	table_name	target_name	detected_keyword
+DEFAULT VALUE	demo	customer_docs	created_at	sysdate
+DEFAULT VALUE	demo	customers	created_at	sysdate
+DEFAULT VALUE	demo	large_binary_chunks	created_at	sysdate
+DEFAULT VALUE	demo	large_text_chunks	created_at	sysdate
+DEFAULT VALUE	demo	orders	ordered_at	sysdate
+DEFAULT VALUE	demo_cron	batch_history	created_at	sysdate
+DEFAULT VALUE	demo_cron	payload_store	created_at	sysdate
+DEFAULT VALUE	demo_cron	sensor_metrics	metric_time	sysdate
+DEFAULT VALUE	demo_cron	txn_events	event_time	sysdate
 DEFAULT VALUE	public	a5	reg_date	sysdate
 DEFAULT VALUE	public	epas_emp_contracts	contract_date	systimestamp
 CHECK CONSTRAINT	public	tb_ddl_migration_test	chk_emp_id_valid	nvl

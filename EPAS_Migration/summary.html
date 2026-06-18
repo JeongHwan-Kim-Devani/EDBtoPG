@@ -1,0 +1,1248 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EPAS to PostgreSQL Migration Summary</title>
+    <style>
+        :root {
+            --bg: #f4f8ff;
+            --bg-soft: #eaf2ff;
+            --surface: #ffffff;
+            --surface-muted: #f8fbff;
+            --ink: #0b1020;
+            --ink-soft: #263654;
+            --muted: #64748b;
+            --line: #d7e2f2;
+            --line-strong: #b8c7dd;
+            --blue: #1d4ed8;
+            --green: #047857;
+            --orange: #b45309;
+            --purple: #6d28d9;
+            --red: #b91c1c;
+            --shadow: 0 18px 42px rgba(31, 51, 87, 0.10);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: auto;
+        }
+
+        body {
+            margin: 0;
+            color: var(--ink);
+            font-family: "Pretendard", "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", "Segoe UI", Arial, sans-serif;
+            line-height: 1.6;
+            overflow-x: hidden;
+            overscroll-behavior: none;
+            background:
+                radial-gradient(circle at 8% 0%, rgba(29, 78, 216, 0.10), transparent 32%),
+                radial-gradient(circle at 95% 8%, rgba(4, 120, 87, 0.10), transparent 34%),
+                linear-gradient(180deg, var(--bg), var(--bg-soft));
+        }
+
+        a {
+            color: inherit;
+        }
+
+        .page {
+            width: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        .intro-page {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            width: 100vw;
+            min-height: 100vh;
+            margin: 0 auto;
+            padding: clamp(18px, 2.4vw, 42px);
+            transform-style: preserve-3d;
+            backface-visibility: hidden;
+            will-change: transform, opacity, filter;
+        }
+
+        .hero {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 20px;
+            align-items: end;
+            max-width: 100%;
+            margin-bottom: 16px;
+            padding: 22px 24px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.92);
+            box-shadow: var(--shadow);
+        }
+
+        .eyebrow {
+            margin: 0 0 6px;
+            color: var(--blue);
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: clamp(28px, 4vw, 42px);
+            line-height: 1.18;
+            letter-spacing: 0;
+            overflow-wrap: anywhere;
+        }
+
+        .subtitle {
+            max-width: 780px;
+            margin: 10px 0 0;
+            color: var(--ink-soft);
+            font-size: 15px;
+            overflow-wrap: anywhere;
+        }
+
+        .meta {
+            display: grid;
+            gap: 8px;
+            min-width: 250px;
+            padding: 14px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: var(--surface-muted);
+        }
+
+        .meta-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .meta-row strong {
+            color: var(--ink);
+            font-weight: 800;
+            white-space: nowrap;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .metric {
+            max-width: 100%;
+            min-height: 108px;
+            padding: 16px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: var(--surface);
+            box-shadow: 0 8px 22px rgba(31, 51, 87, 0.07);
+            transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+        }
+
+        .metric:hover {
+            transform: translateY(-4px);
+            border-color: var(--line-strong);
+            box-shadow: 0 16px 34px rgba(31, 51, 87, 0.12);
+        }
+
+        .metric strong {
+            display: block;
+            margin-bottom: 6px;
+            color: var(--ink);
+            font-size: 26px;
+            line-height: 1;
+        }
+
+        .metric span {
+            display: block;
+            color: var(--ink-soft);
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .metric p {
+            margin: 6px 0 0;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.45;
+            overflow-wrap: anywhere;
+        }
+
+        .step-kicker {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .step-num {
+            display: inline-grid;
+            place-items: center;
+            width: 30px;
+            height: 30px;
+            border-radius: 8px;
+            color: #fff;
+            background: var(--blue);
+            font-weight: 900;
+        }
+
+        .step-num.green {
+            background: var(--green);
+        }
+
+        .step-num.purple {
+            background: var(--purple);
+        }
+
+        .step-num.orange {
+            background: var(--orange);
+        }
+
+        .script {
+            display: inline-flex;
+            margin-top: 10px;
+            padding: 4px 8px;
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            color: var(--ink-soft);
+            background: #f6f9ff;
+            font-family: "Cascadia Mono", Consolas, monospace;
+            font-size: 12px;
+            font-weight: 700;
+            overflow-wrap: anywhere;
+        }
+
+        .section {
+            position: relative;
+            max-width: 100%;
+            margin-top: 0;
+            border: 0;
+            border-radius: 0;
+            background: transparent;
+            box-shadow: none;
+            overflow: visible;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+        }
+
+        .section-page {
+            display: block;
+            min-height: 100vh;
+            perspective: 1800px;
+            scroll-margin-top: 0;
+        }
+
+        .section-page.is-active {
+            border-color: transparent;
+            box-shadow: none;
+        }
+
+        .section-frame {
+            position: sticky;
+            top: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: stretch;
+            width: 100vw;
+            height: 100vh;
+            margin: 0;
+            padding: clamp(14px, 1.9vw, 34px);
+            transform-style: preserve-3d;
+            backface-visibility: hidden;
+            will-change: transform, opacity, filter;
+        }
+
+        .intro-page.is-turning-out-next,
+        .section-page.is-turning-out-next .section-frame {
+            animation: turnOutNext 360ms cubic-bezier(0.42, 0, 0.2, 1) forwards;
+            transform-origin: center top;
+        }
+
+        .intro-page.is-turning-in-next,
+        .section-page.is-turning-in-next .section-frame {
+            animation: turnInNext 420ms cubic-bezier(0.2, 0, 0.2, 1) both;
+            transform-origin: center bottom;
+        }
+
+        .intro-page.is-turning-out-prev,
+        .section-page.is-turning-out-prev .section-frame {
+            animation: turnOutPrev 360ms cubic-bezier(0.42, 0, 0.2, 1) forwards;
+            transform-origin: center bottom;
+        }
+
+        .intro-page.is-turning-in-prev,
+        .section-page.is-turning-in-prev .section-frame {
+            animation: turnInPrev 420ms cubic-bezier(0.2, 0, 0.2, 1) both;
+            transform-origin: center top;
+        }
+
+        .section-head {
+            position: relative;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 18px;
+            align-items: start;
+            padding: 20px 22px;
+            border: 1px solid var(--line);
+            border-bottom: 0;
+            border-radius: 8px 8px 0 0;
+            background: linear-gradient(180deg, #fff, #f8fbff);
+            flex: 0 0 auto;
+        }
+
+        .section-page.is-active .section-head {
+            background: linear-gradient(180deg, #ffffff, #eef5ff);
+        }
+
+        .section-page.is-active .section-head::before {
+            content: "";
+            position: absolute;
+            inset: 0 auto 0 0;
+            width: 4px;
+            background: var(--blue);
+        }
+
+        .section-title {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .section-title h2 {
+            margin: 0;
+            font-size: 23px;
+            line-height: 1.25;
+        }
+
+        .section-title p {
+            margin: 6px 0 0;
+            color: var(--ink-soft);
+            font-size: 14px;
+            overflow-wrap: anywhere;
+        }
+
+        .section-tools {
+            display: grid;
+            justify-items: end;
+            gap: 8px;
+            color: var(--muted);
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        .section-tools code {
+            display: inline-block;
+            padding: 5px 8px;
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            color: var(--ink);
+            background: #fff;
+            font-family: "Cascadia Mono", Consolas, monospace;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .section-body {
+            display: grid;
+            grid-template-columns: minmax(240px, 23vw) minmax(0, 1fr);
+            gap: clamp(12px, 1.3vw, 18px);
+            padding: clamp(12px, 1.4vw, 20px);
+            overflow: hidden;
+            border: 1px solid var(--line);
+            border-radius: 0 0 8px 8px;
+            background: rgba(255, 255, 255, 0.94);
+            box-shadow: 0 18px 44px rgba(31, 51, 87, 0.12);
+            flex: 1 1 auto;
+            min-height: 0;
+        }
+
+        .brief {
+            display: grid;
+            align-content: start;
+            gap: 14px;
+        }
+
+        .brief-block {
+            padding: 14px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: var(--surface-muted);
+        }
+
+        .brief-block h3 {
+            margin: 0 0 8px;
+            color: var(--ink);
+            font-size: 14px;
+        }
+
+        .brief-block p {
+            margin: 0;
+            color: var(--ink-soft);
+            font-size: 13px;
+            overflow-wrap: anywhere;
+        }
+
+        .brief-block ul {
+            margin: 0;
+            padding-left: 18px;
+            color: var(--ink-soft);
+            font-size: 13px;
+            overflow-wrap: anywhere;
+        }
+
+        .detail-table-wrap {
+            min-width: 0;
+            overflow-x: hidden;
+            overflow-y: hidden;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: #fff;
+            align-self: start;
+            max-height: 100%;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 720px;
+            table-layout: fixed;
+        }
+
+        caption {
+            padding: 12px 14px;
+            color: var(--ink-soft);
+            text-align: left;
+            font-size: 13px;
+            font-weight: 800;
+            background: #f8fbff;
+            border-bottom: 1px solid var(--line);
+        }
+
+        th,
+        td {
+            padding: 11px 12px;
+            border-bottom: 1px solid var(--line);
+            text-align: left;
+            vertical-align: top;
+            font-size: 13px;
+            overflow-wrap: anywhere;
+        }
+
+        th {
+            color: var(--ink-soft);
+            background: #f1f6ff;
+            font-weight: 900;
+            white-space: nowrap;
+        }
+
+        tr:last-child td {
+            border-bottom: 0;
+        }
+
+        tbody tr {
+            opacity: 0.44;
+            transition: opacity 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        tbody tr.is-row-active {
+            opacity: 1;
+            background: #eef5ff;
+            box-shadow: inset 4px 0 0 var(--blue);
+        }
+
+        tbody tr.is-row-active td:nth-child(2) {
+            color: var(--blue);
+        }
+
+        td:first-child {
+            width: 54px;
+            color: var(--muted);
+            font-weight: 900;
+            text-align: center;
+        }
+
+        td:nth-child(2) {
+            width: 240px;
+            color: var(--ink);
+            font-weight: 850;
+        }
+
+        @keyframes turnOutNext {
+            0% {
+                opacity: 1;
+                filter: brightness(1);
+                transform: translateY(0) rotateX(0deg);
+            }
+            100% {
+                opacity: 0.12;
+                filter: brightness(0.92);
+                transform: translateY(-10vh) rotateX(68deg);
+            }
+        }
+
+        @keyframes turnInNext {
+            0% {
+                opacity: 0.15;
+                filter: brightness(0.94);
+                transform: translateY(16vh) rotateX(-54deg);
+            }
+            100% {
+                opacity: 1;
+                filter: brightness(1);
+                transform: translateY(0) rotateX(0deg);
+            }
+        }
+
+        @keyframes turnOutPrev {
+            0% {
+                opacity: 1;
+                filter: brightness(1);
+                transform: translateY(0) rotateX(0deg);
+            }
+            100% {
+                opacity: 0.12;
+                filter: brightness(0.92);
+                transform: translateY(10vh) rotateX(-68deg);
+            }
+        }
+
+        @keyframes turnInPrev {
+            0% {
+                opacity: 0.15;
+                filter: brightness(0.94);
+                transform: translateY(-16vh) rotateX(54deg);
+            }
+            100% {
+                opacity: 1;
+                filter: brightness(1);
+                transform: translateY(0) rotateX(0deg);
+            }
+        }
+
+        .note {
+            margin: 16px 0 0;
+            padding: 14px 16px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            color: var(--ink-soft);
+            background: rgba(255, 255, 255, 0.82);
+            font-size: 13px;
+        }
+
+        @media (max-width: 1080px) {
+            .hero,
+            .section-head,
+            .section-body {
+                grid-template-columns: 1fr;
+            }
+
+            .meta,
+            .section-tools {
+                justify-items: stretch;
+                min-width: 0;
+                white-space: normal;
+            }
+
+            .meta-row {
+                display: grid;
+                grid-template-columns: 84px minmax(0, 1fr);
+                gap: 8px;
+            }
+
+            .meta-row strong {
+                text-align: left;
+                white-space: normal;
+                overflow-wrap: anywhere;
+            }
+
+            .summary-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .section-page {
+                min-height: 100vh;
+            }
+        }
+
+        @media (max-width: 680px) {
+            .intro-page,
+            .section-frame {
+                width: 100vw;
+            }
+
+            .hero,
+            .section-head,
+            .section-body {
+                padding: 16px;
+            }
+
+            h1 {
+                font-size: 26px;
+            }
+
+            .subtitle,
+            .metric p,
+            .section-title p,
+            .brief-block p,
+            .brief-block li {
+                word-break: break-all;
+            }
+
+            .summary-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .section-page {
+                min-height: 100vh;
+            }
+
+            .section-frame {
+                padding: 12px;
+            }
+
+            .section-title {
+                flex-direction: column;
+            }
+
+            th,
+            td {
+                padding: 10px;
+            }
+        }
+
+    </style>
+</head>
+
+<body>
+    <main class="page">
+        <section class="intro-page" aria-label="이관 요약 소개">
+            <header class="hero">
+                <div>
+                    <p class="eyebrow">Migration Workflow Summary</p>
+                    <h1>EPAS to PostgreSQL Migration</h1>
+                    <p class="subtitle">
+                        EPAS에서 PostgreSQL로 이전할 때 수행하는 추출, 변환, 적재, 검증 절차를 업무 리포트 형식으로 정리했습니다.
+                        각 단계는 실행 스크립트와 핵심 산출물을 먼저 확인한 뒤 세부 작업을 표로 훑을 수 있습니다.
+                    </p>
+                </div>
+                <aside class="meta" aria-label="문서 정보">
+                    <div class="meta-row">
+                        <span>참조 문서</span>
+                        <strong>EPAStoPG.pdf</strong>
+                    </div>
+                    <div class="meta-row">
+                        <span>단계 수</span>
+                        <strong>4단계</strong>
+                    </div>
+                    <div class="meta-row">
+                        <span>세부 항목</span>
+                        <strong>32개</strong>
+                    </div>
+                </aside>
+            </header>
+
+            <section class="summary-grid" aria-label="요약 지표">
+                <article class="metric">
+                    <strong>01</strong>
+                    <span>추출</span>
+                    <p>Source DB에서 DDL, 데이터, 설정, 객체 목록을 확보합니다.</p>
+                </article>
+                <article class="metric">
+                    <strong>02</strong>
+                    <span>변환</span>
+                    <p>EDB 전용 요소를 PostgreSQL 호환 형태로 정제합니다.</p>
+                </article>
+                <article class="metric">
+                    <strong>03</strong>
+                    <span>적재</span>
+                    <p>Target DB에 객체, 데이터, 설정을 순차 반영합니다.</p>
+                </article>
+                <article class="metric">
+                    <strong>04</strong>
+                    <span>검증</span>
+                    <p>객체 수량, 행 수, 시퀀스, 차이점을 비교합니다.</p>
+                </article>
+            </section>
+
+            <p class="note">
+                검토 기준: 이 페이지는 <strong>EPAStoPG.pdf</strong>의 이관 흐름을 빠르게 읽기 위한 요약본입니다.
+                상세 절차나 명령 실행 기준은 PDF 원문과 각 Shell 스크립트를 최종 기준으로 확인합니다.
+            </p>
+        </section>
+
+        <section class="section section-page is-active" id="page-step-01" data-title="사전 준비">
+            <div class="section-frame">
+            <header class="section-head">
+                <div class="section-title">
+                    <span class="step-num green">01</span>
+                    <div>
+                        <h2>사전 준비</h2>
+                        <p>Source DB에서 이관 대상의 DDL, 데이터, 운영 설정, 비교 기준 목록을 확보합니다.</p>
+                    </div>
+                </div>
+                <div class="section-tools">
+                    <span>실행 스크립트</span>
+                    <code>00_source.sh</code>
+                </div>
+            </header>
+            <div class="section-body">
+                <aside class="brief">
+                    <div class="brief-block">
+                        <h3>단계 목적</h3>
+                        <p>이관 전 원천 정보를 빠짐없이 수집해 이후 변환과 검증의 기준 데이터를 만듭니다.</p>
+                    </div>
+                    <div class="brief-block">
+                        <h3>핵심 산출물</h3>
+                        <ul>
+                            <li>Global, Pre-data, Data, Post-data DDL</li>
+                            <li>postgresql.conf 및 pg_hba.conf 기준 정보</li>
+                            <li>객체 수량과 상세 목록 리포트</li>
+                        </ul>
+                    </div>
+                </aside>
+                <div class="detail-table-wrap">
+                    <table>
+                        <caption>사전 준비 세부 작업</caption>
+                        <thead>
+                            <tr>
+                                <th>No</th>
+                                <th>작업</th>
+                                <th>내용</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>1</td>
+                                <td>Global 객체 추출</td>
+                                <td>Role, Tablespace, Database 등 전역 객체 DDL 추출</td>
+                            </tr>
+                            <tr>
+                                <td>2</td>
+                                <td>Database / Role 선택</td>
+                                <td>이관에서 제외할 대상 대화형 입력, Enter 입력 시 전체 대상 처리</td>
+                            </tr>
+                            <tr>
+                                <td>3</td>
+                                <td>Pre-data 추출</td>
+                                <td>Schema, Table, View, Function 등 주요 DDL 추출</td>
+                            </tr>
+                            <tr>
+                                <td>4</td>
+                                <td>Data 추출</td>
+                                <td>Table 내부에 저장된 실제 Data를 COPY 구문으로 추출</td>
+                            </tr>
+                            <tr>
+                                <td>5</td>
+                                <td>Post-data 추출</td>
+                                <td>Index, PK/FK 제약조건, Trigger 등 후처리 객체 추출</td>
+                            </tr>
+                            <tr>
+                                <td>6</td>
+                                <td>파라미터 추출</td>
+                                <td>PostgreSQL 호환 소스 DB의 postgresql.conf 환경 설정 추출</td>
+                            </tr>
+                            <tr>
+                                <td>7</td>
+                                <td>pg_hba.conf 추출</td>
+                                <td>클라이언트 IP 접속 허용 및 인증 규칙 추출</td>
+                            </tr>
+                            <tr>
+                                <td>8</td>
+                                <td>Object 목록 추출</td>
+                                <td>리포트용 객체별 수량 및 상세 목록 자동 생성</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            </div>
+        </section>
+
+        <section class="section section-page" id="page-step-02" data-title="데이터 변환">
+            <div class="section-frame">
+            <header class="section-head">
+                <div class="section-title">
+                    <span class="step-num purple">02</span>
+                    <div>
+                        <h2>데이터 변환</h2>
+                        <p>추출 결과에서 EDB 전용 옵션과 PostgreSQL 미지원 요소를 정리해 타겟 적용 가능한 산출물을 만듭니다.</p>
+                    </div>
+                </div>
+                <div class="section-tools">
+                    <span>실행 스크립트</span>
+                    <code>01_transfer.sh</code>
+                </div>
+            </header>
+            <div class="section-body">
+                <aside class="brief">
+                    <div class="brief-block">
+                        <h3>단계 목적</h3>
+                        <p>DDL, COPY 데이터, 환경 설정 스크립트를 PostgreSQL 호환 형식으로 표준화합니다.</p>
+                    </div>
+                    <div class="brief-block">
+                        <h3>핵심 산출물</h3>
+                        <ul>
+                            <li>변환된 Global, Schema, Post-data DDL</li>
+                            <li>Target 적용용 conf.sh 및 hba_conf.sh</li>
+                            <li>DB Link 매핑과 제외 객체 리포트</li>
+                        </ul>
+                    </div>
+                </aside>
+                <div class="detail-table-wrap">
+                    <table>
+                        <caption>데이터 변환 세부 작업</caption>
+                        <thead>
+                            <tr>
+                                <th>No</th>
+                                <th>작업</th>
+                                <th>내용</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>1</td>
+                                <td>Global DDL 변환</td>
+                                <td>PROFILE, Resource Group 등 EDB 전용 옵션 제거</td>
+                            </tr>
+                            <tr>
+                                <td>2</td>
+                                <td>Schema DDL 변환</td>
+                                <td>EDB 전용 타입 변환 및 Oracle 내장 함수를 PG 문법으로 정제</td>
+                            </tr>
+                            <tr>
+                                <td>3</td>
+                                <td>Data 변환 (COPY)</td>
+                                <td>일반 테이블의 COPY 구문을 PG 호환 형식으로 수정</td>
+                            </tr>
+                            <tr>
+                                <td>4</td>
+                                <td>Post-Data DDL 변환</td>
+                                <td>미지원 rowid 기반 Index 및 보안 정책(RLS) 제외 처리</td>
+                            </tr>
+                            <tr>
+                                <td>5</td>
+                                <td>파라미터 쉘 생성</td>
+                                <td>추출된 postgresql.conf 값을 타겟에 적용할 conf.sh 작성</td>
+                            </tr>
+                            <tr>
+                                <td>6</td>
+                                <td>pg_hba.conf 쉘 생성</td>
+                                <td>소스 접속 인증 규칙을 반영하는 hba_conf.sh 작성</td>
+                            </tr>
+                            <tr>
+                                <td>7</td>
+                                <td>DB Link 변환</td>
+                                <td>추출된 DB Link를 postgres_fdw / oracle_fdw 매핑으로 변환</td>
+                            </tr>
+                            <tr>
+                                <td>8</td>
+                                <td>제외 객체 자동 분류</td>
+                                <td>변환 불가 패키지(DBMS_*) 제외 및 Removed Report 작성</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            </div>
+        </section>
+
+        <section class="section section-page" id="page-step-03" data-title="데이터 이관">
+            <div class="section-frame">
+            <header class="section-head">
+                <div class="section-title">
+                    <span class="step-num">03</span>
+                    <div>
+                        <h2>데이터 이관</h2>
+                        <p>변환된 DDL과 데이터를 Target DB에 적재하고, 설정과 통계 정보를 이관 후 상태에 맞게 갱신합니다.</p>
+                    </div>
+                </div>
+                <div class="section-tools">
+                    <span>실행 스크립트</span>
+                    <code>02_import.sh</code>
+                </div>
+            </header>
+            <div class="section-body">
+                <aside class="brief">
+                    <div class="brief-block">
+                        <h3>단계 목적</h3>
+                        <p>Target DB에 객체와 데이터를 순차 반영해 서비스 가능한 기본 상태를 구성합니다.</p>
+                    </div>
+                    <div class="brief-block">
+                        <h3>핵심 산출물</h3>
+                        <ul>
+                            <li>Target DB 객체와 데이터 적재 결과</li>
+                            <li>동기화된 Sequence 값과 FDW 매핑</li>
+                            <li>import_logs 작업 이력</li>
+                        </ul>
+                    </div>
+                </aside>
+                <div class="detail-table-wrap">
+                    <table>
+                        <caption>데이터 이관 세부 작업</caption>
+                        <thead>
+                            <tr>
+                                <th>No</th>
+                                <th>작업</th>
+                                <th>내용</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>1</td>
+                                <td>Global 객체 이관</td>
+                                <td>Target DB에 Role, Tablespace, Database 순차 생성</td>
+                            </tr>
+                            <tr>
+                                <td>2</td>
+                                <td>Pre-Data 이관</td>
+                                <td>Schema, Table, View, Function 등 주요 객체 생성</td>
+                            </tr>
+                            <tr>
+                                <td>3</td>
+                                <td>Data 이관 (COPY)</td>
+                                <td>실제 Data 적재 및 Sequence의 현재 값 동기화</td>
+                            </tr>
+                            <tr>
+                                <td>4</td>
+                                <td>Post-Data 이관</td>
+                                <td>PK/FK 등의 제약조건과 Index, Trigger 생성</td>
+                            </tr>
+                            <tr>
+                                <td>5</td>
+                                <td>파라미터 적용</td>
+                                <td>호환 파라미터(conf.sh)를 타겟 postgresql.conf 하단에 추가</td>
+                            </tr>
+                            <tr>
+                                <td>6</td>
+                                <td>pg_hba.conf 적용</td>
+                                <td>기존 규칙 주석 처리 후 Source 환경과 동일한 접근 제어 추가</td>
+                            </tr>
+                            <tr>
+                                <td>7</td>
+                                <td>DB Link &amp; 통계 갱신</td>
+                                <td>FDW 연동 매핑 및 Vacuum Analyze를 통한 통계정보 갱신</td>
+                            </tr>
+                            <tr>
+                                <td>8</td>
+                                <td>작업 로그 확인</td>
+                                <td>모든 작업 import_logs 디렉터리 저장 및 진행 상태 모니터링</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            </div>
+        </section>
+
+        <section class="section section-page" id="page-step-04" data-title="이관 결과 검증">
+            <div class="section-frame">
+            <header class="section-head">
+                <div class="section-title">
+                    <span class="step-num orange">04</span>
+                    <div>
+                        <h2>이관 결과 검증</h2>
+                        <p>Source와 Target의 객체, 데이터, 시퀀스, 확장 모듈 차이를 비교해 정합성을 확인합니다.</p>
+                    </div>
+                </div>
+                <div class="section-tools">
+                    <span>실행 스크립트</span>
+                    <code>03_compare_objects.sh</code>
+                </div>
+            </header>
+            <div class="section-body">
+                <aside class="brief">
+                    <div class="brief-block">
+                        <h3>단계 목적</h3>
+                        <p>이관 누락, 값 차이, 예외 처리 대상을 분리해 후속 조치가 가능한 검증 결과를 만듭니다.</p>
+                    </div>
+                    <div class="brief-block">
+                        <h3>핵심 산출물</h3>
+                        <ul>
+                            <li>객체 유형별 카운트 비교 결과</li>
+                            <li>Table Row Count 및 Sequence 비교 결과</li>
+                            <li>MISSING, DIFF, EXCEPTION 상세 리포트</li>
+                        </ul>
+                    </div>
+                </aside>
+                <div class="detail-table-wrap">
+                    <table>
+                        <caption>이관 결과 검증 세부 작업</caption>
+                        <thead>
+                            <tr>
+                                <th>No</th>
+                                <th>작업</th>
+                                <th>내용</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>1</td>
+                                <td>Object Summary</td>
+                                <td>제외된 수량을 감안하여 유형별 객체 카운트 비교 및 검증</td>
+                            </tr>
+                            <tr>
+                                <td>2</td>
+                                <td>Table Row Count</td>
+                                <td>모든 Table의 데이터 행(Row) 개수 정합성 확인</td>
+                            </tr>
+                            <tr>
+                                <td>3</td>
+                                <td>Sequence Value</td>
+                                <td>Source와 Target의 시퀀스 last_value 값을 비교하여 동기화 점검</td>
+                            </tr>
+                            <tr>
+                                <td>4</td>
+                                <td>Partition Object</td>
+                                <td>부모/하위 파티션 구조 확인 및 단위별 데이터 건수 비교</td>
+                            </tr>
+                            <tr>
+                                <td>5</td>
+                                <td>Function / Procedure</td>
+                                <td>소스 대비 함수/프로시저 생성 누락 및 미지원 제외 확인</td>
+                            </tr>
+                            <tr>
+                                <td>6</td>
+                                <td>View / Index / Trigger</td>
+                                <td>부가 객체들의 누락(MISSING) 항목 정상 이관 여부 검증</td>
+                            </tr>
+                            <tr>
+                                <td>7</td>
+                                <td>Extension / DB Link</td>
+                                <td>확장 모듈 버전 정보 및 fdw 서버 매핑 변환 여부 비교</td>
+                            </tr>
+                            <tr>
+                                <td>8</td>
+                                <td>차이점 상세 리포팅</td>
+                                <td>MISSING, DIFF, EXCEPTION 등 차이점 사유 상세 로깅 및 요약</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        const introPage = document.querySelector(".intro-page");
+        const stepPages = [...document.querySelectorAll(".section-page")];
+        const stepRows = new Map(stepPages.map((page) => [page.id, [...page.querySelectorAll("tbody tr")]]));
+        let activePageIndex = -1;
+        let isLocked = false;
+        let lockTimer;
+        let touchStartY = 0;
+
+        function lockFor(duration) {
+            isLocked = true;
+            window.clearTimeout(lockTimer);
+            lockTimer = window.setTimeout(() => {
+                isLocked = false;
+            }, duration);
+        }
+
+        function clearTurnClasses(page) {
+            page?.classList.remove(
+                "is-turning-out-next",
+                "is-turning-in-next",
+                "is-turning-out-prev",
+                "is-turning-in-prev"
+            );
+        }
+
+        function setActiveRow(page, rowIndex) {
+            const rows = stepRows.get(page.id) || [];
+            rows.forEach((row, index) => {
+                row.classList.toggle("is-row-active", index === rowIndex);
+            });
+            page.dataset.activeRow = String(rowIndex);
+        }
+
+        function setActiveStep(targetId) {
+            stepPages.forEach((page) => {
+                const isActive = page.id === targetId;
+                page.classList.toggle("is-active", isActive);
+            });
+        }
+
+        function getNearestPageIndex() {
+            const anchor = window.scrollY + window.innerHeight * 0.5;
+            let nearestIndex = -1;
+            let nearestDistance = Math.abs(anchor - window.innerHeight * 0.5);
+
+            stepPages.forEach((page, index) => {
+                const center = page.offsetTop + page.offsetHeight * 0.5;
+                const distance = Math.abs(anchor - center);
+                if (distance < nearestDistance) {
+                    nearestIndex = index;
+                    nearestDistance = distance;
+                }
+            });
+
+            return nearestIndex;
+        }
+
+        function jumpToPage(index, rowIndex = 0) {
+            if (index < 0) {
+                activePageIndex = -1;
+                stepPages.forEach((page) => page.classList.remove("is-active"));
+                window.scrollTo({ top: 0, behavior: "auto" });
+                return;
+            }
+
+            const page = stepPages[index];
+            if (!page) {
+                return;
+            }
+
+            activePageIndex = index;
+            setActiveRow(page, rowIndex);
+            setActiveStep(page.id);
+            window.scrollTo({ top: page.offsetTop, behavior: "auto" });
+        }
+
+        function turnToPage(index, rowIndex, direction) {
+            const outgoingPage = activePageIndex < 0 ? introPage : stepPages[activePageIndex];
+            const incomingPage = stepPages[index];
+
+            if (!incomingPage) {
+                return;
+            }
+
+            lockFor(760);
+            clearTurnClasses(outgoingPage);
+            clearTurnClasses(incomingPage);
+            outgoingPage?.classList.add(direction > 0 ? "is-turning-out-next" : "is-turning-out-prev");
+
+            window.setTimeout(() => {
+                clearTurnClasses(outgoingPage);
+                jumpToPage(index, rowIndex);
+                incomingPage.classList.add(direction > 0 ? "is-turning-in-next" : "is-turning-in-prev");
+
+                window.setTimeout(() => {
+                    clearTurnClasses(incomingPage);
+                }, 440);
+            }, 260);
+        }
+
+        function turnToIntro(direction) {
+            const outgoingPage = stepPages[activePageIndex];
+
+            lockFor(760);
+            clearTurnClasses(outgoingPage);
+            clearTurnClasses(introPage);
+            outgoingPage?.classList.add(direction > 0 ? "is-turning-out-next" : "is-turning-out-prev");
+
+            window.setTimeout(() => {
+                clearTurnClasses(outgoingPage);
+                jumpToPage(-1);
+                introPage.classList.add(direction > 0 ? "is-turning-in-next" : "is-turning-in-prev");
+
+                window.setTimeout(() => {
+                    clearTurnClasses(introPage);
+                }, 440);
+            }, 260);
+        }
+
+        function moveHighlight(direction) {
+            if (isLocked) {
+                return;
+            }
+
+            if (activePageIndex < 0) {
+                if (direction > 0) {
+                    turnToPage(0, 0, direction);
+                }
+                return;
+            }
+
+            const page = stepPages[activePageIndex];
+            const rows = stepRows.get(page.id) || [];
+            const currentRow = Number(page.dataset.activeRow || 0);
+
+            if (direction > 0) {
+                if (currentRow < rows.length - 1) {
+                    lockFor(120);
+                    setActiveRow(page, currentRow + 1);
+                    return;
+                }
+
+                if (activePageIndex < stepPages.length - 1) {
+                    turnToPage(activePageIndex + 1, 0, direction);
+                }
+                return;
+            }
+
+            if (currentRow > 0) {
+                lockFor(120);
+                setActiveRow(page, currentRow - 1);
+                return;
+            }
+
+            if (activePageIndex > 0) {
+                const prevPage = stepPages[activePageIndex - 1];
+                const prevRows = stepRows.get(prevPage.id) || [];
+                turnToPage(activePageIndex - 1, Math.max(0, prevRows.length - 1), direction);
+                return;
+            }
+
+            turnToIntro(direction);
+        }
+
+        function syncPageFromScroll() {
+            const nearestIndex = getNearestPageIndex();
+            if (nearestIndex >= 0 && nearestIndex !== activePageIndex) {
+                activePageIndex = nearestIndex;
+                setActiveStep(stepPages[nearestIndex].id);
+            }
+        }
+
+        stepPages.forEach((page) => {
+            setActiveRow(page, 0);
+        });
+
+        window.addEventListener("wheel", (event) => {
+            event.preventDefault();
+            moveHighlight(event.deltaY > 0 ? 1 : -1);
+        }, { passive: false });
+
+        window.addEventListener("keydown", (event) => {
+            const downKeys = ["ArrowDown", "PageDown", " "];
+            const upKeys = ["ArrowUp", "PageUp"];
+
+            if (downKeys.includes(event.key) || upKeys.includes(event.key)) {
+                event.preventDefault();
+                moveHighlight(downKeys.includes(event.key) ? 1 : -1);
+            }
+        });
+
+        window.addEventListener("touchstart", (event) => {
+            touchStartY = event.touches[0]?.clientY || 0;
+        }, { passive: true });
+
+        window.addEventListener("touchend", (event) => {
+            const endY = event.changedTouches[0]?.clientY || touchStartY;
+            const delta = touchStartY - endY;
+            if (Math.abs(delta) > 38) {
+                moveHighlight(delta > 0 ? 1 : -1);
+            }
+        }, { passive: true });
+
+        window.addEventListener("resize", syncPageFromScroll);
+        syncPageFromScroll();
+    </script>
+</body>
+
+</html>

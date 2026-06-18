@@ -20,6 +20,17 @@ DEFAULT VALUE	dbms_aq	dequeue_options_t	correlation	NULL::character varying
 DEFAULT VALUE	dbms_aq	dequeue_options_t	deq_condition	NULL::character varying
 DEFAULT VALUE	dbms_aq	dequeue_options_t	transformation	NULL::character varying
 DEFAULT VALUE	dbms_aq	dequeue_options_t	delivery_mode	sys.dbms_aq.persistent
+DEFAULT VALUE	public	test1	id	nextval('test1_id_seq'::regclass)
+DEFAULT VALUE	public	test2	id	nextval('test2_id_seq'::regclass)
+DEFAULT VALUE	demo	customers	created_at	sysdate
+DEFAULT VALUE	demo	orders	ordered_at	sysdate
+DEFAULT VALUE	demo	customer_docs	created_at	sysdate
+DEFAULT VALUE	demo	large_text_chunks	created_at	sysdate
+DEFAULT VALUE	demo	large_binary_chunks	created_at	sysdate
+DEFAULT VALUE	demo_cron	batch_history	created_at	sysdate
+DEFAULT VALUE	demo_cron	txn_events	event_time	sysdate
+DEFAULT VALUE	demo_cron	sensor_metrics	metric_time	sysdate
+DEFAULT VALUE	demo_cron	payload_store	created_at	sysdate
 DEFAULT VALUE	public	a5	reg_date	sysdate
 DEFAULT VALUE	public	epas_emp_contracts	contract_date	systimestamp
 DEFAULT VALUE	public	t5	rowid	nextval('rowid_global_seq'::regclass)

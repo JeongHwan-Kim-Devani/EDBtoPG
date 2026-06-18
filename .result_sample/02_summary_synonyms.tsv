@@ -1,2 +1,6 @@
 synonym_schema	synname	synobjschema	synobjname	synlink
+demo	customer_syn	demo	customers	
+demo	order_syn	demo	orders	
+demo_cron	sample_job_pkg	demo_cron	pkg_sample_job	
+demo_cron	sample_payload	demo_cron	payload_store	
 public	test	public	test1234	
